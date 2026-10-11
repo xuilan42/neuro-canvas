@@ -4,6 +4,7 @@ package com.example.neurocanvas.module;
 public final class Zoom extends Module {
     private final Setting factor = add(Setting.number("Zoom", 1.5, 20, 4));
     private final Setting smooth = add(Setting.bool("Smooth", true));
+    private final Setting slowAim = add(Setting.number("Lower sensitivity", 0, 1, 1));
 
     private double current = 1.0;
     private long lastNano = System.nanoTime();
@@ -12,6 +13,14 @@ public final class Zoom extends Module {
         super("Zoom", Category.WORLD, "Zoom in while the key is held (default C)", false);
         key = 67;
         hold = true;
+    }
+
+    /**
+     * How much the mouse movement is multiplied while zoomed. At 1 it is exactly as slow as the picture is enlarged
+     * (4x zoom, a quarter of the speed), so aiming stays steady; 0 leaves the sensitivity alone.
+     */
+    public double sensitivityScale() {
+        return current > 1.001 ? 1.0 + (1.0 / current - 1.0) * slowAim.value : 1.0;
     }
 
     /** Called once per frame with the vanilla field of view; returns the zoomed one. */
