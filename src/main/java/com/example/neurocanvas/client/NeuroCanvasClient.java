@@ -20,6 +20,7 @@ import com.example.neurocanvas.module.CombatStats;
 import com.example.neurocanvas.module.Cooldowns;
 import com.example.neurocanvas.module.Comfort;
 import com.example.neurocanvas.module.Cosmetics;
+import com.example.neurocanvas.module.CropInfo;
 import com.example.neurocanvas.module.Crosshair;
 import com.example.neurocanvas.module.CustomFog;
 import com.example.neurocanvas.module.CustomHitbox;
@@ -136,6 +137,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         Cosmetics cosmetics = new Cosmetics(dir.resolve("cosmetics"));
         modules.register(cosmetics);
         modules.register(new VolumetricFog());
+        modules.register(new CropInfo());
         modules.register(new FreeLook());
         modules.register(new FreeCam());
         modules.register(new NoRender());

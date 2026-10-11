@@ -30,13 +30,16 @@
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
 | **Misc** | Interface (themes, fonts, effects) |
 | **NeuroAura** | ИИ-чат (ниже) |
 
 Про некоторые модули:
 
+- **CropInfo** показывает для растения, на которое вы смотрите (пшеница, морковь, картофель, свёкла, стебли арбуза и тыквы, адский нарост, какао, сладкие ягоды, саженцы),
+  рост в процентах с полоской и примерно сколько осталось. Время усреднённое, считается по шансам случайных тиков самой игры (укажите *Random tick speed* равным
+  `randomTickSpeed` вашего сервера, по умолчанию 3) и по реальной влажности и соседям грядки; ещё мод предупреждает, если света для роста мало.
 - **Teams** определяет тиммейтов (одна команда на скорборде, цвет ника, цвет в табе, цвет окрашенной брони или ручной список),
   чтобы модули с целями их пропускали. Команды: `/teams add <ник>`, `/teams remove <ник>`, `/teams list`, `/teams clear`.
 - **FakePlayer** ставит болванку, которую видите только вы: с здоровьем, бронёй, отбрасыванием, анимацией смерти и мгновенным респавном по желанию.
