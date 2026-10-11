@@ -19,6 +19,7 @@ import com.example.neurocanvas.module.CombatNotifier;
 import com.example.neurocanvas.module.CombatStats;
 import com.example.neurocanvas.module.Cooldowns;
 import com.example.neurocanvas.module.Comfort;
+import com.example.neurocanvas.module.Cosmetics;
 import com.example.neurocanvas.module.Crosshair;
 import com.example.neurocanvas.module.CustomFog;
 import com.example.neurocanvas.module.CustomHitbox;
@@ -131,6 +132,8 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new CustomHitbox());
         FakePlayer fakePlayer = new FakePlayer();
         modules.register(fakePlayer);
+        Cosmetics cosmetics = new Cosmetics(dir.resolve("cosmetics"));
+        modules.register(cosmetics);
         modules.register(new FreeLook());
         modules.register(new FreeCam());
         modules.register(new NoRender());
@@ -223,6 +226,16 @@ public class NeuroCanvasClient implements ClientModInitializer {
                 }))
                 .then(literal("heal").executes(ctx -> {
                     fakePlayer.healFully();
+                    return 1;
+                }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("cosmetics")
+                .then(literal("reload").executes(ctx -> {
+                    cosmetics.rescan();
+                    say("[Cosmetics] model list reloaded");
+                    return 1;
+                }))
+                .then(literal("info").executes(ctx -> {
+                    say("[Cosmetics] " + cosmetics.info());
                     return 1;
                 }))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("neurotag")

@@ -10,7 +10,7 @@ public final class Setting {
     public final Kind kind;
     public final double min;
     public final double max;
-    public final String[] options;
+    public String[] options;
     public double value;
 
     private Setting(String name, Kind kind, double min, double max, double value, String[] options) {
@@ -70,6 +70,11 @@ public final class Setting {
 
     public String option() {
         return options[index()];
+    }
+
+    /** Replaces the list of options of a choice setting (for lists that depend on files on disk). */
+    public void setOptions(String... newOptions) {
+        options = newOptions;
     }
 
     public void cycle(int dir) {

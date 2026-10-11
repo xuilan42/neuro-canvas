@@ -28,7 +28,7 @@ Java 17 or newer is required.
 
 | Category | Modules |
 |---|---|
-| **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
+| **Visuals** | Cosmetics, NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -43,6 +43,20 @@ Notes on a few modules:
   instant respawn, for testing combat modules. Commands: `/fake spawn [name]`, `/fake remove`, `/fake heal`.
 - **Predictions** (also shows pearls, arrows, tridents and potions already in the air, with the time until they land), **Arrow**, **CustomHitbox** and **ESP** only draw information (ESP hides behind blocks unless you turn on *Through walls*); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
   Some servers do not allow such helpers, so check the rules of the server you play on.
+
+## Cosmetics (your own 3D model)
+
+A model that hovers behind you like a stand. Built-in: **Phantom**. Your own: put a folder into `neurocanvas/cosmetics/<name>/` with an
+`.obj` model and `.png` textures, then `/cosmetics reload` and pick it in the module. An optional `cosmetic.json` can name the files:
+
+```json
+{ "model": "model.obj", "texture": "atlas.png", "partTextures": { "eye": "eyes.png" }, "yawOffset": 0, "flipFront": false }
+```
+
+Models are optimised when they load, so heavy ones stay cheap: **Triangle budget** (vertex clustering, every part simplified on its own so
+small parts keep their shape) and **Texture size** (Original / 1024 / 512 / 256). `/cosmetics info` shows the result. Arms of a model in a T-pose
+can be lowered or raised with **Arm pose** and swing forward in turns when you hit (**Strike on hit**). Models are not part of this repository;
+check the license of what you download. It is only visible on your own screen.
 
 ## NameTags (plate over other users)
 
