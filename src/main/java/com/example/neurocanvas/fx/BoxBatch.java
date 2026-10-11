@@ -40,6 +40,7 @@ public final class BoxBatch {
         if (boxes.isEmpty()) {
             return;
         }
+        Vec3d cam = MinecraftClient.getInstance().gameRenderer.getCamera().getPos();
         if (depthTest) {
             RenderSystem.enableDepthTest();
         } else {
@@ -49,7 +50,7 @@ public final class BoxBatch {
             RenderSystem.depthMask(false);
             Fills fills = Fills.begin(env);
             for (int i = 0; i < boxes.size(); i++) {
-                fills.box(boxes.get(i), ((int) (255 * fillAlpha) << 24) | (colors.get(i) & 0xFFFFFF));
+                fills.boxFront(boxes.get(i), ((int) (255 * fillAlpha) << 24) | (colors.get(i) & 0xFFFFFF), cam);
             }
             fills.end();
             RenderSystem.depthMask(true);
@@ -58,7 +59,7 @@ public final class BoxBatch {
             Lines lines = Lines.begin(env, width);
             if (outline) {
                 for (int i = 0; i < boxes.size(); i++) {
-                    lines.box(boxes.get(i), colors.get(i));
+                    lines.boxFront(boxes.get(i), colors.get(i), cam);
                 }
             }
             if (extraLines != null) {

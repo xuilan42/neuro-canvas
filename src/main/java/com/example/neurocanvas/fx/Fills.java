@@ -6,6 +6,7 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 /** A batch of translucent filled boxes. The caller has already set blending and the position-colour shader. */
@@ -38,6 +39,20 @@ public final class Fills {
         side(x0, z1, x0, z0, y0, y1, bottom, top);
         cap(x0, x1, y1, z0, z1, top);
         cap(x0, x1, y0, z0, z1, bottom);
+    }
+
+    /** Only the faces that point towards the camera (all of them when the camera is inside the box). */
+    public void boxFront(Box bx, int argb, Vec3d cam) {
+        float x0 = (float) bx.minX, y0 = (float) bx.minY, z0 = (float) bx.minZ;
+        float x1 = (float) bx.maxX, y1 = (float) bx.maxY, z1 = (float) bx.maxZ;
+        boolean fxn = cam.x < x0, fxp = cam.x > x1, fyn = cam.y < y0, fyp = cam.y > y1, fzn = cam.z < z0, fzp = cam.z > z1;
+        boolean inside = !(fxn || fxp || fyn || fyp || fzn || fzp);
+        if (inside || fzn) side(x0, z0, x1, z0, y0, y1, argb, argb);
+        if (inside || fxp) side(x1, z0, x1, z1, y0, y1, argb, argb);
+        if (inside || fzp) side(x1, z1, x0, z1, y0, y1, argb, argb);
+        if (inside || fxn) side(x0, z1, x0, z0, y0, y1, argb, argb);
+        if (inside || fyp) cap(x0, x1, y1, z0, z1, argb);
+        if (inside || fyn) cap(x0, x1, y0, z0, z1, argb);
     }
 
     private void side(float xa, float za, float xb, float zb, float y0, float y1, int bottom, int top) {

@@ -8,6 +8,7 @@ import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -61,6 +62,31 @@ public final class Lines {
         line(x1, y0, z0, x1, y1, z0, argb);
         line(x1, y0, z1, x1, y1, z1, argb);
         line(x0, y0, z1, x0, y1, z1, argb);
+    }
+
+    /**
+     * A box seen from the camera: an edge is drawn only if at least one of the two faces it joins faces the camera,
+     * so the far edges stay hidden. When the camera is inside the box every edge is drawn.
+     */
+    public void boxFront(Box bx, int argb, Vec3d cam) {
+        double x0 = bx.minX, y0 = bx.minY, z0 = bx.minZ, x1 = bx.maxX, y1 = bx.maxY, z1 = bx.maxZ;
+        boolean fxn = cam.x < x0, fxp = cam.x > x1, fyn = cam.y < y0, fyp = cam.y > y1, fzn = cam.z < z0, fzp = cam.z > z1;
+        if (!(fxn || fxp || fyn || fyp || fzn || fzp)) {
+            box(bx, argb);
+            return;
+        }
+        if (fyn || fzn) line(x0, y0, z0, x1, y0, z0, argb);
+        if (fyn || fxp) line(x1, y0, z0, x1, y0, z1, argb);
+        if (fyn || fzp) line(x1, y0, z1, x0, y0, z1, argb);
+        if (fyn || fxn) line(x0, y0, z1, x0, y0, z0, argb);
+        if (fyp || fzn) line(x0, y1, z0, x1, y1, z0, argb);
+        if (fyp || fxp) line(x1, y1, z0, x1, y1, z1, argb);
+        if (fyp || fzp) line(x1, y1, z1, x0, y1, z1, argb);
+        if (fyp || fxn) line(x0, y1, z1, x0, y1, z0, argb);
+        if (fxn || fzn) line(x0, y0, z0, x0, y1, z0, argb);
+        if (fxp || fzn) line(x1, y0, z0, x1, y1, z0, argb);
+        if (fxp || fzp) line(x1, y0, z1, x1, y1, z1, argb);
+        if (fxn || fzp) line(x0, y0, z1, x0, y1, z1, argb);
     }
 
     /** Sends the batch and restores the shader and line width other modules expect. */
