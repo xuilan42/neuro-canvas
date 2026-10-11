@@ -66,6 +66,7 @@ public final class Particles extends Module {
     private ShaderProgram program;
     private ShaderProgram programAdd;
     private boolean failed;
+    private boolean reported;
     private double lastT;
     private double spawnCarry;
     private Vec3d lastCenter;
@@ -236,18 +237,75 @@ public final class Particles extends Module {
         if (list.isEmpty()) {
             return;
         }
-        try {
-            if (program == null) {
-                program = new ShaderProgram(mc.getResourceManager(), "neurocanvas:neuro_particle", VertexFormats.POSITION_TEXTURE_COLOR);
-                programAdd = new ShaderProgram(mc.getResourceManager(), "neurocanvas:neuro_particle_add", VertexFormats.POSITION_TEXTURE_COLOR);
+        if (program == null) {
+            program = com.example.neurocanvas.fx.Shaders.get("neuro_particle");
+            programAdd = com.example.neurocanvas.fx.Shaders.get("neuro_particle_add");
+        }
+        ShaderProgram shader = glow.on() ? programAdd : program;
+        if (shader == null) {
+            if (!reported) {
+                reported = true;
+                String why = com.example.neurocanvas.fx.Shaders.error(glow.on() ? "neuro_particle_add" : "neuro_particle");
+                player.sendMessage(Text.literal("[Particles] the shader could not be built (" + why
+                        + "). Showing plain squares instead. Press \"Precompile shaders\" in Interface for the full report."), false);
             }
-            draw(env, center, fade, glow.on() ? programAdd : program);
+            drawFallback(env, center, fade);
+            return;
+        }
+        try {
+            draw(env, center, fade, shader);
         } catch (Throwable e) {
-            failed = true;
-            if (player != null) {
-                player.sendMessage(Text.literal("[Particles] shader failed (" + e.getClass().getSimpleName() + "), module paused."), false);
+            program = null;
+            programAdd = null;
+            if (!reported) {
+                reported = true;
+                player.sendMessage(Text.literal("[Particles] drawing failed (" + e.getClass().getSimpleName() + ": " + e.getMessage() + ")."), false);
             }
         }
+    }
+
+    /** Used when the shader cannot be built: every particle is a plain coloured square, so something is always visible. */
+    private void drawFallback(RenderEnv env, Vec3d center, double fade) {
+        double t = env.t();
+        double yaw = Math.toRadians(env.camYaw());
+        double pitch = Math.toRadians(env.camPitch());
+        float cy = (float) Math.cos(yaw), sy = (float) Math.sin(yaw);
+        float cp = (float) Math.cos(pitch), sp = (float) Math.sin(pitch);
+        float fx = -sy * cp, fy = -sp, fz = cy * cp;
+        float rx = cy, rz = sy;
+        float ux = fy * sy, uy = fz * cy - fx * sy, uz = -fy * cy;
+        Matrix4f m = env.m();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
+        double fadeStart = fade * 0.72;
+        for (P p : list) {
+            float ageFrac = p.age / p.life;
+            double dist = Math.sqrt((p.x - center.x) * (p.x - center.x) + (p.y - center.y) * (p.y - center.y) + (p.z - center.z) * (p.z - center.z));
+            float a = alpha.f() * MathHelper.clamp(ageFrac / 0.15f, 0f, 1f) * MathHelper.clamp((1f - ageFrac) / 0.25f, 0f, 1f);
+            a *= (float) (1.0 - MathHelper.clamp((dist - fadeStart) / (fade - fadeStart), 0.0, 1.0));
+            float[] c = colorOf(p, ageFrac, t);
+            a *= c[3];
+            if (a <= 0.004f) {
+                continue;
+            }
+            for (int k = 0; k < 4; k++) {
+                float cu = k == 0 || k == 3 ? -1f : 1f;
+                float cv = k < 2 ? -1f : 1f;
+                b.vertex(m, (float) p.x + (rx * cu + ux * cv) * p.size, (float) p.y + (uy * cv) * p.size,
+                        (float) p.z + (rz * cu + uz * cv) * p.size).color(c[0], c[1], c[2], a).next();
+            }
+        }
+        tess.draw();
+        RenderSystem.depthMask(true);
+        RenderSystem.enableCull();
+        RenderSystem.disableDepthTest();
     }
 
     private void draw(RenderEnv env, Vec3d center, double fade, ShaderProgram shader) {

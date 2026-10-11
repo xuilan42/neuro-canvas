@@ -233,6 +233,19 @@ public class NeuroCanvasClient implements ClientModInitializer {
                     fakePlayer.healFully();
                     return 1;
                 }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("shaders")
+                .executes(ctx -> {
+                    for (String line : com.example.neurocanvas.fx.Shaders.compileAll(false)) {
+                        say("[Shaders] " + line);
+                    }
+                    return 1;
+                })
+                .then(literal("recompile").executes(ctx -> {
+                    for (String line : com.example.neurocanvas.fx.Shaders.compileAll(true)) {
+                        say("[Shaders] " + line);
+                    }
+                    return 1;
+                }))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("theme")
                 .then(literal("list").executes(ctx -> {
                     StringBuilder names = new StringBuilder();

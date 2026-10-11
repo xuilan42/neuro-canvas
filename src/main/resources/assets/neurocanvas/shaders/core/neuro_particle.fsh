@@ -27,7 +27,7 @@ float shapeMask(int shape, vec2 p) {
         vec2 inner = 0.42 * vec2(cos(0.6283185), sin(0.6283185));
         vec2 e = inner - tip;
         vec2 n = normalize(vec2(e.y, -e.x));
-        return smoothstep(0.045, -0.045, dot(q - tip, n)) * (0.85 + 0.15 * smoothstep(0.6, 0.0, r));
+        return (1.0 - smoothstep(-0.045, 0.045, dot(q - tip, n))) * (0.85 + 0.15 * (1.0 - smoothstep(0.0, 0.6, r)));
     }
     if (shape == 2) {
         vec2 q = abs(p);
@@ -36,15 +36,15 @@ float shapeMask(int shape, vec2 p) {
         return clamp(flare + core * 0.8, 0.0, 1.0) * edgeFade(r);
     }
     if (shape == 3) {
-        return smoothstep(0.98, 0.8, r);
+        return (1.0 - smoothstep(0.8, 0.98, r));
     }
     if (shape == 4) {
-        return smoothstep(0.17, 0.05, abs(r - 0.72)) * 1.0;
+        return (1.0 - smoothstep(0.05, 0.17, abs(r - 0.72))) * 1.0;
     }
     if (shape == 5) {
         float d = abs(p.x) * 0.9 + abs(p.y) * 1.1;
-        float body = smoothstep(0.92, 0.82, d);
-        return body * (0.75 + 0.25 * smoothstep(0.7, 0.0, d));
+        float body = (1.0 - smoothstep(0.82, 0.92, d));
+        return body * (0.75 + 0.25 * (1.0 - smoothstep(0.0, 0.7, d)));
     }
     if (shape == 6) {
         vec2 h = vec2(p.x * 1.4, p.y * 1.4 + 0.2);
@@ -52,17 +52,17 @@ float shapeMask(int shape, vec2 p) {
         float f = q * q * q - h.x * h.x * h.y * h.y * h.y;
         // fwidth turns the implicit value into roughly one pixel of edge softness everywhere along the outline.
         float soft = clamp(0.5 - f / max(fwidth(f), 1e-5), 0.0, 1.0);
-        return soft * (0.85 + 0.15 * smoothstep(0.9, 0.0, r));
+        return soft * (0.85 + 0.15 * (1.0 - smoothstep(0.0, 0.9, r)));
     }
     float af = abs(mod(a + 0.5235988, 1.0471976) - 0.5235988);
     vec2 l = r * vec2(cos(af), sin(af));
-    float arm = smoothstep(0.075, 0.02, l.y) * step(l.x, 0.95);
+    float arm = (1.0 - smoothstep(0.02, 0.075, l.y)) * step(l.x, 0.95);
     vec2 dir = vec2(0.5, 0.8660254);
     vec2 v1 = l - vec2(0.38, 0.0);
-    float b1 = smoothstep(0.06, 0.015, length(v1 - dir * clamp(dot(v1, dir), 0.0, 0.3)));
+    float b1 = (1.0 - smoothstep(0.015, 0.06, length(v1 - dir * clamp(dot(v1, dir), 0.0, 0.3))));
     vec2 v2 = l - vec2(0.62, 0.0);
-    float b2 = smoothstep(0.06, 0.015, length(v2 - dir * clamp(dot(v2, dir), 0.0, 0.2)));
-    float hub = smoothstep(0.16, 0.08, r);
+    float b2 = (1.0 - smoothstep(0.015, 0.06, length(v2 - dir * clamp(dot(v2, dir), 0.0, 0.2))));
+    float hub = (1.0 - smoothstep(0.08, 0.16, r));
     return clamp(arm + b1 + b2 + hub, 0.0, 1.0);
 }
 

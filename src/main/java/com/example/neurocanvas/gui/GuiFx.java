@@ -67,7 +67,11 @@ public final class GuiFx {
         try {
             ctx.draw();
             if (blur == null) {
-                blur = new ShaderProgram(mc.getResourceManager(), "neurocanvas:neuro_blur", VertexFormats.POSITION);
+                blur = com.example.neurocanvas.fx.Shaders.get("neuro_blur");
+                if (blur == null) {
+                    blurFailed = true;
+                    return;
+                }
             }
             Framebuffer main = mc.getFramebuffer();
             int w = Math.max(2, main.textureWidth / 2);
@@ -122,7 +126,11 @@ public final class GuiFx {
         try {
             ctx.draw();
             if (ui == null) {
-                ui = new ShaderProgram(mc.getResourceManager(), "neurocanvas:neuro_ui", VertexFormats.POSITION);
+                ui = com.example.neurocanvas.fx.Shaders.get("neuro_ui");
+                if (ui == null) {
+                    uiFailed = true;
+                    return;
+                }
             }
             double scale = mc.getWindow().getScaleFactor();
             int fbh = mc.getWindow().getFramebufferHeight();

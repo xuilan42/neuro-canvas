@@ -117,7 +117,11 @@ public final class VolumetricFog extends Module {
         }
         try {
             if (program == null) {
-                program = new ShaderProgram(mc.getResourceManager(), "neurocanvas:neuro_fog", VertexFormats.POSITION);
+                program = com.example.neurocanvas.fx.Shaders.get("neuro_fog");
+                if (program == null) {
+                    fail(mc, "shader neuro_fog: " + com.example.neurocanvas.fx.Shaders.error("neuro_fog"));
+                    return;
+                }
             }
             Framebuffer main = mc.getFramebuffer();
             if (depthCopy == null) {
@@ -192,10 +196,7 @@ public final class VolumetricFog extends Module {
     public void retry() {
         failed = false;
         reported = false;
-        if (program != null) {
-            program.close();
-            program = null;
-        }
+        program = null;
         status = "retrying";
     }
 }

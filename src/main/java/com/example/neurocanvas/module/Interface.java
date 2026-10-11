@@ -44,6 +44,8 @@ public final class Interface extends Module {
     private final Setting updates = add(Setting.bool("Check for updates", true));
     private final Setting applyPack = add(Setting.button("Apply theme pack"));
     private final Setting fromImage = add(Setting.button("Theme from image"));
+    private final Setting precompile = add(Setting.button("Precompile shaders"));
+    private final Setting precompileOnJoin = add(Setting.bool("Precompile shaders on join", true));
     private final Setting reloadThemes = add(Setting.button("Reload themes"));
     private final Setting openThemes = add(Setting.button("Open themes folder"));
 
@@ -72,6 +74,7 @@ public final class Interface extends Module {
     private boolean dynInit;
     private long dynLast;
     private int imageCounter;
+    private boolean joined;
 
     public Interface(Path themesDir, Path serversFile) {
         super("Interface", Category.MISC, "Theme, accent colour, auto themes, theme editor, font, animations and sounds", true);
@@ -386,6 +389,25 @@ public final class Interface extends Module {
             } else {
                 say(mc, themeFromImage(file));
             }
+        }
+        if (precompile.on()) {
+            precompile.set(0);
+            say(mc, "compiling shaders...");
+            for (String line : com.example.neurocanvas.fx.Shaders.compileAll(true)) {
+                say(mc, "  " + line);
+            }
+        }
+        if (mc.player != null && !joined) {
+            joined = true;
+            if (precompileOnJoin.on() && !com.example.neurocanvas.fx.Shaders.allReady()) {
+                for (String line : com.example.neurocanvas.fx.Shaders.compileAll(false)) {
+                    if (line.contains("FAILED")) {
+                        say(mc, line);
+                    }
+                }
+            }
+        } else if (mc.player == null) {
+            joined = false;
         }
         if (reloadThemes.on()) {
             reloadThemes.set(0);
