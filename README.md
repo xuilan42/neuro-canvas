@@ -37,6 +37,9 @@ Java 17 or newer is required.
 
 Notes on a few modules:
 
+- **Particles** are ambient particles around you: they appear at random spots inside *Spawn radius*, drift wherever they like (*Speed*, *Wander*, *Gravity*),
+  bounce off blocks (*Bounciness*), and fade out when they get past *Fade-out radius* or too old (*Lifetime*). Shapes are drawn by a shader: glow (firefly), star, sparkle,
+  dot, ring, diamond, heart, snowflake, or a mix. Colours: *Gradient* over their life, *Random mix* of the two colours, *Rainbow* or *Single*; plus *Twinkle* and *Glow blending*.
 - **CropInfo** shows, for the plant you look at (wheat, carrots, potatoes, beetroots, melon and pumpkin stems, nether wart, cocoa, sweet berries, saplings),
   the growth in percent with a bar and about how long is left. The time is an average based on the game's own random-tick chances (set *Random tick speed*
   to your server's `randomTickSpeed`, default 3) and on the real moisture and neighbours of the crop; it also warns when there is too little light to grow.
