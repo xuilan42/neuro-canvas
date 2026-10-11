@@ -27,7 +27,7 @@ Java 17 or newer is required.
 
 | Category | Modules |
 |---|---|
-| **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
+| **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
@@ -42,6 +42,14 @@ Notes on a few modules:
   instant respawn, for testing combat modules. Commands: `/fake spawn [name]`, `/fake remove`, `/fake heal`.
 - **Predictions**, **Arrow** and **CustomHitbox** only draw information; **ToggleSprint** and **AutoRespawn** automate key presses.
   Some servers do not allow such helpers, so check the rules of the server you play on.
+
+## NameTags (plate over other users)
+
+Shows a "NeuroAura" plate above other players who run the mod on the same server. The mod keeps one connection to the
+project's presence server, so joining and leaving show up at once, it works on offline-mode servers, and one nick on two
+servers stays two entries. Off by default. It sends only the server address and your nick, and nicks are not verified.
+`/neurotag status` shows the connection state. The server address is set when the mod is built (`registry_url` in `gradle.properties`);
+the server itself is not part of this repository.
 
 ## NeuroAura (AI chat)
 

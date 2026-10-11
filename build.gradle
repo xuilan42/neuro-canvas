@@ -18,8 +18,12 @@ dependencies {
 
 processResources {
     inputs.property "version", project.version
+    inputs.property "registry_url", project.registry_url
     filesMatching("fabric.mod.json") {
         expand "version": project.version
+    }
+    filesMatching("neurocanvas-registry.properties") {
+        expand "registry_url": project.registry_url
     }
 }
 
