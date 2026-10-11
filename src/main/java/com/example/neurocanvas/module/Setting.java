@@ -4,7 +4,7 @@ import com.google.gson.JsonElement;
 
 /** One adjustable value of a module. Every kind is stored as a double so persistence stays trivial. */
 public final class Setting {
-    public enum Kind { NUMBER, BOOL, COLOR, CHOICE }
+    public enum Kind { NUMBER, BOOL, COLOR, CHOICE, BUTTON }
 
     public final String name;
     public final Kind kind;
@@ -46,6 +46,11 @@ public final class Setting {
 
     public void setArgb(int argb) {
         value = argb & 0xFFFFFFFFL;
+    }
+
+    /** A push button: the menu sets the value to 1 when clicked and the module resets it to 0 after reacting. */
+    public static Setting button(String name) {
+        return new Setting(name, Kind.BUTTON, 0, 1, 0, null);
     }
 
     public static Setting choice(String name, int def, String... options) {

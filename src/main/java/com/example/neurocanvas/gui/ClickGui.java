@@ -301,6 +301,12 @@ public final class ClickGui extends Screen {
     }
 
     private void renderSetting(DrawContext ctx, Theme th, Setting s, int y, int mx, int my) {
+        if (s.kind == Setting.Kind.BUTTON) {
+            boolean hover = inside(mx, my, ctrlX(), y + 2, CTRL_W, ROW_H - 4);
+            Ui.roundRect(ctx, ctrlX(), y + 2, CTRL_W, ROW_H - 4, 6, hover ? th.accent2() : th.accent());
+            Ui.textCentered(ctx, textRenderer, s.name, ctrlX() + CTRL_W / 2, y + (ROW_H - 8) / 2, th.bg() | 0xFF000000);
+            return;
+        }
         Ui.textMid(ctx, textRenderer, s.name, panelX() + PAD, y, ROW_H, th.text());
         int cx = ctrlX();
         switch (s.kind) {
@@ -693,6 +699,10 @@ public final class ClickGui extends Screen {
                 }
                 switch (s.kind) {
                     case BOOL -> s.set(s.on() ? 0 : 1);
+                    case BUTTON -> {
+                        s.value = 1;
+                        Interface.click(1.1f);
+                    }
                     case CHOICE -> s.cycle(button == 1 ? -1 : 1);
                     case COLOR -> openPicker(s, i + 2);
                     default -> {

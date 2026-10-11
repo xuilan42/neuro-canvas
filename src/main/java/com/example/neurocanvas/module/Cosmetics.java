@@ -65,8 +65,11 @@ public final class Cosmetics extends Module {
     private final Setting shading = add(Setting.number("Shading", 0, 1, 0.6));
     private final Setting flip = add(Setting.bool("Flip front", false));
     private final Setting yawFix = add(Setting.number("Rotation fix", -180, 180, 0));
+    private final Setting optimized = add(Setting.bool("Optimized", false));
     private final Setting budget = add(Setting.number("Triangle budget", 200, 30000, 6000));
     private final Setting textureCap = add(Setting.choice("Texture size", 1, TEXTURE_CAPS));
+    private final Setting applyOptimization = add(Setting.button("Apply optimization"));
+    private final Setting restoreOriginal = add(Setting.button("Restore original"));
     private final Setting armPose = add(Setting.choice("Arm pose", 1, "Off", "Down", "Ready"));
     private final Setting shoulderX = add(Setting.number("Shoulder width", 0.05, 0.45, 0.2));
     private final Setting shoulderY = add(Setting.number("Shoulder height", 0.3, 1, 0.78));
@@ -123,9 +126,9 @@ public final class Cosmetics extends Module {
                 // No models found.
             }
         }
-        List<String> options = new ArrayList<>();
+        // Your own models come first, so they are the default; the built-in one is the last choice.
+        List<String> options = new ArrayList<>(folders);
         options.add(BUILT_IN);
-        options.addAll(folders);
         model.setOptions(options.toArray(new String[0]));
         int index = options.indexOf(current);
         model.value = Math.max(0, index);
@@ -135,8 +138,9 @@ public final class Cosmetics extends Module {
 
     // ---- loading ----------------------------------------------------------------------------
 
+    /** The slider values are deliberately not part of the key: they only count when "Apply optimization" is pressed. */
     private String key() {
-        return model.option() + "|" + (int) budget.value + "|" + textureCap.index();
+        return model.option() + "|" + optimized.on();
     }
 
     private void request(String key, String option, int triangleBudget, int cap) {
@@ -333,13 +337,28 @@ public final class Cosmetics extends Module {
             pending = null;
             install(mc, r);
         }
+        boolean force = false;
+        if (applyOptimization.on()) {
+            applyOptimization.set(0);
+            optimized.set(1);
+            force = true;
+        }
+        if (restoreOriginal.on()) {
+            restoreOriginal.set(0);
+            optimized.set(0);
+        }
         String key = key();
-        if (!key.equals(loadedKey)) {
-            if (!key.equals(wantKey)) {
+        if (force || !key.equals(loadedKey)) {
+            if (force) {
+                loadedKey = "";
+            }
+            if (!key.equals(wantKey) && !force) {
                 wantKey = key;
                 stable = 0;
-            } else if (++stable >= 12 && !loading) {
-                request(key, model.option(), (int) budget.value, textureCap.index());
+            } else if ((force || ++stable >= 12) && !loading) {
+                wantKey = key;
+                boolean opt = optimized.on();
+                request(key, model.option(), opt ? (int) budget.value : Integer.MAX_VALUE, opt ? textureCap.index() : 0);
             }
         }
     }
