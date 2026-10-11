@@ -12,6 +12,37 @@ public record Theme(String name, int bg, int panel, int panel2, int hover, int a
             new Theme("Light", 0xF2F2F4F7, 0xFFE6E9EE, 0xFFD9DEE6, 0xFFCBD3DE, 0xFF3B82F6, 0xFF22C1C3, 0xFF1B2330, 0xFF5B677A),
             new Theme("Mono", 0xF20E0E0E, 0xFF171717, 0xFF202020, 0xFF2A2A2A, 0xFFFFFFFF, 0xFFB0B0B0, 0xFFF0F0F0, 0xFF8A8A8A));
 
+    public static int mixRgb(int a, int b, float t) {
+        return Ui.mix(a, b, t) | 0xFF000000;
+    }
+
+    private static int cachedKey;
+    private static Theme cached;
+
+    /** A whole palette derived from one accent colour: dark surfaces tinted with its hue. */
+    public static Theme fromAccent(int argb) {
+        if (cached != null && cachedKey == argb) {
+            return cached;
+        }
+        float[] hsb = java.awt.Color.RGBtoHSB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, null);
+        float h = hsb[0];
+        float s = Math.max(0.35f, hsb[1]);
+        float v = Math.max(0.65f, hsb[2]);
+        int accent = 0xFF000000 | (java.awt.Color.HSBtoRGB(h, s, v) & 0xFFFFFF);
+        int accent2 = 0xFF000000 | (java.awt.Color.HSBtoRGB((h + 0.07f) % 1f, s, v) & 0xFFFFFF);
+        float tint = Math.min(0.4f, s * 0.45f);
+        cached = new Theme("Accent",
+                0xF2000000 | (java.awt.Color.HSBtoRGB(h, tint, 0.07f) & 0xFFFFFF),
+                0xFF000000 | (java.awt.Color.HSBtoRGB(h, tint, 0.10f) & 0xFFFFFF),
+                0xFF000000 | (java.awt.Color.HSBtoRGB(h, tint, 0.14f) & 0xFFFFFF),
+                0xFF000000 | (java.awt.Color.HSBtoRGB(h, tint, 0.19f) & 0xFFFFFF),
+                accent, accent2,
+                0xFF000000 | (java.awt.Color.HSBtoRGB(h, 0.04f, 0.95f) & 0xFFFFFF),
+                0xFF000000 | (java.awt.Color.HSBtoRGB(h, 0.12f, 0.62f) & 0xFFFFFF));
+        cachedKey = argb;
+        return cached;
+    }
+
     public static String[] names() {
         return ALL.stream().map(Theme::name).toArray(String[]::new);
     }

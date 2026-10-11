@@ -21,7 +21,8 @@
 - Настройки цвета открывают **палитру** с прозрачностью.
 - Вкладка **Configs**: сохранение, загрузка и удаление пресетов, **код для обмена** (копируется в буфер обмена), импорт кода и редактор **положения HUD** (перетаскивание).
 - **Interface** (вкладка Misc): 6 тем, 3 встроенных шрифта с кириллицей, анимации.
-- Меню запоминает вкладку и модуль, на котором вы остановились.
+- Меню запоминает вкладку и модуль, на котором вы остановились. В **Interface** можно построить весь вид от одного акцентного цвета, применить его ко всем цветам модулей (перед этим сохраняется пресет «Before accent»), выбрать анимацию открытия, фон и звуки.
+- **Обновления:** при запуске мод один раз спрашивает публичный API GitHub, есть ли новый релиз, и сообщает в чате и в меню. Отключается пунктом *Check for updates* в Interface.
 
 ## Модули
 
@@ -30,7 +31,7 @@
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
-| **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
+| **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
 | **Misc** | Interface |
 | **NeuroAura** | ИИ-чат (ниже) |
 
@@ -40,7 +41,7 @@
   чтобы модули с целями их пропускали. Команды: `/teams add <ник>`, `/teams remove <ник>`, `/teams list`, `/teams clear`.
 - **FakePlayer** ставит болванку, которую видите только вы: с здоровьем, бронёй, отбрасыванием, анимацией смерти и мгновенным респавном по желанию.
   Нужна для проверки боевых модулей. Команды: `/fake spawn [имя]`, `/fake remove`, `/fake heal`.
-- **Predictions**, **Arrow**, **CustomHitbox** и **ESP** только показывают информацию (ESP скрыт за блоками, пока не включить *Through walls*), **FreeCam** отвязывает камеру, а **ToggleSprint** и **AutoRespawn** автоматизируют нажатия клавиш.
+- **Predictions** (показывает и уже летящие перлы, стрелы, трезубцы и зелья со временем до приземления), **Arrow**, **CustomHitbox** и **ESP** только показывают информацию (ESP скрыт за блоками, пока не включить *Through walls*), **FreeCam** отвязывает камеру, а **ToggleSprint** и **AutoRespawn** автоматизируют нажатия клавиш.
   На некоторых серверах такие помощники запрещены, смотрите правила своего сервера.
 
 ## NeuroAura (ИИ-чат)

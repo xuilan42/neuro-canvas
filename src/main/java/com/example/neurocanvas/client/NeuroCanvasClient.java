@@ -16,18 +16,22 @@ import com.example.neurocanvas.module.AutoRespawn;
 import com.example.neurocanvas.module.BlockOverlay;
 import com.example.neurocanvas.module.ColorGrading;
 import com.example.neurocanvas.module.CombatNotifier;
+import com.example.neurocanvas.module.CombatStats;
+import com.example.neurocanvas.module.Cooldowns;
 import com.example.neurocanvas.module.Comfort;
 import com.example.neurocanvas.module.Crosshair;
 import com.example.neurocanvas.module.CustomFog;
 import com.example.neurocanvas.module.CustomHitbox;
 import com.example.neurocanvas.module.CustomSky;
 import com.example.neurocanvas.module.DamageFeed;
+import com.example.neurocanvas.module.EffectsHud;
 import com.example.neurocanvas.module.Esp;
 import com.example.neurocanvas.module.FakePlayer;
 import com.example.neurocanvas.module.FreeCam;
 import com.example.neurocanvas.module.FreeLook;
 import com.example.neurocanvas.module.Fullbright;
 import com.example.neurocanvas.module.Hud;
+import com.example.neurocanvas.module.InfoHud;
 import com.example.neurocanvas.module.Interface;
 import com.example.neurocanvas.module.ItemPhysics;
 import com.example.neurocanvas.module.KillEffects;
@@ -109,6 +113,10 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new Crosshair());
         modules.register(new NeuroAura(AiConfig.load(dir.resolve("ai.json"))));
         modules.register(new PerformanceHud());
+        modules.register(new CombatStats());
+        modules.register(new InfoHud());
+        modules.register(new EffectsHud());
+        modules.register(new Cooldowns());
         modules.register(new ToggleSprint());
         modules.register(new AutoRespawn());
         modules.register(new ColorGrading());
@@ -149,6 +157,10 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new Interface());
         try {
             modules.load();
+            if (Interface.checkUpdates()) {
+                FabricLoader.getInstance().getModContainer("neurocanvas")
+                        .ifPresent(mod -> Updater.check(mod.getMetadata().getVersion().getFriendlyString()));
+            }
         } catch (IOException e) {
             LOGGER.error("Cannot load config", e);
         }
@@ -158,6 +170,12 @@ public class NeuroCanvasClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             state.tick(mc);
             pollKeybinds(mc);
+            if (mc.player != null && Updater.takeNotice()) {
+                mc.player.sendMessage(net.minecraft.text.Text.literal("[Neuro Canvas] Update " + Updater.latest()
+                        + " is available. Click here to open the download page.").styled(style -> style
+                        .withClickEvent(new net.minecraft.text.ClickEvent(net.minecraft.text.ClickEvent.Action.OPEN_URL, Updater.url()))
+                        .withUnderline(true)), false);
+            }
             while (openGui.wasPressed()) {
                 mc.setScreen(new ClickGui());
             }

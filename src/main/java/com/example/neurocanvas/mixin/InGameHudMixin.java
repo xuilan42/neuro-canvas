@@ -4,6 +4,7 @@ import com.example.neurocanvas.client.NeuroCanvasClient;
 import com.example.neurocanvas.module.ColorGrading;
 import com.example.neurocanvas.module.Comfort;
 import com.example.neurocanvas.module.Crosshair;
+import com.example.neurocanvas.module.EffectsHud;
 import com.example.neurocanvas.module.ScreenPulse;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -54,6 +55,13 @@ public abstract class InGameHudMixin {
         ScreenPulse pulse = NeuroCanvasClient.modules().get(ScreenPulse.class);
         if (pulse.enabled) {
             pulse.draw(context, mc);
+        }
+    }
+
+    @Inject(method = "renderStatusEffectOverlay", at = @At("HEAD"), cancellable = true, require = 0)
+    private void neurocanvas$noVanillaEffects(DrawContext context, CallbackInfo ci) {
+        if (NeuroCanvasClient.modules() != null && NeuroCanvasClient.modules().get(EffectsHud.class).hidesVanilla()) {
+            ci.cancel();
         }
     }
 

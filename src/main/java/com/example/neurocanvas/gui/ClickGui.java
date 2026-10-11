@@ -1,6 +1,7 @@
 package com.example.neurocanvas.gui;
 
 import com.example.neurocanvas.client.NeuroCanvasClient;
+import com.example.neurocanvas.client.Updater;
 import com.example.neurocanvas.module.Category;
 import com.example.neurocanvas.module.Interface;
 import com.example.neurocanvas.module.Module;
@@ -152,9 +153,16 @@ public final class ClickGui extends Screen {
         open = anim ? Math.min(1f, open + dt * 5f) : 1f;
         float ease = 1f - (float) Math.pow(1f - open, 3);
 
-        ctx.fill(0, 0, width, height, Ui.alpha(0x000000, 0.5f * ease));
+        drawBackground(ctx, th, ease);
         ctx.getMatrices().push();
-        ctx.getMatrices().translate(0, (1f - ease) * 18f, 0);
+        switch (Interface.openAnimation()) {
+            case 1 -> scaleAbout(ctx, 0.9f + 0.1f * ease);
+            case 2 -> {
+                float back = 1f + 1.7f * (float) Math.pow(open - 1f, 3) + 0.7f * (float) Math.pow(open - 1f, 2);
+                scaleAbout(ctx, 0.8f + 0.2f * Math.min(1.08f, back));
+            }
+            default -> ctx.getMatrices().translate(0, (1f - ease) * 18f, 0);
+        }
 
         Ui.shadow(ctx, wx(), wy(), W, H, 10);
         Ui.roundRect(ctx, wx(), wy(), W, H, 10, th.bg());
@@ -174,6 +182,51 @@ public final class ClickGui extends Screen {
         }
 
         ctx.getMatrices().pop();
+        drawUpdateBanner(ctx, th, mouseX, mouseY);
+    }
+
+    private void scaleAbout(DrawContext ctx, float k) {
+        float cx = width / 2f;
+        float cy = height / 2f;
+        ctx.getMatrices().translate(cx, cy, 0);
+        ctx.getMatrices().scale(k, k, 1f);
+        ctx.getMatrices().translate(-cx, -cy, 0);
+    }
+
+    private void drawBackground(DrawContext ctx, Theme th, float ease) {
+        switch (Interface.backgroundStyle()) {
+            case 1 -> ctx.fillGradient(0, 0, width, height, Ui.alpha(0x000000, 0.35f * ease),
+                    Ui.alpha(th.accent() & 0xFFFFFF, 0.28f * ease));
+            case 2 -> {
+                ctx.fill(0, 0, width, height, Ui.alpha(0x000000, 0.55f * ease));
+                for (int i = 0; i < 7; i++) {
+                    int grow = 14 + i * 14;
+                    Ui.roundRect(ctx, wx() - grow, wy() - grow, W + 2 * grow, H + 2 * grow, 14 + grow,
+                            Ui.alpha(th.accent() & 0xFFFFFF, 0.035f * ease));
+                }
+            }
+            default -> ctx.fill(0, 0, width, height, Ui.alpha(0x000000, 0.5f * ease));
+        }
+    }
+
+    private int bannerW() {
+        return Ui.width(textRenderer, bannerText()) + 28;
+    }
+
+    private String bannerText() {
+        return "Update " + Updater.latest() + " available - click to open the download page";
+    }
+
+    private void drawUpdateBanner(DrawContext ctx, Theme th, int mx, int my) {
+        if (Updater.latest() == null) {
+            return;
+        }
+        int bw = bannerW();
+        int bx = (width - bw) / 2;
+        int by = wy() + H + 10;
+        boolean hover = inside(mx, my, bx, by, bw, 20);
+        Ui.roundRect(ctx, bx, by, bw, 20, 8, hover ? th.accent2() : th.accent());
+        Ui.textCentered(ctx, textRenderer, bannerText(), width / 2, by + 6, th.bg() | 0xFF000000);
     }
 
     private void renderHeader(DrawContext ctx, Theme th, int mx, int my) {
@@ -549,6 +602,10 @@ public final class ClickGui extends Screen {
 
     @Override
     public boolean mouseClicked(double mx, double my, int button) {
+        if (Updater.latest() != null && inside(mx, my, (width - bannerW()) / 2, wy() + H + 10, bannerW(), 20)) {
+            net.minecraft.util.Util.getOperatingSystem().open(java.net.URI.create(Updater.url()));
+            return true;
+        }
         if (pickerFor != null) {
             if (inside(mx, my, popX(), popY(), popW(), POP_H)) {
                 if (inside(mx, my, ctrlX(), svY(), CTRL_W, SV_H)) {
@@ -578,6 +635,7 @@ public final class ClickGui extends Screen {
                 query = "";
                 pickerFor = null;
                 if (tab != cats.get(i)) {
+                    Interface.click(1.0f);
                     tab = cats.get(i);
                     if (tab == Category.CONFIG) {
                         refreshPresets();
@@ -605,6 +663,7 @@ public final class ClickGui extends Screen {
                     boolean onSwitch = mx >= listX() + LIST_W - 44;
                     if (onSwitch || button == 1) {
                         m.enabled = !m.enabled;
+                        Interface.click(m.enabled ? 1.3f : 0.8f);
                     }
                     if (m != selected) {
                         selected = m;

@@ -21,7 +21,8 @@ Java 17 or newer is required.
 - Colour settings open a full **colour picker** with alpha.
 - **Configs** tab: save, load and delete presets, copy a **share code** to the clipboard, import a code, and edit the **HUD layout** by dragging elements.
 - **Interface** (Misc tab): 6 themes, 3 bundled fonts (Cyrillic supported), animations.
-- The menu remembers the tab and module you were on.
+- The menu remembers the tab and module you were on. **Interface** can also derive the whole look from one accent colour, apply that accent to every module colour (a preset "Before accent" is saved first), and set the open animation, background and click sounds.
+- **Updates:** on start the mod asks GitHub's public API once whether a newer release exists and tells you in chat and in the menu. Turn it off with *Check for updates* in Interface.
 
 ## Modules
 
@@ -30,7 +31,7 @@ Java 17 or newer is required.
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
-| **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
+| **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
 | **Misc** | Interface |
 | **NeuroAura** | the AI chat (see below) |
 
@@ -40,7 +41,7 @@ Notes on a few modules:
   so target modules skip them. Commands: `/teams add <name>`, `/teams remove <name>`, `/teams list`, `/teams clear`.
 - **FakePlayer** spawns a dummy that exists only on your screen, with health, armour, knockback, a death animation and optional
   instant respawn, for testing combat modules. Commands: `/fake spawn [name]`, `/fake remove`, `/fake heal`.
-- **Predictions**, **Arrow**, **CustomHitbox** and **ESP** only draw information (ESP hides behind blocks unless you turn on *Through walls*); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
+- **Predictions** (also shows pearls, arrows, tridents and potions already in the air, with the time until they land), **Arrow**, **CustomHitbox** and **ESP** only draw information (ESP hides behind blocks unless you turn on *Through walls*); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
   Some servers do not allow such helpers, so check the rules of the server you play on.
 
 ## NameTags (plate over other users)
