@@ -1,5 +1,6 @@
 package com.example.neurocanvas.module;
 
+import com.example.neurocanvas.fx.Depth;
 import com.example.neurocanvas.fx.EffectDraw;
 import com.example.neurocanvas.fx.EffectSpec;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -74,7 +75,7 @@ public final class HandTrails extends Module {
         float a = alpha.f() * ((color1.argb() >>> 24) / 255f);
 
         Matrix4f m = env.m();
-        RenderSystem.enableDepthTest();
+        Depth.state(Depth.over(env.mc(), all.get(all.size() - 1).base));
         RenderSystem.depthMask(false);
         BufferBuilder b = Tessellator.getInstance().getBuffer();
         b.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);

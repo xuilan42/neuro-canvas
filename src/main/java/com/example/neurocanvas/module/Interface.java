@@ -39,6 +39,7 @@ public final class Interface extends Module {
     private final Setting openAnimation = add(Setting.choice("Open animation", 0, "Slide", "Zoom", "Pop"));
     private final Setting background = add(Setting.choice("Background", 0, "Dim", "Gradient", "Glow"));
     private final Setting effects = add(Setting.bool("Shader effects", true));
+    private final Setting drawOver = add(Setting.bool("Draw effects over models", true));
     private final Setting sounds = add(Setting.bool("Sounds", true));
     private final Setting updates = add(Setting.bool("Check for updates", true));
     private final Setting applyPack = add(Setting.button("Apply theme pack"));
@@ -187,6 +188,8 @@ public final class Interface extends Module {
 
     public static boolean animations() { return instance.animations.on(); }
     public static boolean shaderEffects() { return instance.effects.on(); }
+    /** When on, world effects that the camera can see are not hidden by player and mob models. */
+    public static boolean drawOverModels() { return instance == null || instance.drawOver.on(); }
     public static int openAnimation() { return instance.openAnimation.index(); }
     public static int backgroundStyle() { return instance.background.index(); }
     public static boolean checkUpdates() { return instance != null && instance.updates.on(); }

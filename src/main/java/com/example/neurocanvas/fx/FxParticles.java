@@ -86,6 +86,14 @@ public final class FxParticles {
         if (particles.isEmpty()) {
             return;
         }
+        double sumX = 0, sumY = 0, sumZ = 0;
+        for (P p : particles) {
+            sumX += p.x;
+            sumY += p.y;
+            sumZ += p.z;
+        }
+        int count = particles.size();
+        Depth.state(Depth.over(env.mc(), new net.minecraft.util.math.Vec3d(sumX / count, sumY / count, sumZ / count)));
         Matrix4f m = env.m();
         double yaw = Math.toRadians(env.camYaw());
         double pitch = Math.toRadians(env.camPitch());

@@ -1,5 +1,6 @@
 package com.example.neurocanvas.module;
 
+import com.example.neurocanvas.fx.Depth;
 import com.example.neurocanvas.fx.EffectDraw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.ArrayList;
@@ -51,6 +52,7 @@ public final class HitColor extends Module {
             Vec3d p = EffectDraw.lerpPos(f.entity, env.tickDelta());
             float e = expand.f() * (1f + progress);
             float w = f.entity.getWidth() / 2f + e;
+            Depth.state(Depth.over(env.mc(), p.add(0, f.entity.getHeight() / 2, 0)));
             drawBox(env.m(), p, w, f.entity.getHeight() + e, e, bottom, top, a);
         }
         RenderSystem.depthMask(true);

@@ -1,6 +1,7 @@
 package com.example.neurocanvas.module;
 
 import com.example.neurocanvas.fx.Billboard;
+import com.example.neurocanvas.fx.Depth;
 import com.example.neurocanvas.fx.EffectDraw;
 import com.example.neurocanvas.fx.Lines;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -174,24 +175,35 @@ public final class Predictions extends Module {
             return;
         }
 
-        RenderSystem.enableDepthTest();
-        Lines lines = Lines.begin(env, width.f());
-        for (Trace t : traces) {
-            for (int i = 0; i + 1 < t.points().size(); i++) {
-                Vec3d a = t.points().get(i);
-                Vec3d b = t.points().get(i + 1);
-                lines.line(a.x, a.y, a.z, b.x, b.y, b.z, t.color());
+        for (boolean over : new boolean[] {false, true}) {
+            Lines lines = null;
+            for (Trace t : traces) {
+                Vec3d end = t.landing() != null ? t.landing() : t.points().get(t.points().size() - 1);
+                if (Depth.over(mc, end) != over) {
+                    continue;
+                }
+                if (lines == null) {
+                    Depth.state(over);
+                    lines = Lines.begin(env, width.f());
+                }
+                for (int i = 0; i + 1 < t.points().size(); i++) {
+                    Vec3d a = t.points().get(i);
+                    Vec3d b = t.points().get(i + 1);
+                    lines.line(a.x, a.y, a.z, b.x, b.y, b.z, t.color());
+                }
+                Vec3d l = t.landing();
+                if (l != null && marker.on()) {
+                    int c = t.entityHit() ? hitColor.argb() : landColor.argb();
+                    double r = 0.3;
+                    lines.line(l.x - r, l.y, l.z, l.x + r, l.y, l.z, c);
+                    lines.line(l.x, l.y - r, l.z, l.x, l.y + r, l.z, c);
+                    lines.line(l.x, l.y, l.z - r, l.x, l.y, l.z + r, c);
+                }
             }
-            Vec3d l = t.landing();
-            if (l != null && marker.on()) {
-                int c = t.entityHit() ? hitColor.argb() : landColor.argb();
-                double r = 0.3;
-                lines.line(l.x - r, l.y, l.z, l.x + r, l.y, l.z, c);
-                lines.line(l.x, l.y - r, l.z, l.x, l.y + r, l.z, c);
-                lines.line(l.x, l.y, l.z - r, l.x, l.y, l.z + r, c);
+            if (lines != null) {
+                lines.end();
             }
         }
-        lines.end();
         RenderSystem.disableDepthTest();
 
         if (landingTime.on()) {

@@ -85,7 +85,7 @@ public final class CustomHitbox extends Module {
             }
             Vec3d shift = EffectDraw.lerpPos(e, env.tickDelta()).subtract(e.getPos());
             Box box = e.getBoundingBox().offset(shift);
-            boolean visible = overEntities.on() && BoxBatch.inLineOfSight(mc, box);
+            boolean visible = overEntities.on() && Interface.drawOverModels() && BoxBatch.inLineOfSight(mc, box);
             double[] eye = null;
             if (eyeLine.on() && e instanceof LivingEntity living) {
                 double eyeY = box.minY + living.getEyeHeight(living.getPose());
