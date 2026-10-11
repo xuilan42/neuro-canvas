@@ -1,0 +1,9 @@
+{
+  "vertex": "neurocanvas:neuro_blur",
+  "fragment": "neurocanvas:neuro_blur",
+  "attributes": [ "Position" ],
+  "samplers": [ { "name": "Sampler0" } ],
+  "uniforms": [
+    { "name": "Direction", "type": "float", "count": 2, "values": [ 0.001, 0.0 ] }
+  ]
+}

@@ -125,13 +125,13 @@ public final class ClickGui extends Screen {
         int cx = ctrlX();
         int y = rowY(0);
         Ui.textMid(ctx, textRenderer, "Keybind", panelX() + PAD, y, ROW_H, th.text());
-        Ui.roundRect(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
+        Ui.surface(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
         boolean listening = bindingFor == selected;
         Ui.textCentered(ctx, textRenderer, listening ? "Press a key..." : keyName(selected.key),
                 cx + CTRL_W / 2, y + (ROW_H - 8) / 2, listening ? th.accent() : th.text());
         y = rowY(1);
         Ui.textMid(ctx, textRenderer, "Bind mode", panelX() + PAD, y, ROW_H, th.text());
-        Ui.roundRect(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
+        Ui.surface(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
         Ui.textCentered(ctx, textRenderer, selected.hold ? "Hold" : "Toggle", cx + CTRL_W / 2, y + (ROW_H - 8) / 2, th.text());
     }
 
@@ -145,7 +145,22 @@ public final class ClickGui extends Screen {
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+        Ui.setThemed(true);
+        try {
+            renderMenu(ctx, mouseX, mouseY);
+        } finally {
+            Ui.setThemed(false);
+        }
+    }
+
+    private void renderMenu(DrawContext ctx, int mouseX, int mouseY) {
         Theme th = Interface.theme();
+        ThemeStyle style = Interface.style();
+        boolean fx = Interface.shaderEffects();
+        boolean blurOn = fx && style.blur() > 0.01f;
+        if (blurOn) {
+            GuiFx.captureBlur(client, ctx, style.blur());
+        }
         long now = System.nanoTime();
         float dt = Math.min((now - lastNano) / 1_000_000_000f, 0.1f);
         lastNano = now;
@@ -164,8 +179,18 @@ public final class ClickGui extends Screen {
             default -> ctx.getMatrices().translate(0, (1f - ease) * 18f, 0);
         }
 
-        Ui.shadow(ctx, wx(), wy(), W, H, 10);
-        Ui.roundRect(ctx, wx(), wy(), W, H, 10, th.bg());
+        if (style.shadow()) {
+            Ui.shadow(ctx, wx(), wy(), W, H, 10);
+        }
+        if (blurOn && GuiFx.blurAvailable()) {
+            GuiFx.drawBlurred(ctx, wx(), wy(), W, H, 10, 1f);
+        }
+        Ui.surface(ctx, wx(), wy(), W, H, 10, th.bg());
+        Ui.glow(ctx, wx(), wy(), W, H, 10, th.accent(), style.glow(), 14f);
+        boolean effects = fx && open >= 1f && style.overlay() != ThemeStyle.Overlay.NONE;
+        if (effects && !style.overlayOnTop()) {
+            GuiFx.overlay(client, ctx, style.overlay().ordinal(), wx(), wy(), W, H, Ui.rad(10), th.accent(), th.accent2(), style.overlayStrength());
+        }
 
         renderHeader(ctx, th, mouseX, mouseY);
         if (aiView()) {
@@ -181,6 +206,9 @@ public final class ClickGui extends Screen {
             }
         }
 
+        if (effects && style.overlayOnTop()) {
+            GuiFx.overlay(client, ctx, style.overlay().ordinal(), wx(), wy(), W, H, Ui.rad(10), th.accent(), th.accent2(), style.overlayStrength());
+        }
         ctx.getMatrices().pop();
         drawUpdateBanner(ctx, th, mouseX, mouseY);
     }
@@ -247,7 +275,7 @@ public final class ClickGui extends Screen {
         if (searchFocus) {
             Ui.roundRect(ctx, sbX() - 1, sbY() - 1, SEARCH_W + 2, 24, 7, th.accent());
         }
-        Ui.roundRect(ctx, sbX(), sbY(), SEARCH_W, 22, 6, th.panel2());
+        Ui.surface(ctx, sbX(), sbY(), SEARCH_W, 22, 6, th.panel2());
         String shown = query.isEmpty() ? "Search (Ctrl+F)" : query + (searchFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
         Ui.text(ctx, textRenderer, shown, sbX() + 8, sbY() + 7, query.isEmpty() ? th.dim() : th.text());
         ctx.fill(wx() + PAD, wy() + HEADER, wx() + W - PAD, wy() + HEADER + 1, th.panel2());
@@ -262,7 +290,7 @@ public final class ClickGui extends Screen {
             int y = cardY(i);
             boolean hover = inside(mx, my, listX(), y, LIST_W, CARD_H) && my >= viewY && my < viewY + bodyH();
             boolean sel = m == selected;
-            Ui.roundRect(ctx, listX(), y, LIST_W, CARD_H, 6, sel ? th.panel2() : (hover ? th.hover() : th.panel()));
+            Ui.surface(ctx, listX(), y, LIST_W, CARD_H, 6, sel ? th.panel2() : (hover ? th.hover() : th.panel()));
             if (sel) {
                 Ui.roundRect(ctx, listX(), y + 6, 3, CARD_H - 12, 1, th.accent());
             }
@@ -278,6 +306,11 @@ public final class ClickGui extends Screen {
     }
 
     private void drawSwitch(DrawContext ctx, Theme th, int x, int y, float a) {
+        if (Interface.style().switchStyle() == ThemeStyle.SwitchStyle.BRACKET) {
+            String text = a > 0.5f ? "[x]" : "[ ]";
+            Ui.text(ctx, textRenderer, text, x + 28 - Ui.width(textRenderer, text), y + 3, a > 0.5f ? th.accent() : th.dim());
+            return;
+        }
         Ui.roundRect(ctx, x, y, 28, 14, 7, Ui.mix(th.hover(), th.accent(), a));
         Ui.roundRect(ctx, x + 2 + Math.round(a * 14), y + 2, 10, 10, 5, a > 0.5f ? th.bg() | 0xFF000000 : th.dim());
     }
@@ -285,7 +318,7 @@ public final class ClickGui extends Screen {
     private void renderSettings(DrawContext ctx, Theme th, int mx, int my) {
         int px = panelX();
         int pw = panelW();
-        Ui.roundRect(ctx, px, bodyTop(), pw, bodyH(), 8, th.panel());
+        Ui.surface(ctx, px, bodyTop(), pw, bodyH(), 8, th.panel());
         Ui.text(ctx, textRenderer, selected.name, px + PAD, bodyTop() + 9, th.text());
         Ui.text(ctx, textRenderer, selected.description, px + PAD, bodyTop() + 24, th.dim());
 
@@ -303,7 +336,7 @@ public final class ClickGui extends Screen {
     private void renderSetting(DrawContext ctx, Theme th, Setting s, int y, int mx, int my) {
         if (s.kind == Setting.Kind.BUTTON) {
             boolean hover = inside(mx, my, ctrlX(), y + 2, CTRL_W, ROW_H - 4);
-            Ui.roundRect(ctx, ctrlX(), y + 2, CTRL_W, ROW_H - 4, 6, hover ? th.accent2() : th.accent());
+            Ui.surface(ctx, ctrlX(), y + 2, CTRL_W, ROW_H - 4, 6, hover ? th.accent2() : th.accent());
             Ui.textCentered(ctx, textRenderer, s.name, ctrlX() + CTRL_W / 2, y + (ROW_H - 8) / 2, th.bg() | 0xFF000000);
             return;
         }
@@ -312,7 +345,7 @@ public final class ClickGui extends Screen {
         switch (s.kind) {
             case BOOL -> drawSwitch(ctx, th, cx + CTRL_W - 28, y + (ROW_H - 14) / 2, s.on() ? 1f : 0f);
             case CHOICE -> {
-                Ui.roundRect(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
+                Ui.surface(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
                 Ui.textCentered(ctx, textRenderer, s.option(), cx + CTRL_W / 2, y + (ROW_H - 8) / 2, th.text());
                 Ui.text(ctx, textRenderer, "<", cx + 8, y + (ROW_H - 8) / 2, th.dim());
                 Ui.text(ctx, textRenderer, ">", cx + CTRL_W - 8 - Ui.width(textRenderer, ">"), y + (ROW_H - 8) / 2, th.dim());
@@ -402,7 +435,7 @@ public final class ClickGui extends Screen {
         int py = popY();
         int x = ctrlX();
         Ui.shadow(ctx, px, py, popW(), POP_H, 8);
-        Ui.roundRect(ctx, px, py, popW(), POP_H, 8, th.panel2());
+        Ui.surface(ctx, px, py, popW(), POP_H, 8, th.panel2());
 
         int sy = svY();
         for (int i = 0; i < CTRL_W; i++) {
@@ -547,7 +580,7 @@ public final class ClickGui extends Screen {
             int y = cardY(i);
             boolean hover = inside(mx, my, listX(), y, LIST_W, CARD_H) && my >= viewY && my < viewY + bodyH();
             boolean sel = name.equals(selectedPreset);
-            Ui.roundRect(ctx, listX(), y, LIST_W, CARD_H, 6, sel ? th.panel2() : (hover ? th.hover() : th.panel()));
+            Ui.surface(ctx, listX(), y, LIST_W, CARD_H, 6, sel ? th.panel2() : (hover ? th.hover() : th.panel()));
             if (sel) {
                 Ui.roundRect(ctx, listX(), y + 6, 3, CARD_H - 12, 1, th.accent());
             }
@@ -555,7 +588,7 @@ public final class ClickGui extends Screen {
         }
         ctx.disableScissor();
 
-        Ui.roundRect(ctx, panelX(), bodyTop(), panelW(), bodyH(), 8, th.panel());
+        Ui.surface(ctx, panelX(), bodyTop(), panelW(), bodyH(), 8, th.panel());
         Ui.text(ctx, textRenderer, "Configs", panelX() + PAD, bodyTop() + 9, th.text());
         Ui.text(ctx, textRenderer, "Save, load and share all your settings", panelX() + PAD, bodyTop() + 24, th.dim());
 

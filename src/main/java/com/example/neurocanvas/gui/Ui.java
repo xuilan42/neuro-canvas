@@ -63,11 +63,26 @@ public final class Ui {
         return lines;
     }
 
+    private static boolean themed;
+
+    /** While true, corner radii follow the theme's style (the menu); in-world HUD keeps its own radii. */
+    public static void setThemed(boolean value) {
+        themed = value;
+    }
+
+    public static boolean themed() {
+        return themed;
+    }
+
+    public static int rad(int r) {
+        return themed ? Math.round(r * Interface.style().radius()) : r;
+    }
+
     public static void roundRect(DrawContext c, int x, int y, int w, int h, int r, int color) {
         if (w <= 0 || h <= 0) {
             return;
         }
-        r = Math.min(r, Math.min(w, h) / 2);
+        r = Math.min(rad(r), Math.min(w, h) / 2);
         if (r <= 0) {
             c.fill(x, y, x + w, y + h, color);
             return;
@@ -248,5 +263,103 @@ public final class Ui {
 
     public static int alpha(int rgb, float a) {
         return ((int) (a * 255) << 24) | (rgb & 0xFFFFFF);
+    }
+
+    // ---- theme-aware surfaces -------------------------------------------------------------
+
+    /** Points along the outline of a rounded rectangle, with the outward normal of each: {x, y, nx, ny}. */
+    private static float[][] path(int x, int y, int w, int h, int r, int segs) {
+        int n = 4 * (segs + 1);
+        float[][] p = new float[4][n];
+        float[][] corners = {{x + w - r, y + r, -90}, {x + w - r, y + h - r, 0}, {x + r, y + h - r, 90}, {x + r, y + r, 180}};
+        int k = 0;
+        for (float[] corner : corners) {
+            for (int i = 0; i <= segs; i++) {
+                double a = Math.toRadians(corner[2] + 90.0 * i / segs);
+                p[2][k] = (float) Math.cos(a);
+                p[3][k] = (float) Math.sin(a);
+                p[0][k] = corner[0] + p[2][k] * r;
+                p[1][k] = corner[1] + p[3][k] * r;
+                k++;
+            }
+        }
+        return p;
+    }
+
+    private static void prepare(DrawContext c) {
+        c.draw();
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+    }
+
+    /**
+     * A band along the edge of a rounded rectangle. {@code inner} and {@code outer} are offsets from the edge in pixels
+     * (negative = inwards); the colour fades from {@code innerArgb} to {@code outerArgb} across the band.
+     */
+    public static void outline(DrawContext c, int x, int y, int w, int h, int r, float inner, float outer, int innerArgb, int outerArgb) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        int segs = r <= 0 ? 3 : Math.max(4, Math.min(16, (int) (r * 1.5)));
+        float[][] p = path(x, y, w, h, r, segs);
+        int n = p[0].length;
+        prepare(c);
+        Matrix4f m = c.getMatrices().peek().getPositionMatrix();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        b.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
+        for (int i = 0; i <= n; i++) {
+            int j = i % n;
+            b.vertex(m, p[0][j] + p[2][j] * inner, p[1][j] + p[3][j] * inner, 0).color(innerArgb).next();
+            b.vertex(m, p[0][j] + p[2][j] * outer, p[1][j] + p[3][j] * outer, 0).color(outerArgb).next();
+        }
+        tess.draw();
+        RenderSystem.enableCull();
+    }
+
+    /** Soft glow around a rounded rectangle. */
+    public static void glow(DrawContext c, int x, int y, int w, int h, int r, int rgb, float strength, float spread) {
+        if (strength <= 0.001f) {
+            return;
+        }
+        outline(c, x, y, w, h, rad(r), 0f, spread, alpha(rgb, Math.min(1f, strength * 0.55f)), alpha(rgb, 0f));
+    }
+
+    /** A panel: the filled rounded rectangle plus the theme's border. */
+    public static void surface(DrawContext c, int x, int y, int w, int h, int r, int fill) {
+        roundRect(c, x, y, w, h, r, fill);
+        ThemeStyle s = Interface.style();
+        if (themed && s.border() > 0.01f) {
+            int bc = s.resolveBorder(Interface.theme());
+            outline(c, x, y, w, h, Math.min(rad(r), Math.min(w, h) / 2), -s.border(), 0f, bc, bc);
+        }
+    }
+
+    /** A rounded rectangle filled with part of a texture; uv follow the position on a screen of the given size. */
+    public static void texturedRound(DrawContext c, int x, int y, int w, int h, int r, int textureId, int screenW, int screenH, float alpha) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        r = Math.max(0, Math.min(rad(r), Math.min(w, h) / 2));
+        int segs = r <= 0 ? 1 : Math.max(4, Math.min(16, (int) (r * 1.5)));
+        float[][] p = path(x, y, w, h, r, segs);
+        int n = p[0].length;
+        prepare(c);
+        Matrix4f m = c.getMatrices().peek().getPositionMatrix();
+        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
+        RenderSystem.setShaderTexture(0, textureId);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        b.begin(VertexFormat.DrawMode.TRIANGLE_FAN, VertexFormats.POSITION_TEXTURE_COLOR);
+        b.vertex(m, x + w / 2f, y + h / 2f, 0).texture((x + w / 2f) / screenW, 1f - (y + h / 2f) / screenH).color(1f, 1f, 1f, alpha).next();
+        for (int i = 0; i <= n; i++) {
+            int j = i % n;
+            b.vertex(m, p[0][j], p[1][j], 0).texture(p[0][j] / screenW, 1f - p[1][j] / screenH).color(1f, 1f, 1f, alpha).next();
+        }
+        tess.draw();
+        RenderSystem.enableCull();
     }
 }

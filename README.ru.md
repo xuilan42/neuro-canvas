@@ -32,7 +32,7 @@
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
-| **Misc** | Interface |
+| **Misc** | Interface (themes, fonts, effects) |
 | **NeuroAura** | ИИ-чат (ниже) |
 
 Про некоторые модули:
@@ -47,6 +47,21 @@
 **VolumetricFog** (экспериментальный) рисует собственный туман шейдером после отрисовки мира: читает буфер глубины и накладывает дымку, которая гуще у земли и редеет
 с высотой, с необязательным свечением вокруг солнца. Он не использует туман игры, поэтому работает и с Sodium; под водой и с шейдерпаками Iris пауза, а если шейдер не соберётся,
 модуль сам выключится и останется обычный туман. `/volfog status` и `/volfog retry` показывают и сбрасывают состояние.
+
+## Темы
+
+Тема это палитра плюс **стиль**: скругление углов, рамки, свечение, размытие фона, анимированный эффект шейдера и вид переключателей.
+Встроенные: Mint, Violet, Ocean, Rose, Light, Mono (классические), **Glass** (размытые полупрозрачные панели), **Terminal** (моноширинный шрифт, строки ЭЛТ, переключатели `[x]`),
+**Retro** (блочный вид Minecraft), **Neon** (светящиеся контуры и движущаяся сетка), **Paper**, **Aurora** (перетекающий градиент), **High Contrast**, **Color-blind safe** и паки
+**Sunset**, **Frost**, **Blood Moon**. Выбор в *Interface*; размытие и эффекты рисуют шейдеры (отключаются пунктом *Shader effects*).
+
+- **Пак темы:** *Apply theme pack* заодно настраивает туман, небо, время, цветокоррекцию и цвета нескольких модулей под тему (прежний вид сохраняется пресетом «Before theme pack»).
+- **Автотема:** по дню и ночи или по серверу (`/theme server` привязывает текущий сервер к выбранной теме, `/theme server clear` снимает привязку).
+- **Динамический акцент:** цвет акцента плавно следует за здоровьем, временем суток или биомом.
+- **Тема из картинки:** положите картинку в `neurocanvas/theme-image.png` (или `/theme image <путь>`), палитра строится из её цветов.
+- **Редактор:** настройки *Editor:* в Interface меняют цвета и стиль вживую (предпросмотром служит само меню), *Save editor theme* записывает файл в `neurocanvas/themes/`.
+  Файлы тем это обычный JSON (`palette`, `style`, необязательный `pack`), ими можно делиться через *Copy theme code* / *Import theme code from clipboard*, `/theme reload` перечитывает папку.
+  Остальные команды: `/theme list`, `/theme use <имя>`.
 
 ## Cosmetics (своя 3D-модель)
 

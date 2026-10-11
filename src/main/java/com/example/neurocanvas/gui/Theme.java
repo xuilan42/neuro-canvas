@@ -43,6 +43,10 @@ public record Theme(String name, int bg, int panel, int panel2, int hover, int a
         return cached;
     }
 
+    public Theme withAccents(int a, int a2) {
+        return new Theme(name, bg, panel, panel2, hover, a, a2, text, dim);
+    }
+
     public static String[] names() {
         return ALL.stream().map(Theme::name).toArray(String[]::new);
     }

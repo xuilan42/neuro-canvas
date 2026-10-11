@@ -159,7 +159,8 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new ViewModel());
         modules.register(new Hud());
         modules.register(new TargetHud());
-        modules.register(new Interface());
+        Interface ui = new Interface(dir.resolve("themes"), dir.resolve("theme-servers.json"));
+        modules.register(ui);
         try {
             modules.load();
             if (Interface.checkUpdates()) {
@@ -230,6 +231,56 @@ public class NeuroCanvasClient implements ClientModInitializer {
                     fakePlayer.healFully();
                     return 1;
                 }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("theme")
+                .then(literal("list").executes(ctx -> {
+                    StringBuilder names = new StringBuilder();
+                    for (com.example.neurocanvas.gui.ThemeDef d : com.example.neurocanvas.gui.Themes.all()) {
+                        names.append(names.length() == 0 ? "" : ", ").append(d.name());
+                    }
+                    say("[Theme] " + names);
+                    return 1;
+                }))
+                .then(literal("use").then(argument("name", StringArgumentType.greedyString()).executes(ctx -> {
+                    ui.useThemeByName(StringArgumentType.getString(ctx, "name"));
+                    say("[Theme] selected " + Interface.baseThemeName());
+                    return 1;
+                })))
+                .then(literal("reload").executes(ctx -> {
+                    ui.reloadFromCommand();
+                    say("[Theme] themes reloaded");
+                    return 1;
+                }))
+                .then(literal("image").then(argument("path", StringArgumentType.greedyString()).executes(ctx -> {
+                    say("[Theme] " + ui.themeFromImage(java.nio.file.Path.of(StringArgumentType.getString(ctx, "path").replace("\"", ""))));
+                    return 1;
+                })))
+                .then(literal("server")
+                        .executes(ctx -> {
+                            String key = com.example.neurocanvas.module.NameTags.serverAddress(MinecraftClient.getInstance());
+                            if (key == null) {
+                                say("[Theme] join a multiplayer server first");
+                                return 0;
+                            }
+                            try {
+                                com.example.neurocanvas.gui.Themes.bindServer(key, Interface.baseThemeName());
+                                say("[Theme] " + key + " now uses \"" + Interface.baseThemeName() + "\" when Auto theme is By server");
+                            } catch (java.io.IOException e) {
+                                say("[Theme] could not save: " + e.getMessage());
+                            }
+                            return 1;
+                        })
+                        .then(literal("clear").executes(ctx -> {
+                            String key = com.example.neurocanvas.module.NameTags.serverAddress(MinecraftClient.getInstance());
+                            try {
+                                if (key != null) {
+                                    com.example.neurocanvas.gui.Themes.bindServer(key, null);
+                                }
+                                say("[Theme] server theme cleared");
+                            } catch (java.io.IOException e) {
+                                say("[Theme] could not save: " + e.getMessage());
+                            }
+                            return 1;
+                        })))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("volfog")
                 .then(literal("status").executes(ctx -> {
                     say("[VolumetricFog] " + modules.get(VolumetricFog.class).status());

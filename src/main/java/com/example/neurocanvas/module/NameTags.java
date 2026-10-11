@@ -85,6 +85,10 @@ public final class NameTags extends Module {
     }
 
     /** Address of the current multiplayer server, lower case without the default port; null in singleplayer. */
+    public static String serverAddress(MinecraftClient mc) {
+        return serverKey(mc);
+    }
+
     static String serverKey(MinecraftClient mc) {
         ServerInfo info = mc.getCurrentServerEntry();
         if (info == null || info.address == null || info.address.isBlank()) {

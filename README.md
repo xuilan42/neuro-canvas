@@ -32,7 +32,7 @@ Java 17 or newer is required.
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
-| **Misc** | Interface |
+| **Misc** | Interface (themes, fonts, effects) |
 | **NeuroAura** | the AI chat (see below) |
 
 Notes on a few modules:
@@ -47,6 +47,21 @@ Notes on a few modules:
 **VolumetricFog** (experimental) draws its own fog with a shader after the world is rendered: it reads the depth buffer and blends a haze that is thicker near the
 ground and thins out with height, with an optional sun glow. It does not use the game's fog, so it also works with Sodium; it pauses underwater and with Iris shader packs, and
 turns itself off (keeping the normal fog) if the shader cannot be built. `/volfog status` and `/volfog retry` show and reset its state.
+
+## Themes
+
+A theme is a palette plus a **style**: corner radius, borders, glow, background blur, an animated shader effect and the switch look.
+Built in: Mint, Violet, Ocean, Rose, Light, Mono (classic) and **Glass** (blurred translucent panels), **Terminal** (monospace, CRT scanlines, `[x]` switches),
+**Retro** (blocky Minecraft look), **Neon** (glowing outlines and a moving grid), **Paper**, **Aurora** (flowing gradient), **High Contrast**, **Color-blind safe**, and the
+packs **Sunset**, **Frost**, **Blood Moon**. Pick one in *Interface*; menu blur and effects are drawn by shaders (switch them off with *Shader effects*).
+
+- **Theme pack:** *Apply theme pack* also sets fog, sky, time, colour grading and the colours of several modules to match (the old look is saved as preset "Before theme pack").
+- **Auto theme:** by day/night, or per server (`/theme server` binds the current server to the selected theme, `/theme server clear` removes it).
+- **Dynamic accent:** the accent colour follows your health, the time of day or the biome, smoothly.
+- **Theme from image:** put a picture at `neurocanvas/theme-image.png` (or use `/theme image <path>`) and the palette is built from its colours.
+- **Editor:** the *Editor:* settings in Interface change colours and style live (the menu is the preview); *Save editor theme* writes a file into `neurocanvas/themes/`.
+  Theme files are plain JSON (`palette`, `style`, optional `pack`), can be shared with *Copy theme code* / *Import theme code from clipboard*, and reloaded with `/theme reload`.
+  Other commands: `/theme list`, `/theme use <name>`.
 
 ## Cosmetics (your own 3D model)
 
