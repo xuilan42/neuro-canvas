@@ -48,7 +48,7 @@ Notes on a few modules:
 Shows a "NeuroAura" plate above other players who run the mod on the same server. The mod keeps one connection to the
 project's presence server, so joining and leaving show up at once, it works on offline-mode servers, and one nick on two
 servers stays two entries. Off by default. It sends only the server address and your nick, and nicks are not verified.
-`/neurotag status` shows the connection state. The server address is set when the mod is built (`registry_url` in `gradle.properties`);
+`/neurotag status` shows the connection state. The **NameTag** switch of FakePlayer shows the plate over the dummy, to test its look alone. The server address is set when the mod is built (`registry_url` in `gradle.properties`);
 the server itself is not part of this repository.
 
 ## NeuroAura (AI chat)
