@@ -1,5 +1,6 @@
 package com.example.neurocanvas.module;
 
+import com.example.neurocanvas.fx.BoxBatch;
 import com.example.neurocanvas.fx.EffectDraw;
 import com.example.neurocanvas.fx.Fills;
 import com.example.neurocanvas.fx.Lines;
@@ -25,6 +26,7 @@ public final class Esp extends Module {
     private final Setting passive = add(Setting.bool("Animals", false));
     private final Setting items = add(Setting.bool("Items", false));
     private final Setting skipTeam = add(Setting.bool("Skip teammates", true));
+    private final Setting overEntities = add(Setting.bool("Draw over models", true));
     private final Setting throughWalls = add(Setting.bool("Through walls", false));
     private final Setting outline = add(Setting.bool("Outline", true));
     private final Setting fill = add(Setting.bool("Fill", true));
@@ -69,13 +71,10 @@ public final class Esp extends Module {
             return;
         }
         double maxSq = distance.value * distance.value;
-        if (throughWalls.on()) {
-            RenderSystem.disableDepthTest();
-        } else {
-            RenderSystem.enableDepthTest();
-        }
-        java.util.List<Box> boxes = new java.util.ArrayList<>();
-        java.util.List<Integer> colors = new java.util.ArrayList<>();
+        java.util.List<Box> over = new java.util.ArrayList<>();
+        java.util.List<Integer> overColors = new java.util.ArrayList<>();
+        java.util.List<Box> behind = new java.util.ArrayList<>();
+        java.util.List<Integer> behindColors = new java.util.ArrayList<>();
         for (Entity e : mc.world.getEntities()) {
             if (e == mc.player || e.isInvisible() || e.squaredDistanceTo(mc.player) > maxSq) {
                 continue;
@@ -90,26 +89,18 @@ public final class Esp extends Module {
                 color = 0xFF000000 | (java.awt.Color.HSBtoRGB(ratio * 0.33f, 0.85f, 1f) & 0xFFFFFF);
             }
             Vec3d shift = EffectDraw.lerpPos(e, env.tickDelta()).subtract(e.getPos());
-            boxes.add(e.getBoundingBox().offset(shift).expand(0.02));
-            colors.add(color);
-        }
-        // The game can build only one batch at a time, so the fill and the outline are drawn one after the other.
-        if (!boxes.isEmpty() && fill.on()) {
-            RenderSystem.depthMask(false);
-            Fills fills = Fills.begin(env);
-            for (int i = 0; i < boxes.size(); i++) {
-                fills.box(boxes.get(i), ((int) (255 * fillStrength.f()) << 24) | (colors.get(i) & 0xFFFFFF));
+            Box box = e.getBoundingBox().offset(shift).expand(0.02);
+            // In line of sight (or "through walls"): drawn over everything, so the entity's model cannot hide the box.
+            if (throughWalls.on() || (overEntities.on() && BoxBatch.inLineOfSight(mc, box))) {
+                over.add(box);
+                overColors.add(color);
+            } else {
+                behind.add(box);
+                behindColors.add(color);
             }
-            fills.end();
-            RenderSystem.depthMask(true);
         }
-        if (!boxes.isEmpty() && outline.on()) {
-            Lines lines = Lines.begin(env, width.f());
-            for (int i = 0; i < boxes.size(); i++) {
-                lines.box(boxes.get(i), colors.get(i));
-            }
-            lines.end();
-        }
+        BoxBatch.draw(env, behind, behindColors, fill.on(), fillStrength.f(), outline.on(), width.f(), true, null);
+        BoxBatch.draw(env, over, overColors, fill.on(), fillStrength.f(), outline.on(), width.f(), false, null);
         RenderSystem.disableDepthTest();
     }
 }

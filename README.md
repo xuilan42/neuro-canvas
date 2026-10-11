@@ -41,7 +41,7 @@ Notes on a few modules:
   so target modules skip them. Commands: `/teams add <name>`, `/teams remove <name>`, `/teams list`, `/teams clear`.
 - **FakePlayer** spawns a dummy that exists only on your screen, with health, armour, knockback, a death animation and optional
   instant respawn, for testing combat modules. Commands: `/fake spawn [name]`, `/fake remove`, `/fake heal`.
-- **Predictions** (also shows pearls, arrows, tridents and potions already in the air, with the time until they land), **Arrow**, **CustomHitbox** and **ESP** only draw information (ESP hides behind blocks unless you turn on *Through walls*); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
+- **Predictions** (also shows pearls, arrows, tridents and potions already in the air, with the time until they land), **Arrow**, **CustomHitbox** and **ESP** only draw information (boxes of ESP and CustomHitbox are drawn over the entity's model when it is in your line of sight, and are hidden behind blocks otherwise; ESP can also be set to *Through walls*); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
   Some servers do not allow such helpers, so check the rules of the server you play on.
 
 **VolumetricFog** (experimental) draws its own fog with a shader after the world is rendered: it reads the depth buffer and blends a haze that is thicker near the

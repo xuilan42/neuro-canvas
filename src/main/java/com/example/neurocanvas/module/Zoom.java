@@ -4,6 +4,7 @@ package com.example.neurocanvas.module;
 public final class Zoom extends Module {
     private final Setting factor = add(Setting.number("Zoom", 1.5, 20, 4));
     private final Setting smooth = add(Setting.bool("Smooth", true));
+    private final Setting wheel = add(Setting.bool("Mouse wheel changes zoom", true));
     private final Setting slowAim = add(Setting.number("Lower sensitivity", 0, 1, 1));
 
     private double current = 1.0;
@@ -13,6 +14,19 @@ public final class Zoom extends Module {
         super("Zoom", Category.WORLD, "Zoom in while the key is held (default C)", false);
         key = 67;
         hold = true;
+    }
+
+    /**
+     * While zoom is held the mouse wheel changes the zoom level instead of scrolling the hotbar.
+     * @return true when the scroll was used
+     */
+    public boolean scroll(double vertical) {
+        if (!enabled || !wheel.on() || vertical == 0) {
+            return false;
+        }
+        double next = factor.value * (vertical > 0 ? 1.18 : 1 / 1.18);
+        factor.set(Math.max(factor.min, Math.min(factor.max, next)));
+        return true;
     }
 
     /**

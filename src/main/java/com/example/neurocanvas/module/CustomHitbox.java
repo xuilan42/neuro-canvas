@@ -1,5 +1,6 @@
 package com.example.neurocanvas.module;
 
+import com.example.neurocanvas.fx.BoxBatch;
 import com.example.neurocanvas.fx.EffectDraw;
 import com.example.neurocanvas.fx.Fills;
 import com.example.neurocanvas.fx.Lines;
@@ -27,6 +28,7 @@ public final class CustomHitbox extends Module {
     private final Setting width = add(Setting.number("Line width", 1, 6, 2));
     private final Setting fill = add(Setting.bool("Fill", false));
     private final Setting fillAlpha = add(Setting.number("Fill strength", 0.05, 0.6, 0.18));
+    private final Setting overEntities = add(Setting.bool("Draw over models", true));
     private final Setting eyeLine = add(Setting.bool("Eye line", true));
     private final Setting distance = add(Setting.number("Max distance", 8, 128, 48));
 
@@ -67,9 +69,12 @@ public final class CustomHitbox extends Module {
         double maxSq = distance.value * distance.value;
         RenderSystem.enableDepthTest();
 
-        java.util.List<Box> boxes = new java.util.ArrayList<>();
-        java.util.List<Integer> colors = new java.util.ArrayList<>();
-        java.util.List<LivingEntity> eyes = new java.util.ArrayList<>();
+        java.util.List<Box> over = new java.util.ArrayList<>();
+        java.util.List<Integer> overColors = new java.util.ArrayList<>();
+        java.util.List<double[]> overEyes = new java.util.ArrayList<>();
+        java.util.List<Box> behind = new java.util.ArrayList<>();
+        java.util.List<Integer> behindColors = new java.util.ArrayList<>();
+        java.util.List<double[]> behindEyes = new java.util.ArrayList<>();
         for (Entity e : mc.world.getEntities()) {
             if (e == mc.player || e.squaredDistanceTo(mc.player) > maxSq) {
                 continue;
@@ -79,33 +84,26 @@ public final class CustomHitbox extends Module {
                 continue;
             }
             Vec3d shift = EffectDraw.lerpPos(e, env.tickDelta()).subtract(e.getPos());
-            boxes.add(e.getBoundingBox().offset(shift));
-            colors.add(color);
-            eyes.add(e instanceof LivingEntity living ? living : null);
-        }
-        // The game can build only one batch at a time, so the fill and the lines are drawn one after the other.
-        if (!boxes.isEmpty() && fill.on()) {
-            RenderSystem.depthMask(false);
-            Fills fills = Fills.begin(env);
-            for (int i = 0; i < boxes.size(); i++) {
-                fills.box(boxes.get(i), ((int) (255 * fillAlpha.f()) << 24) | (colors.get(i) & 0xFFFFFF));
+            Box box = e.getBoundingBox().offset(shift);
+            boolean visible = overEntities.on() && BoxBatch.inLineOfSight(mc, box);
+            double[] eye = null;
+            if (eyeLine.on() && e instanceof LivingEntity living) {
+                double eyeY = box.minY + living.getEyeHeight(living.getPose());
+                double z = (box.minZ + box.maxZ) / 2;
+                eye = new double[] {box.minX, eyeY, z, box.maxX, eyeY, z, 0xFFFF3030};
             }
-            fills.end();
-            RenderSystem.depthMask(true);
-        }
-        if (!boxes.isEmpty()) {
-            Lines lines = Lines.begin(env, width.f());
-            for (int i = 0; i < boxes.size(); i++) {
-                Box box = boxes.get(i);
-                lines.box(box, colors.get(i));
-                LivingEntity living = eyes.get(i);
-                if (eyeLine.on() && living != null) {
-                    double eyeY = box.minY + living.getEyeHeight(living.getPose());
-                    lines.line(box.minX, eyeY, (box.minZ + box.maxZ) / 2, box.maxX, eyeY, (box.minZ + box.maxZ) / 2, 0xFFFF3030);
-                }
+            if (visible) {
+                over.add(box);
+                overColors.add(color);
+                if (eye != null) overEyes.add(eye);
+            } else {
+                behind.add(box);
+                behindColors.add(color);
+                if (eye != null) behindEyes.add(eye);
             }
-            lines.end();
         }
+        BoxBatch.draw(env, behind, behindColors, fill.on(), fillAlpha.f(), true, width.f(), true, behindEyes);
+        BoxBatch.draw(env, over, overColors, fill.on(), fillAlpha.f(), true, width.f(), false, overEyes);
         RenderSystem.disableDepthTest();
     }
 }
