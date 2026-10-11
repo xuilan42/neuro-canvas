@@ -30,7 +30,7 @@
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
 | **Misc** | Interface |
 | **NeuroAura** | ИИ-чат (ниже) |
@@ -43,6 +43,10 @@
   Нужна для проверки боевых модулей. Команды: `/fake spawn [имя]`, `/fake remove`, `/fake heal`.
 - **Predictions** (показывает и уже летящие перлы, стрелы, трезубцы и зелья со временем до приземления), **Arrow**, **CustomHitbox** и **ESP** только показывают информацию (ESP скрыт за блоками, пока не включить *Through walls*), **FreeCam** отвязывает камеру, а **ToggleSprint** и **AutoRespawn** автоматизируют нажатия клавиш.
   На некоторых серверах такие помощники запрещены, смотрите правила своего сервера.
+
+**VolumetricFog** (экспериментальный) рисует собственный туман шейдером после отрисовки мира: читает буфер глубины и накладывает дымку, которая гуще у земли и редеет
+с высотой, с необязательным свечением вокруг солнца. Он не использует туман игры, поэтому работает и с Sodium; под водой и с шейдерпаками Iris пауза, а если шейдер не соберётся,
+модуль сам выключится и останется обычный туман. `/volfog status` и `/volfog retry` показывают и сбрасывают состояние.
 
 ## Cosmetics (своя 3D-модель)
 

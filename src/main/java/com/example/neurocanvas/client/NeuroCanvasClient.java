@@ -57,6 +57,7 @@ import com.example.neurocanvas.module.TotemCounter;
 import com.example.neurocanvas.module.ToggleSprint;
 import com.example.neurocanvas.module.Trails;
 import com.example.neurocanvas.module.ViewModel;
+import com.example.neurocanvas.module.VolumetricFog;
 import com.example.neurocanvas.module.Zoom;
 import com.example.neurocanvas.module.WorldState;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -134,6 +135,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(fakePlayer);
         Cosmetics cosmetics = new Cosmetics(dir.resolve("cosmetics"));
         modules.register(cosmetics);
+        modules.register(new VolumetricFog());
         modules.register(new FreeLook());
         modules.register(new FreeCam());
         modules.register(new NoRender());
@@ -228,6 +230,16 @@ public class NeuroCanvasClient implements ClientModInitializer {
                     fakePlayer.healFully();
                     return 1;
                 }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("volfog")
+                .then(literal("status").executes(ctx -> {
+                    say("[VolumetricFog] " + modules.get(VolumetricFog.class).status());
+                    return 1;
+                }))
+                .then(literal("retry").executes(ctx -> {
+                    modules.get(VolumetricFog.class).retry();
+                    say("[VolumetricFog] trying again");
+                    return 1;
+                }))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("cosmetics")
                 .then(literal("reload").executes(ctx -> {
                     cosmetics.rescan();
@@ -304,6 +316,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         if (mc.player == null) {
             return;
         }
+        modules.get(VolumetricFog.class).pass(ctx);
         Vec3d cam = ctx.camera().getPos();
         MatrixStack matrices = ctx.matrixStack();
         matrices.push();

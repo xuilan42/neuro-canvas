@@ -2,6 +2,7 @@ package com.example.neurocanvas.mixin;
 
 import com.example.neurocanvas.client.NeuroCanvasClient;
 import com.example.neurocanvas.module.CustomFog;
+import com.example.neurocanvas.module.VolumetricFog;
 import net.minecraft.client.render.BackgroundRenderer;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
@@ -22,6 +23,12 @@ public abstract class BackgroundRendererMixin {
         CustomFog fog = NeuroCanvasClient.modules().get(CustomFog.class);
         if (fog.enabled) {
             fog.apply(camera, fogType, viewDistance);
+        }
+        if (fogType == BackgroundRenderer.FogType.FOG_TERRAIN
+                && camera.getSubmersionType() == net.minecraft.client.render.CameraSubmersionType.NONE
+                && NeuroCanvasClient.modules().get(VolumetricFog.class).replacesVanillaFog()) {
+            com.mojang.blaze3d.systems.RenderSystem.setShaderFogStart(Float.MAX_VALUE);
+            com.mojang.blaze3d.systems.RenderSystem.setShaderFogEnd(Float.MAX_VALUE);
         }
     }
 
