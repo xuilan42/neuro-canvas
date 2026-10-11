@@ -11,9 +11,21 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(Entity.class)
 public abstract class EntityMixin {
+    /** The glow outline takes its colour from here; ESP "Outline" mode supplies its own. */
+    @Inject(method = "getTeamColorValue", at = @At("HEAD"), cancellable = true, require = 0)
+    private void neurocanvas$espColor(CallbackInfoReturnable<Integer> cir) {
+        if (NeuroCanvasClient.modules() != null) {
+            Integer color = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Esp.class).glowColor((Entity) (Object) this);
+            if (color != null) {
+                cir.setReturnValue(color);
+            }
+        }
+    }
+
     /** While zooming, the same mouse movement turns the view less, in step with the zoom factor. */
     @ModifyVariable(method = "changeLookDirection", at = @At("HEAD"), argsOnly = true, ordinal = 0, require = 0)
     private double neurocanvas$zoomX(double dx) {

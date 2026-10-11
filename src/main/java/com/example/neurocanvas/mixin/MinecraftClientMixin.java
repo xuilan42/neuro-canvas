@@ -15,6 +15,15 @@ public abstract class MinecraftClientMixin {
         return NeuroCanvasClient.modules() != null && NeuroCanvasClient.modules().get(FreeCam.class).active();
     }
 
+    /** ESP "Outline" mode: ask the game to give the chosen entities its glow outline. */
+    @Inject(method = "hasOutline", at = @At("HEAD"), cancellable = true, require = 0)
+    private void neurocanvas$espOutline(net.minecraft.entity.Entity entity, CallbackInfoReturnable<Boolean> cir) {
+        if (NeuroCanvasClient.modules() != null
+                && NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Esp.class).glowColor(entity) != null) {
+            cir.setReturnValue(true);
+        }
+    }
+
     @Inject(method = "doAttack", at = @At("HEAD"), cancellable = true, require = 0)
     private void neurocanvas$noAttack(CallbackInfoReturnable<Boolean> cir) {
         if (neurocanvas$flying()) {
