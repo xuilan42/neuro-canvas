@@ -28,8 +28,8 @@ Java 17 or newer is required.
 | Category | Modules |
 |---|---|
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Combat** | TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
+| **World** | FreeLook, FreeCam, NoRender, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
 | **Misc** | Interface |
 | **NeuroAura** | the AI chat (see below) |
@@ -40,7 +40,7 @@ Notes on a few modules:
   so target modules skip them. Commands: `/teams add <name>`, `/teams remove <name>`, `/teams list`, `/teams clear`.
 - **FakePlayer** spawns a dummy that exists only on your screen, with health, armour, knockback, a death animation and optional
   instant respawn, for testing combat modules. Commands: `/fake spawn [name]`, `/fake remove`, `/fake heal`.
-- **Predictions**, **Arrow** and **CustomHitbox** only draw information; **ToggleSprint** and **AutoRespawn** automate key presses.
+- **Predictions**, **Arrow**, **CustomHitbox** and **ESP** only draw information (ESP hides behind blocks unless you turn on *Through walls*); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
   Some servers do not allow such helpers, so check the rules of the server you play on.
 
 ## NameTags (plate over other users)

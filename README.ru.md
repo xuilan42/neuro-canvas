@@ -28,8 +28,8 @@
 | Категория | Модули |
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Combat** | TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
+| **World** | FreeLook, FreeCam, NoRender, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
 | **Misc** | Interface |
 | **NeuroAura** | ИИ-чат (ниже) |
@@ -40,7 +40,7 @@
   чтобы модули с целями их пропускали. Команды: `/teams add <ник>`, `/teams remove <ник>`, `/teams list`, `/teams clear`.
 - **FakePlayer** ставит болванку, которую видите только вы: с здоровьем, бронёй, отбрасыванием, анимацией смерти и мгновенным респавном по желанию.
   Нужна для проверки боевых модулей. Команды: `/fake spawn [имя]`, `/fake remove`, `/fake heal`.
-- **Predictions**, **Arrow** и **CustomHitbox** только показывают информацию, а **ToggleSprint** и **AutoRespawn** автоматизируют нажатия клавиш.
+- **Predictions**, **Arrow**, **CustomHitbox** и **ESP** только показывают информацию (ESP скрыт за блоками, пока не включить *Through walls*), **FreeCam** отвязывает камеру, а **ToggleSprint** и **AutoRespawn** автоматизируют нажатия клавиш.
   На некоторых серверах такие помощники запрещены, смотрите правила своего сервера.
 
 ## NeuroAura (ИИ-чат)
