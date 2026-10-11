@@ -29,7 +29,7 @@ Java 17 or newer is required.
 |---|---|
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | FreeLook, FreeCam, NoRender, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
 | **Misc** | Interface |
 | **NeuroAura** | the AI chat (see below) |

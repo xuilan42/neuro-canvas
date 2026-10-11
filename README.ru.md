@@ -29,7 +29,7 @@
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | FreeLook, FreeCam, NoRender, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **World** | FreeLook, FreeCam, NoRender, Comfort, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD |
 | **Misc** | Interface |
 | **NeuroAura** | ИИ-чат (ниже) |
