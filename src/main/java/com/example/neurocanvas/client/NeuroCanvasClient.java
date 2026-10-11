@@ -1,0 +1,298 @@
+package com.example.neurocanvas.client;
+
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.argument;
+import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.literal;
+
+import com.example.neurocanvas.ai.AiConfig;
+import com.example.neurocanvas.gui.ClickGui;
+import com.example.neurocanvas.module.HandTrails;
+import com.example.neurocanvas.module.HitBubbles;
+import com.example.neurocanvas.module.HitColor;
+import com.example.neurocanvas.module.HitParticles;
+import com.example.neurocanvas.module.Arrow;
+import com.example.neurocanvas.module.AspectRatio;
+import com.example.neurocanvas.module.AttackIndicator;
+import com.example.neurocanvas.module.AutoRespawn;
+import com.example.neurocanvas.module.BlockOverlay;
+import com.example.neurocanvas.module.ColorGrading;
+import com.example.neurocanvas.module.CombatNotifier;
+import com.example.neurocanvas.module.Comfort;
+import com.example.neurocanvas.module.Crosshair;
+import com.example.neurocanvas.module.CustomFog;
+import com.example.neurocanvas.module.CustomHitbox;
+import com.example.neurocanvas.module.CustomSky;
+import com.example.neurocanvas.module.DamageFeed;
+import com.example.neurocanvas.module.Esp;
+import com.example.neurocanvas.module.FakePlayer;
+import com.example.neurocanvas.module.FreeCam;
+import com.example.neurocanvas.module.FreeLook;
+import com.example.neurocanvas.module.Fullbright;
+import com.example.neurocanvas.module.Hud;
+import com.example.neurocanvas.module.Interface;
+import com.example.neurocanvas.module.ItemPhysics;
+import com.example.neurocanvas.module.KillEffects;
+import com.example.neurocanvas.module.NorthernLights;
+import com.example.neurocanvas.module.NoRender;
+import com.example.neurocanvas.module.PerformanceHud;
+import com.example.neurocanvas.module.Predictions;
+import com.example.neurocanvas.module.JumpCircles;
+import com.example.neurocanvas.module.Module;
+import com.example.neurocanvas.module.ModuleManager;
+import com.example.neurocanvas.module.NameTags;
+import com.example.neurocanvas.module.NeuroAura;
+import com.example.neurocanvas.module.Particles;
+import com.example.neurocanvas.module.RenderEnv;
+import com.example.neurocanvas.module.ScreenPulse;
+import com.example.neurocanvas.module.SwingAnimation;
+import com.example.neurocanvas.module.Teams;
+import com.example.neurocanvas.module.TargetEsp;
+import com.example.neurocanvas.module.TargetHud;
+import com.example.neurocanvas.module.TimeChanger;
+import com.example.neurocanvas.module.TotemCounter;
+import com.example.neurocanvas.module.ToggleSprint;
+import com.example.neurocanvas.module.Trails;
+import com.example.neurocanvas.module.ViewModel;
+import com.example.neurocanvas.module.Zoom;
+import com.example.neurocanvas.module.WorldState;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import java.io.IOException;
+import java.nio.file.Path;
+import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
+import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.render.GameRenderer;
+import net.minecraft.client.util.InputUtil;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.util.ActionResult;
+import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/** Fully client-side: works in singleplayer and on any server, no permissions or server mod needed. */
+public class NeuroCanvasClient implements ClientModInitializer {
+    private static final Logger LOGGER = LoggerFactory.getLogger("neurocanvas");
+    private static ModuleManager modules;
+
+    private static final WorldState state = new WorldState();
+    private KeyBinding openGui;
+
+    public static WorldState state() {
+        return state;
+    }
+
+    public static ModuleManager modules() {
+        return modules;
+    }
+
+    @Override
+    public void onInitializeClient() {
+        Path dir = FabricLoader.getInstance().getGameDir().resolve("neurocanvas");
+        modules = new ModuleManager(dir.resolve("modules.json"));
+        modules.register(new TargetEsp());
+        modules.register(new JumpCircles());
+        modules.register(new Particles());
+        modules.register(new Trails());
+        modules.register(new HitParticles());
+        modules.register(new HitBubbles());
+        modules.register(new HitColor());
+        modules.register(new Crosshair());
+        modules.register(new NeuroAura(AiConfig.load(dir.resolve("ai.json"))));
+        modules.register(new PerformanceHud());
+        modules.register(new ToggleSprint());
+        modules.register(new AutoRespawn());
+        modules.register(new ColorGrading());
+        modules.register(new ScreenPulse());
+        modules.register(new CustomSky());
+        modules.register(new NorthernLights());
+        modules.register(new ItemPhysics());
+        modules.register(new BlockOverlay());
+        modules.register(new HandTrails());
+        modules.register(new KillEffects());
+        modules.register(new Predictions());
+        modules.register(new CustomHitbox());
+        FakePlayer fakePlayer = new FakePlayer();
+        modules.register(fakePlayer);
+        modules.register(new FreeLook());
+        modules.register(new FreeCam());
+        modules.register(new NoRender());
+        modules.register(new Comfort());
+        modules.register(new Esp());
+        NameTags nameTags = new NameTags();
+        modules.register(nameTags);
+        Teams teams = new Teams(dir.resolve("friends.json"));
+        modules.register(teams);
+        modules.register(new DamageFeed());
+        modules.register(new CombatNotifier());
+        modules.register(new AttackIndicator());
+        modules.register(new Arrow());
+        modules.register(new Zoom());
+        modules.register(new Fullbright());
+        modules.register(new AspectRatio());
+        modules.register(new TotemCounter());
+        modules.register(new CustomFog());
+        modules.register(new TimeChanger());
+        modules.register(new SwingAnimation());
+        modules.register(new ViewModel());
+        modules.register(new Hud());
+        modules.register(new TargetHud());
+        modules.register(new Interface());
+        try {
+            modules.load();
+        } catch (IOException e) {
+            LOGGER.error("Cannot load config", e);
+        }
+
+        openGui = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding("key.neurocanvas.gui", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.misc"));
+        ClientTickEvents.END_CLIENT_TICK.register(mc -> {
+            state.tick(mc);
+            pollKeybinds(mc);
+            while (openGui.wasPressed()) {
+                mc.setScreen(new ClickGui());
+            }
+            if (mc.player != null) {
+                for (Module m : modules.all()) {
+                    m.tickAlways(mc);
+                    if (m.enabled) {
+                        m.tick(mc);
+                    }
+                }
+            }
+        });
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (world.isClient) {
+                state.onAttack(entity);
+            }
+            return ActionResult.PASS;
+        });
+        AttackEntityCallback.EVENT.register((player, world, hand, entity, hit) -> {
+            if (world.isClient && fakePlayer.owns(entity)) {
+                fakePlayer.onAttack(player);
+                return ActionResult.FAIL;
+            }
+            return ActionResult.PASS;
+        });
+        UseEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
+                world.isClient && fakePlayer.owns(entity) ? ActionResult.FAIL : ActionResult.PASS);
+        WorldRenderEvents.LAST.register(this::renderWorld);
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("fake")
+                .then(literal("spawn")
+                        .executes(ctx -> {
+                            fakePlayer.enabled = true;
+                            fakePlayer.respawnHere();
+                            return 1;
+                        })
+                        .then(argument("name", StringArgumentType.word()).executes(ctx -> {
+                            fakePlayer.setName(StringArgumentType.getString(ctx, "name"));
+                            fakePlayer.enabled = true;
+                            fakePlayer.respawnHere();
+                            return 1;
+                        })))
+                .then(literal("remove").executes(ctx -> {
+                    fakePlayer.enabled = false;
+                    return 1;
+                }))
+                .then(literal("heal").executes(ctx -> {
+                    fakePlayer.healFully();
+                    return 1;
+                }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("neurotag")
+                .then(literal("status").executes(ctx -> {
+                    say("[NameTags] " + (nameTags.enabled ? "on" : "off") + ", " + nameTags.status());
+                    return 1;
+                }))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("teams")
+                .then(literal("add").then(argument("name", StringArgumentType.word()).executes(ctx -> {
+                    String name = StringArgumentType.getString(ctx, "name");
+                    say(teams.addFriend(name) ? "Added " + name + " to your team list" : name + " is already on the list");
+                    return 1;
+                })))
+                .then(literal("remove").then(argument("name", StringArgumentType.word()).executes(ctx -> {
+                    String name = StringArgumentType.getString(ctx, "name");
+                    say(teams.removeFriend(name) ? "Removed " + name : name + " is not on the list");
+                    return 1;
+                })))
+                .then(literal("list").executes(ctx -> {
+                    say(teams.friends().isEmpty() ? "Team list is empty" : "Team list: " + String.join(", ", teams.friends()));
+                    return 1;
+                }))
+                .then(literal("clear").executes(ctx -> {
+                    teams.clearFriends();
+                    say("Team list cleared");
+                    return 1;
+                }))));
+        HudRenderCallback.EVENT.register((ctx, tickDelta) -> {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            for (Module m : modules.all()) {
+                if (m.enabled) {
+                    m.renderHud(ctx, mc);
+                }
+            }
+        });
+    }
+
+    private static void say(String message) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player != null) {
+            mc.player.sendMessage(net.minecraft.text.Text.literal("[Teams] " + message), false);
+        }
+    }
+
+    private void pollKeybinds(MinecraftClient mc) {
+        if (mc.currentScreen != null || mc.getWindow() == null) {
+            return;
+        }
+        long window = mc.getWindow().getHandle();
+        for (Module m : modules.all()) {
+            if (m.key < 0) {
+                continue;
+            }
+            boolean down = InputUtil.isKeyPressed(window, m.key);
+            if (m.hold) {
+                m.enabled = down;
+            } else if (down && !m.keyDown) {
+                m.enabled = !m.enabled;
+            }
+            m.keyDown = down;
+        }
+    }
+
+    private void renderWorld(WorldRenderContext ctx) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) {
+            return;
+        }
+        Vec3d cam = ctx.camera().getPos();
+        MatrixStack matrices = ctx.matrixStack();
+        matrices.push();
+        matrices.translate(-cam.x, -cam.y, -cam.z);
+        RenderEnv env = new RenderEnv(matrices.peek().getPositionMatrix(), ctx.tickDelta(),
+                (System.currentTimeMillis() % 1_000_000L) / 1000.0, ctx.camera().getYaw(), ctx.camera().getPitch(), mc, state);
+
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.disableCull();
+        RenderSystem.disableDepthTest();
+        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        for (Module m : modules.all()) {
+            if (m.enabled) {
+                m.renderWorld(env);
+            }
+        }
+        RenderSystem.enableDepthTest();
+        RenderSystem.enableCull();
+        RenderSystem.disableBlend();
+        matrices.pop();
+    }
+}

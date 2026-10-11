@@ -1,0 +1,11 @@
+{
+  "neurocanvas.generating": "Generating effect: %s",
+  "neurocanvas.done": "Effect #%s (%s) saved and enabled",
+  "neurocanvas.failed": "Generation failed: %s",
+  "neurocanvas.not_found": "No effect with id %s",
+  "neurocanvas.enabled": "Effect #%s enabled",
+  "neurocanvas.disabled": "Effect #%s disabled",
+  "neurocanvas.deleted": "Effect #%s deleted",
+  "neurocanvas.empty": "No saved effects",
+  "key.neurocanvas.gui": "Open NeuroCanvas menu"
+}

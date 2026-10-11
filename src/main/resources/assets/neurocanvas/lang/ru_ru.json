@@ -1,0 +1,11 @@
+{
+  "neurocanvas.generating": "Генерирую эффект: %s",
+  "neurocanvas.done": "Эффект №%s (%s) сохранён и включён",
+  "neurocanvas.failed": "Не удалось сгенерировать: %s",
+  "neurocanvas.not_found": "Нет эффекта с id %s",
+  "neurocanvas.enabled": "Эффект №%s включён",
+  "neurocanvas.disabled": "Эффект №%s выключен",
+  "neurocanvas.deleted": "Эффект №%s удалён",
+  "neurocanvas.empty": "Сохранённых эффектов нет",
+  "key.neurocanvas.gui": "Открыть меню NeuroCanvas"
+}
