@@ -1,0 +1,21 @@
+# Gradle / Loom
+.gradle/
+build/
+run/
+out/
+bin/
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+*.swp
+
+# OS / logs
+.DS_Store
+*.log
+hs_err_pid*
+
+# Local dev config (may contain an API key)
+neurocanvas/
+ai.json

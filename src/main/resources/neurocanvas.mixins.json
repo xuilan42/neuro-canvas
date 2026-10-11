@@ -1,0 +1,21 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.example.neurocanvas.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "client": [
+    "BackgroundRendererMixin",
+    "ClientWorldMixin",
+    "ClientWorldPropertiesMixin",
+    "GameRendererMixin",
+    "HeldItemRendererMixin",
+    "InGameHudMixin",
+    "ItemEntityMixin",
+    "ItemEntityRendererMixin",
+    "LivingEntityMixin",
+    "SimpleOptionMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

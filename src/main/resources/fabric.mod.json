@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "id": "neurocanvas",
+  "version": "${version}",
+  "name": "Neuro Canvas",
+  "description": "Client-side visual mod: a menu of effects (target ring, particles, fog, sky, crosshair, HUD and more) and an AI chat that configures them for you.",
+  "authors": [
+    "xuilan42"
+  ],
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.example.neurocanvas.client.NeuroCanvasClient"
+    ]
+  },
+  "mixins": [
+    "neurocanvas.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.15.0",
+    "fabric-api": "*",
+    "minecraft": "~1.20.1",
+    "java": ">=17"
+  }
+}
