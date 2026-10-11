@@ -18,6 +18,7 @@
     "KeyboardInputMixin",
     "ItemEntityMixin",
     "ItemEntityRendererMixin",
+    "KeyBindingMixin",
     "LivingEntityMixin",
     "MinecraftClientMixin",
     "ParticleManagerMixin",
