@@ -54,8 +54,9 @@ A model that hovers behind you like a stand. Built-in: **Phantom**. Your own: pu
 ```
 
 Models are optimised when they load, so heavy ones stay cheap: **Triangle budget** (vertex clustering, every part simplified on its own so
-small parts keep their shape) and **Texture size** (Original / 1024 / 512 / 256). `/cosmetics info` shows the result. Arms of a model in a T-pose
-can be lowered or raised with **Arm pose** and swing forward in turns when you hit (**Strike on hit**). Models are not part of this repository;
+small parts keep their shape) and **Texture size** (Original / 1024 / 512 / 256). `/cosmetics info` shows the result. Models live in
+`neurocanvas/cosmetics/` (the **Open models folder** button opens it, **Reload model list** rescans it). A model in a T-pose gets a simple two-arm skeleton with elbows:
+**Pose** (Relaxed, Ready, Guard, Point, ORA barrage) and, with **Strike on hit**, the arms punch in turns when you hit. Models are not part of this repository;
 check the license of what you download. It is only visible on your own screen.
 
 ## NameTags (plate over other users)

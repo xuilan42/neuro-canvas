@@ -70,7 +70,11 @@ public final class Cosmetics extends Module {
     private final Setting textureCap = add(Setting.choice("Texture size", 1, TEXTURE_CAPS));
     private final Setting applyOptimization = add(Setting.button("Apply optimization"));
     private final Setting restoreOriginal = add(Setting.button("Restore original"));
-    private final Setting armPose = add(Setting.choice("Arm pose", 1, "Off", "Down", "Ready"));
+    private final Setting openFolder = add(Setting.button("Open models folder"));
+    private final Setting reloadList = add(Setting.button("Reload model list"));
+    private final Setting armPose = add(Setting.choice("Pose", 1, "Off (T-pose)", "Relaxed", "Ready", "Guard", "Point", "ORA barrage"));
+    private final Setting poseSpeed = add(Setting.number("Barrage speed", 0.3, 3, 1));
+    private final Setting elbowX = add(Setting.number("Elbow position", 0.2, 0.5, 0.36));
     private final Setting shoulderX = add(Setting.number("Shoulder width", 0.05, 0.45, 0.2));
     private final Setting shoulderY = add(Setting.number("Shoulder height", 0.3, 1, 0.78));
     private final Setting firstPerson = add(Setting.bool("Show in first person", true));
@@ -102,6 +106,16 @@ public final class Cosmetics extends Module {
         this.root = root;
         model = add(Setting.choice("Model", 0, BUILT_IN));
         settings.add(0, settings.remove(settings.size() - 1));
+        try {
+            Files.createDirectories(root);
+            Path readme = root.resolve("README.txt");
+            if (!Files.exists(readme)) {
+                Files.writeString(readme, "Put one folder per model here:\n\n  cosmetics/<name>/model.obj\n  cosmetics/<name>/texture.png  (and more .png if needed)\n"
+                        + "  cosmetics/<name>/cosmetic.json  (optional)\n\nThen press \"Reload model list\" in the Cosmetics module (or run /cosmetics reload).\n");
+            }
+        } catch (IOException ignored) {
+            // The folder is optional; models can still be added by hand.
+        }
         rescan();
         WorldState.addHitListener(e -> {
             if (enabled && hitReaction.on()) {
@@ -329,6 +343,17 @@ public final class Cosmetics extends Module {
 
     @Override
     public void tickAlways(MinecraftClient mc) {
+        if (openFolder.on()) {
+            openFolder.set(0);
+            net.minecraft.util.Util.getOperatingSystem().open(root.toFile());
+        }
+        if (reloadList.on()) {
+            reloadList.set(0);
+            rescan();
+            if (mc.player != null) {
+                mc.player.sendMessage(net.minecraft.text.Text.literal("[Cosmetics] " + (folders.size()) + " model folder(s) found"), false);
+            }
+        }
         if (!enabled) {
             return;
         }
@@ -413,16 +438,48 @@ public final class Cosmetics extends Module {
         mm.rotateY((float) Math.toRadians(-(yaw + modelYaw + yawFix.f() + (flip.on() ? 180f : 0f))));
         mm.rotateZ((float) Math.sin(t * 1.3) * 0.05f * sway.f());
         mm.scale(size.f());
-        // Arm angles: lowered by the pose, swung forward and alternated while striking.
-        float down = armPose.index() == 1 ? 1.3f : armPose.index() == 2 ? 0.95f : 0f;
-        float ahead = armPose.index() == 2 ? 0.9f : 0f;
+        float[] down = new float[2];
+        float[] armFwd = new float[2];
+        float[] bend = new float[2];
         float punch = 0f;
         if (hitReaction.on() && strike >= 0f && strike < 1f && armPose.index() != 0) {
             punch = (float) Math.sin(Math.PI * strike);
         }
-        float rightFwd = ahead + punch * 1.25f * Math.max(0f, (float) Math.sin(t * 38));
-        float leftFwd = ahead + punch * 1.25f * Math.max(0f, (float) -Math.sin(t * 38));
-        draw(mm, opacity.f(), flash, poseable && armPose.index() != 0, down, rightFwd, leftFwd);
+        for (int arm = 0; arm < 2; arm++) {
+            float[] pose = basePose(armPose.index(), arm);
+            if (armPose.index() == 5) {
+                pose = barrage(arm, t);
+            } else if (punch > 0f) {
+                float[] hit = barrage(arm, t);
+                for (int i = 0; i < 3; i++) {
+                    pose[i] += (hit[i] - pose[i]) * punch;
+                }
+            }
+            down[arm] = pose[0];
+            armFwd[arm] = pose[1];
+            bend[arm] = pose[2];
+        }
+        float lean = armPose.index() == 5 ? 0.18f : 0.18f * punch;
+        mm.rotateX(lean);
+        draw(mm, opacity.f(), flash, poseable && armPose.index() != 0, down, armFwd, bend);
+    }
+
+    /** {down, forward, elbow bend} of one arm for a still pose. */
+    private static float[] basePose(int pose, int arm) {
+        return switch (pose) {
+            case 1 -> new float[] {1.35f, 0f, 0.15f};
+            case 2 -> new float[] {1.0f, 0.45f, 0.95f};
+            case 3 -> new float[] {0.95f, 0.8f, 1.9f};
+            case 4 -> arm == 0 ? new float[] {1.5f, 1.45f, 0f} : new float[] {1.25f, 0.2f, 0.4f};
+            default -> new float[] {1.0f, 0.4f, 0.8f};
+        };
+    }
+
+    /** Both arms punching forward in turns, very fast. */
+    private float[] barrage(int arm, double t) {
+        double phase = t * 30 * poseSpeed.value + (arm == 0 ? 0 : Math.PI);
+        float ext = (float) (0.5 + 0.5 * Math.sin(phase));
+        return new float[] {1.1f + 0.4f * ext, 0.5f + 1.0f * ext, 1.5f * (1f - ext) + 0.1f};
     }
 
     private static float smooth(float x, float a, float b) {
@@ -430,12 +487,19 @@ public final class Cosmetics extends Module {
         return t * t * (3f - 2f * t);
     }
 
-    private void draw(Matrix4f mm, float alpha, float flash, boolean arms, float down, float rightFwd, float leftFwd) {
+    private void draw(Matrix4f mm, float alpha, float flash, boolean arms, float[] down, float[] fwd, float[] bend) {
         float sx = shoulderX.f();
         float sy = shoulderY.f();
-        float cd = (float) Math.cos(down), sd = (float) Math.sin(down);
-        float[] cf = {(float) Math.cos(rightFwd), (float) Math.cos(leftFwd)};
-        float[] sf = {(float) Math.sin(rightFwd), (float) Math.sin(leftFwd)};
+        float ex = Math.max(elbowX.f(), sx + 0.05f);
+        float[] cd = new float[2], sd = new float[2], cf = new float[2], sf = new float[2], cbend = new float[2], sbend = new float[2];
+        for (int i = 0; i < 2; i++) {
+            cd[i] = (float) Math.cos(down[i]);
+            sd[i] = (float) Math.sin(down[i]);
+            cf[i] = (float) Math.cos(fwd[i]);
+            sf[i] = (float) Math.sin(fwd[i]);
+            cbend[i] = (float) Math.cos(bend[i]);
+            sbend[i] = (float) Math.sin(bend[i]);
+        }
         float shade = shading.f();
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
@@ -467,18 +531,31 @@ public final class Cosmetics extends Module {
                 float vy = p.pos[i * 3 + 1];
                 float vz = p.pos[i * 3 + 2];
                 if (arms) {
-                    float w = smooth(Math.abs(vx), sx * 0.75f, sx * 1.15f);
+                    float ax = Math.abs(vx);
+                    float w = smooth(ax, sx * 0.75f, sx * 1.15f);
                     if (w > 0f) {
-                        // Right arm (x > 0) hangs down by turning about z, then swings forward about x; the left arm mirrors it.
                         int arm = vx >= 0 ? 0 : 1;
-                        float dir = vx >= 0 ? -1f : 1f;
-                        float shoulder = vx >= 0 ? sx : -sx;
-                        float px = vx - shoulder;
-                        float py = vy - sy;
-                        float rx = px * cd - py * dir * sd;
-                        float ry = px * dir * sd + py * cd;
-                        float fy = ry * cf[arm] + vz * sf[arm];
-                        float fz = -ry * sf[arm] + vz * cf[arm];
+                        float side = vx >= 0 ? 1f : -1f;
+                        // Elbow: the forearm (beyond the elbow) turns toward the front while the arm is still straight.
+                        float e = smooth(ax, ex * 0.93f, ex * 1.07f);
+                        float px = vx;
+                        float pz = vz;
+                        if (e > 0f && bend[arm] != 0f) {
+                            float along = ax - ex;
+                            float nx = along * cbend[arm] - pz * sbend[arm];
+                            float nz = along * sbend[arm] + pz * cbend[arm];
+                            px += (side * (ex + nx) - px) * e;
+                            pz += (nz - pz) * e;
+                        }
+                        // Shoulder: the whole arm hangs down by turning about z, then swings forward about x.
+                        float dir = -side;
+                        float shoulder = side * sx;
+                        float qx = px - shoulder;
+                        float qy = vy - sy;
+                        float rx = qx * cd[arm] - qy * dir * sd[arm];
+                        float ry = qx * dir * sd[arm] + qy * cd[arm];
+                        float fy = ry * cf[arm] + pz * sf[arm];
+                        float fz = -ry * sf[arm] + pz * cf[arm];
                         vx += (rx + shoulder - vx) * w;
                         vy += (fy + sy - vy) * w;
                         vz += (fz - vz) * w;
