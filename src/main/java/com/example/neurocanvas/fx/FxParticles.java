@@ -82,10 +82,96 @@ public final class FxParticles {
         }
     }
 
+    /** Index of the matching shape in neuro_particle.fsh. */
+    private static int shaderShape(Shape s) {
+        return switch (s) {
+            case HEART -> 6;
+            case SQUARE -> 5;
+            case CIRCLE -> 0;
+            case STAR -> 1;
+            case PIXEL -> 3;
+            case RING -> 4;
+        };
+    }
+
     public void render(RenderEnv env) {
         if (particles.isEmpty()) {
             return;
         }
+        net.minecraft.client.gl.ShaderProgram program = Shaders.get("neuro_particle");
+        if (program != null && com.example.neurocanvas.module.Interface.shaderVisuals()) {
+            renderShader(env, program);
+        } else {
+            renderPolygons(env);
+        }
+    }
+
+    private void renderShader(RenderEnv env, net.minecraft.client.gl.ShaderProgram program) {
+        double sumX = 0, sumY = 0, sumZ = 0;
+        for (P p : particles) {
+            sumX += p.x;
+            sumY += p.y;
+            sumZ += p.z;
+        }
+        int count = particles.size();
+        Depth.state(Depth.over(env.mc(), new net.minecraft.util.math.Vec3d(sumX / count, sumY / count, sumZ / count)));
+        Matrix4f m = env.m();
+        double yaw = Math.toRadians(env.camYaw());
+        double pitch = Math.toRadians(env.camPitch());
+        float cy = (float) Math.cos(yaw), sy = (float) Math.sin(yaw);
+        float cp = (float) Math.cos(pitch), sp = (float) Math.sin(pitch);
+        float fx = -sy * cp, fy = -sp, fz = cy * cp;
+        float rx = cy, rz = sy;
+        float ux = fy * sy, uy = fz * cy - fx * sy, uz = -fy * cy;
+
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.disableCull();
+        com.mojang.blaze3d.systems.RenderSystem.setShader(() -> program);
+        net.minecraft.client.gl.GlUniform shapeUniform = program.getUniform("Shape");
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        for (int shape = 0; shape < 8; shape++) {
+            boolean any = false;
+            for (P p : particles) {
+                if (shaderShape(p.shape) == shape) {
+                    any = true;
+                    break;
+                }
+            }
+            if (!any) {
+                continue;
+            }
+            if (shapeUniform != null) {
+                shapeUniform.set((float) shape);
+            }
+            b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+            for (P p : particles) {
+                if (shaderShape(p.shape) != shape) {
+                    continue;
+                }
+                float f = p.life / p.max;
+                int argb = mix(p.c1, p.c2, f);
+                float a = p.alpha * (1f - f * f) * ((argb >>> 24) / 255f);
+                float r = ((argb >> 16) & 0xFF) / 255f;
+                float g = ((argb >> 8) & 0xFF) / 255f;
+                float bl = (argb & 0xFF) / 255f;
+                float size = p.size * (1f + p.grow * f) * (p.shape == Shape.RING ? 1f : 1.25f);
+                float rot = p.shape == Shape.PIXEL ? 0f : p.rot;
+                float cr = (float) Math.cos(rot), sr = (float) Math.sin(rot);
+                for (int k = 0; k < 4; k++) {
+                    float cu = k == 0 || k == 3 ? -1f : 1f;
+                    float cv = k < 2 ? -1f : 1f;
+                    b.vertex(m, (float) p.x + (rx * cu + ux * cv) * size, (float) p.y + (uy * cv) * size,
+                            (float) p.z + (rz * cu + uz * cv) * size)
+                            .texture(cu * cr - cv * sr, cu * sr + cv * cr).color(r, g, bl, a).next();
+                }
+            }
+            tess.draw();
+        }
+        Shaders.finish();
+    }
+
+    private void renderPolygons(RenderEnv env) {
         double sumX = 0, sumY = 0, sumZ = 0;
         for (P p : particles) {
             sumX += p.x;
