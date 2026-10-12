@@ -29,7 +29,7 @@
 | Категория | Модули |
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (своя 3D-модель) |
+| **Cosmetics** | Model (своя 3D-модель), Shimmer (броня и предметы в руке переливаются радугой или градиентом) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -39,6 +39,8 @@
 Про некоторые модули:
 
 - **TargetESP** имеет 11 стилей (настройка *Style*): Ring, Ghost (светящиеся шары со шлейфом), Points, Rhomb (крутящийся ромб), Crystals (кристаллы по орбите), Helix (две светящиеся нити), Pulse (расходящиеся кольца), Spiral, Halo (кольцо над головой), Pyramid (конус над головой) и Marker (вращающиеся уголки). Цвета, размер, скорость, количество и прозрачность работают для всех.
+- **BlockOverlay** умеет переливаться: *Color mode* Rainbow или Gradient (между цветом контура/заливки и *Gradient color*), *Color speed* и *Color flow* (насколько цвет различается вдоль контура).
+- **Shimmer** перекрашивает части брони и предмет в руке: *Mode* Rainbow, Gradient (два цвета) или Pulse, *Speed*, *Strength*, *Flow between pieces* (цвет бежит от шлема к ботинкам), *Who* (только вы или все) и переключатель для каждой части брони и предметов в руках. Видно только вам, другие игроки это не видят.
 - **NorthernLights** рисуется собственным шейдером: несколько волнистых завес из тонких вертикальных лучей, яркая нижняя кромка и плавное затухание вверх (по умолчанию зелёный в сине-фиолетовый), мягкие края, медленное движение и плавное появление в сумерках при *Only at night*. Настраиваются *Ray sharpness*, *Curtain height*, дальность, ширина и два цвета.
 - **CustomSky** теперь управляет и горизонтом: *Horizon color* и *Horizon gradient* плавно переводят небо, горизонт и туман друг в друга без шва, а оранжевый веер восхода и заката скрыт, пока не включён *Sunset glow*.
 - **Particles** это фоновые частицы вокруг вас: они появляются в случайных местах внутри *Spawn radius*, летают куда хотят (*Speed*, *Wander*, *Gravity*),

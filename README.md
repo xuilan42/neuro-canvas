@@ -29,7 +29,7 @@ Java 17 or newer is required.
 | Category | Modules |
 |---|---|
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (your own 3D model) |
+| **Cosmetics** | Model (your own 3D model), Shimmer (armour and held items shift through rainbow or gradient colours) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -39,6 +39,8 @@ Java 17 or newer is required.
 Notes on a few modules:
 
 - **TargetESP** has 11 styles (the *Style* setting): Ring, Ghost (glowing orbs with trails), Points, Rhomb (a spinning diamond), Crystals (orbiting 3D gems), Helix (two glowing strands), Pulse (expanding rings), Spiral, Halo (a ring above the head), Pyramid (a cone above the head) and Marker (rotating corner brackets). Colours, size, speed, count and alpha apply to all of them.
+- **BlockOverlay** can shimmer: *Color mode* Rainbow or Gradient (between the outline/fill colour and *Gradient color*), with *Color speed* and *Color flow* (how much the colour differs along the outline).
+- **Shimmer** tints armour pieces and held items: *Mode* Rainbow, Gradient (two colours) or Pulse, *Speed*, *Strength*, *Flow between pieces* (the colour runs from the helmet to the boots), *Who* (only you or everyone), and a switch for every armour piece and for held items. It only changes colours you see; other players do not.
 - **NorthernLights** is drawn by its own shader: several wavy curtains of thin vertical rays that brighten at the bottom edge and fade upwards (green to blue-violet by default), with soft ends, slow drifting and a smooth fade in at dusk with *Only at night*. *Ray sharpness*, *Curtain height*, distance, width and the two colours are adjustable.
 - **CustomSky** also shapes the horizon: *Horizon color* and *Horizon gradient* make the sky, the horizon and the fog fade into each other without a seam, and the orange sunrise/sunset fan is hidden unless *Sunset glow* is on.
 - **Particles** are ambient particles around you: they appear at random spots inside *Spawn radius*, drift wherever they like (*Speed*, *Wander*, *Gravity*),

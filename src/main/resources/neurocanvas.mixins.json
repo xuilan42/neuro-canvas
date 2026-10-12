@@ -13,6 +13,8 @@
     "EntityRenderDispatcherMixin",
     "ClientWorldPropertiesMixin",
     "DimensionEffectsMixin",
+    "ArmorFeatureRendererMixin",
+    "ItemRendererMixin",
     "GameRendererMixin",
     "HeldItemRendererMixin",
     "InGameHudMixin",
