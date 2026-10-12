@@ -32,7 +32,7 @@ Java 17 or newer is required.
 | **Cosmetics** | Model (your own 3D model), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
-| **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
+| **HUD** | PingWheel, HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
 | **Misc** | Interface (themes, fonts, effects) |
 | **NeuroAura** | the AI chat (see below) |
 
@@ -95,6 +95,17 @@ small parts keep their shape) and **Texture size** (Original / 1024 / 512 / 256)
 `neurocanvas/cosmetics/` (the **Open models folder** button opens it, **Reload model list** rescans it). A model in a T-pose gets a simple two-arm skeleton with elbows:
 **Pose** (Relaxed, Ready, Guard, Point, ORA barrage) and, with **Strike on hit**, the arms punch in turns when you hit. Models are not part of this repository;
 check the license of what you download. It is only visible on your own screen.
+
+## PingWheel (marks like in co-op games)
+
+Hold **V** (rebindable in Controls): a wheel opens, move the cursor to a mark and let go of the key (or click). The mark appears on the block or entity you were
+aiming at, up to 256 blocks away: a ring and a beam in the world, plus an icon on the screen with the distance and the name (it sticks to the screen edge when it is
+off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, **Danger**, **Look**, **Loot**, **Enemy**, **Help**. Inner ring: **Clear my pings**,
+**Countdown** (a big 3-2-1-GO for everyone), **Wave** and **Dance** (play the animations `wave`/`emote_wave` and `dance`/`emote_dance` of your Avatar, if it has them).
+
+- Other Neuro Canvas users on the same server see your pings and countdowns (and you see theirs): the messages go through the project's registry server, the same connection NameTags uses,
+  so **NameTags must be on**. Only the spot you ping and your name are sent, never your position. Switches: *Share with other users*, *Show other users' pings*.
+- Each user can have 3 pings at a time; they fade after *Lifetime*. The server limits how fast pings can be sent.
 
 ## Avatar (animated Blockbench avatars)
 

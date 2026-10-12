@@ -128,6 +128,14 @@ public final class Avatars extends Module {
         return info;
     }
 
+    /** Plays a gesture animation: emote_NAME or NAME, if the loaded avatar has one. */
+    public void emote(String name) {
+        if (model == null) {
+            return;
+        }
+        play(find("emote_" + name) != null ? "emote_" + name : name, null);
+    }
+
     /** True when the vanilla body of this player must not be drawn because the avatar replaces it. */
     public boolean hidesBody(Entity entity) {
         return enabled && model != null && hideBody.on() && mode.index() == 0 && entity == MinecraftClient.getInstance().player

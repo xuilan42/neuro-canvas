@@ -7,5 +7,6 @@
   "neurocanvas.disabled": "Эффект №%s выключен",
   "neurocanvas.deleted": "Эффект №%s удалён",
   "neurocanvas.empty": "Сохранённых эффектов нет",
+  "key.neurocanvas.pings": "Колесо меток (удерживать)",
   "key.neurocanvas.gui": "Открыть меню NeuroCanvas"
 }

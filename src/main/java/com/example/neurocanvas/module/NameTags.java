@@ -1,5 +1,6 @@
 package com.example.neurocanvas.module;
 
+import com.example.neurocanvas.client.NeuroCanvasClient;
 import com.example.neurocanvas.gui.Ui;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
@@ -217,10 +218,29 @@ public final class NameTags extends Module {
         }
     }
 
+    /** Sends one message to the other users on this server through the registry; false when there is no connection. */
+    public boolean send(String json) {
+        WebSocket w = socket;
+        if (w == null) {
+            return false;
+        }
+        w.sendText(json, true);
+        return true;
+    }
+
+    public boolean connected() {
+        return socket != null;
+    }
+
     private void read(String json) {
         try {
+            JsonObject message = GSON.fromJson(json, JsonObject.class);
+            if (message.has("ping") || message.has("count")) {
+                MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(PingWheel.class).receive(message));
+                return;
+            }
             Set<String> names = new HashSet<>();
-            GSON.fromJson(json, JsonObject.class).getAsJsonArray("players")
+            message.getAsJsonArray("players")
                     .forEach(e -> names.add(e.getAsString().toLowerCase(Locale.ROOT)));
             online = names;
             status = "connected, " + names.size() + " on this server";

@@ -47,6 +47,7 @@ import com.example.neurocanvas.module.ModuleManager;
 import com.example.neurocanvas.module.NameTags;
 import com.example.neurocanvas.module.NeuroAura;
 import com.example.neurocanvas.module.Particles;
+import com.example.neurocanvas.module.PingWheel;
 import com.example.neurocanvas.module.RenderEnv;
 import com.example.neurocanvas.module.ScreenPulse;
 import com.example.neurocanvas.module.SwingAnimation;
@@ -93,6 +94,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
     private static final WorldState state = new WorldState();
     private KeyBinding openGui;
+    private KeyBinding pingKey;
 
     public static WorldState state() {
         return state;
@@ -137,6 +139,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         Cosmetics cosmetics = new Cosmetics(dir.resolve("cosmetics"));
         modules.register(cosmetics);
         modules.register(new com.example.neurocanvas.module.Shimmer());
+        modules.register(new PingWheel());
         modules.register(new com.example.neurocanvas.module.Avatars(dir.resolve("avatars")));
         modules.register(new VolumetricFog());
         modules.register(new CropInfo());
@@ -177,6 +180,8 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
         openGui = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding("key.neurocanvas.gui", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.misc"));
+        pingKey = KeyBindingHelper.registerKeyBinding(
+                new KeyBinding("key.neurocanvas.pings", GLFW.GLFW_KEY_V, "key.categories.misc"));
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             state.tick(mc);
             pollKeybinds(mc);
@@ -188,6 +193,13 @@ public class NeuroCanvasClient implements ClientModInitializer {
             }
             while (openGui.wasPressed()) {
                 mc.setScreen(new ClickGui());
+            }
+            while (pingKey.wasPressed()) {
+                PingWheel pings = modules.get(PingWheel.class);
+                if (pings.enabled && mc.player != null && mc.currentScreen == null) {
+                    mc.setScreen(new com.example.neurocanvas.gui.PingWheelScreen(pings, PingWheel.capture(mc),
+                            KeyBindingHelper.getBoundKeyOf(pingKey).getCode()));
+                }
             }
             if (mc.player != null) {
                 for (Module m : modules.all()) {

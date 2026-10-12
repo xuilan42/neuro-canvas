@@ -7,5 +7,6 @@
   "neurocanvas.disabled": "Effect #%s disabled",
   "neurocanvas.deleted": "Effect #%s deleted",
   "neurocanvas.empty": "No saved effects",
+  "key.neurocanvas.pings": "Ping wheel (hold)",
   "key.neurocanvas.gui": "Open NeuroCanvas menu"
 }
