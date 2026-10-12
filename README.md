@@ -16,11 +16,11 @@ Java 17 or newer is required.
 
 ## The menu
 
-- **Tabs** by category, a **module list** on the left with on/off switches, and the **settings** of the selected module on the right.
+- **Tabs** by category, each with a small icon (only the open tab shows its name; hover another one to see it), a **module list** on the left with on/off switches, and the **settings** of the selected module on the right.
 - Every module can have a **key bind** (toggle or hold mode). Search with **Ctrl+F**.
 - Colour settings open a full **colour picker** with alpha.
 - **Configs** tab: save, load and delete presets, copy a **share code** to the clipboard, import a code, and edit the **HUD layout** by dragging elements. Elements snap to the left, centre or right (and top, middle, bottom) of the screen and keep that anchor when the window changes size. The module list can be sorted in Misc > Interface (longest, shortest, A to Z, Z to A, by category, ...).
-- **Interface** (Misc tab): 6 themes, 3 bundled fonts (Cyrillic supported), animations.
+- **Interface** (Misc tab): themes, 3 bundled fonts (Cyrillic supported) and animations: cards slide in when you change tab, the tab underline glides, hover and switches fade, the settings panel fades in. *Animations* turns them all off.
 - The menu remembers the tab and module you were on. **Interface** can also derive the whole look from one accent colour, apply that accent to every module colour (a preset "Before accent" is saved first), and set the open animation, background and click sounds.
 - **Updates:** on start the mod asks GitHub's public API once whether a newer release exists and tells you in chat and in the menu. Turn it off with *Check for updates* in Interface.
 
@@ -76,9 +76,9 @@ packs **Sunset**, **Frost**, **Blood Moon**. Pick one in *Interface*; menu blur 
   Theme files are plain JSON (`palette`, `style`, optional `pack`), can be shared with *Copy theme code* / *Import theme code from clipboard*, and reloaded with `/theme reload`.
   Other commands: `/theme list`, `/theme use <name>`.
 
-## Cosmetics (your own 3D model)
+## Model (your own 3D model, Cosmetics tab)
 
-A model that hovers behind you like a stand. Built-in: **Phantom**. Your own: put a folder into `neurocanvas/cosmetics/<name>/` with an
+The **Model** module is a model that hovers behind you like a stand. Built-in: **Phantom**. Your own: put a folder into `neurocanvas/cosmetics/<name>/` with an
 `.obj` model and `.png` textures, then `/cosmetics reload` and pick it in the module. An optional `cosmetic.json` can name the files:
 
 ```json
@@ -137,7 +137,7 @@ The jar appears in `build/libs/`. Requires JDK 17.
 
 ## Compatibility
 
-Developed for Minecraft 1.20.1 with Fabric API 0.92.x. It uses mixins for the crosshair, hand rendering, field of view, fog,
+Developed for Minecraft 1.20.1 with Fabric API 0.92.x and tested with Sodium, Indium and Lithium. Shader packs (Iris) are not tested: VolumetricFog pauses itself with them. It uses mixins for the crosshair, hand rendering, field of view, fog,
 sky, time and dropped items, so other mods that change the same things may conflict.
 
 ## License
