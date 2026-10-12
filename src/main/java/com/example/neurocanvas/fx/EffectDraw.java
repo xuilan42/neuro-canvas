@@ -28,7 +28,7 @@ public final class EffectDraw {
         double phase0 = (Math.sin(t0 * s.speed) + 1) / 2;
         double y0 = p.y + 0.05 + phase0 * (height - 0.1);
         float radius0 = (float) (s.size * 0.6 * (1 + s.pulse * Math.sin(t0 * s.speed * 3)));
-        float width0 = 0.07f * s.size + 0.03f;
+        float width0 = (0.07f * s.size + 0.03f) * s.thickness;
         float outer = radius0 + width0 * 5f;
         FxBatch fx = FxBatch.begin(env, FxBatch.RING, width0 / outer, radius0 / outer, s.speed * 2f, s.color2);
         if (fx != null) {
@@ -53,7 +53,7 @@ public final class EffectDraw {
         double phase = (Math.sin(t * s.speed) + 1) / 2;
         double y = p.y + 0.05 + phase * (height - 0.1);
         float radius = (float) (s.size * 0.6 * (1 + s.pulse * Math.sin(t * s.speed * 3)));
-        float width = 0.07f * s.size + 0.03f;
+        float width = (0.07f * s.size + 0.03f) * s.thickness;
         int segments = 48;
         BufferBuilder b = Tessellator.getInstance().getBuffer();
         b.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);

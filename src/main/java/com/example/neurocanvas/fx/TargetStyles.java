@@ -136,7 +136,7 @@ public final class TargetStyles {
             for (int k = 0; k < 7; k++) {
                 Vec3d q = orb(s, p, h, i, n, env.t() - k * 0.035);
                 float f = 1f - k / 7f;
-                sp.quad(q.x, q.y, q.z, (0.05f + 0.07f * s.size) * (0.4f + 0.6f * f), 0f,
+                sp.quad(q.x, q.y, q.z, (0.05f + 0.07f * s.size) * s.thickness * (0.4f + 0.6f * f), 0f,
                         color(s, i / (float) n, s.alpha * f * f));
             }
         }
@@ -156,7 +156,7 @@ public final class TargetStyles {
             double u = (i + 0.5) / n;
             double yy = p.y + h * (0.1 + 0.85 * u);
             double r = s.size * 0.55 * Math.sqrt(1 - Math.pow(2 * u - 1, 2)) + 0.1;
-            sp.quad(p.x + Math.cos(a) * r, yy, p.z + Math.sin(a) * r, 0.025f + 0.025f * s.size, 0f,
+            sp.quad(p.x + Math.cos(a) * r, yy, p.z + Math.sin(a) * r, (0.025f + 0.025f * s.size) * s.thickness, 0f,
                     color(s, (float) u, s.alpha));
         }
         sp.end();
@@ -171,7 +171,7 @@ public final class TargetStyles {
         double t = env.t();
         double y = p.y + h * 0.55 + 0.06 * Math.sin(t * s.speed * 1.5);
         float rot = (float) (Math.sin(t * s.speed * 0.8) * Math.PI);
-        float size = 0.28f * s.size + 0.08f;
+        float size = (0.28f * s.size + 0.08f) * (0.5f + 0.5f * s.thickness);
         glow.quad(p.x, y, p.z, size * 2.2f, 0f, color(s, 0.5f, s.alpha * 0.45f));
         glow.end();
         Sprites d = sprites(env, DIAMOND, false);
@@ -182,7 +182,7 @@ public final class TargetStyles {
     private static void crystals(RenderEnv env, EffectSpec s, Vec3d p, float h) {
         int n = Math.max(2, Math.min(s.count, 10));
         double t = env.t();
-        Lines lines = Lines.begin(env, 2.5f);
+        Lines lines = Lines.begin(env, 2.5f * s.thickness);
         for (int i = 0; i < n; i++) {
             double a = i * Math.PI * 2 / n + t * s.speed * 0.9;
             double r = s.size * 0.7;
@@ -209,7 +209,7 @@ public final class TargetStyles {
     private static void helix(RenderEnv env, EffectSpec s, Vec3d p, float h) {
         double t = env.t();
         int steps = 40;
-        Lines lines = Lines.begin(env, 2.2f);
+        Lines lines = Lines.begin(env, 2.2f * s.thickness);
         for (int strand = 0; strand < 2; strand++) {
             double px = 0, py = 0, pz = 0;
             for (int k = 0; k <= steps; k++) {
@@ -257,7 +257,7 @@ public final class TargetStyles {
             double a = u * Math.PI * 4 + t * s.speed * 1.4;
             double r = s.size * (0.25 + 0.5 * u);
             double y = p.y + h * 0.5 + (u - 0.5) * h * 0.7 + 0.08 * Math.sin(t * 3 + k);
-            sp.quad(p.x + Math.cos(a) * r, y, p.z + Math.sin(a) * r, 0.04f + 0.04f * s.size,
+            sp.quad(p.x + Math.cos(a) * r, y, p.z + Math.sin(a) * r, (0.04f + 0.04f * s.size) * s.thickness,
                     0f, color(s, (float) u, s.alpha * (float) (1 - u * 0.7)));
         }
         sp.end();
@@ -267,7 +267,7 @@ public final class TargetStyles {
         double t = env.t();
         double y = p.y + h + 0.22 + 0.04 * Math.sin(t * s.speed * 2);
         float radius = (float) (s.size * 0.32 * (1 + s.pulse * 0.4 * Math.sin(t * s.speed * 3)));
-        float width = 0.03f + 0.02f * s.size;
+        float width = (0.03f + 0.02f * s.size) * s.thickness;
         float outer = radius + width * 5f;
         FxBatch fx = FxBatch.begin(env, FxBatch.RING, width / outer, radius / outer, s.speed * 2f, s.color2);
         if (fx == null) {
@@ -289,7 +289,7 @@ public final class TargetStyles {
         double tip = p.y + h + 0.18 + bob;
         double r = 0.12 + 0.1 * s.size;
         double spin = t * s.speed * 1.6;
-        Lines lines = Lines.begin(env, 2.6f);
+        Lines lines = Lines.begin(env, 2.6f * s.thickness);
         double[][] base = new double[4][];
         for (int k = 0; k < 4; k++) {
             double a = spin + k * Math.PI / 2;
@@ -308,7 +308,7 @@ public final class TargetStyles {
         // The right/up vectors of the camera lay the brackets in the screen plane.
         Sprites cam = new Sprites(env);
         double rx = cam.rx, rz = cam.rz, ux = cam.ux, uy = cam.uy, uz = cam.uz;
-        Lines lines = Lines.begin(env, 2.6f);
+        Lines lines = Lines.begin(env, 2.6f * s.thickness);
         double t = env.t();
         double rot = t * s.speed * 0.9;
         double c = Math.cos(rot), sn = Math.sin(rot);

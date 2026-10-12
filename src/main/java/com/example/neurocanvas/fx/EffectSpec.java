@@ -12,6 +12,8 @@ public final class EffectSpec {
     public float pulse = 0.2f;
     public int count = 12;
     public float alpha = 0.8f;
+    /** Line and ring thickness multiplier (1 = default). */
+    public float thickness = 1f;
 
     public void clamp() {
         if (type == null) type = Type.TARGET_RING;
@@ -20,5 +22,6 @@ public final class EffectSpec {
         pulse = Math.max(0f, Math.min(pulse, 1f));
         count = Math.max(1, Math.min(count, 64));
         alpha = Math.max(0.05f, Math.min(alpha, 1f));
+        thickness = Math.max(0.2f, Math.min(thickness, 5f));
     }
 }
