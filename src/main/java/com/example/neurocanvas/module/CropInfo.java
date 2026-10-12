@@ -15,6 +15,7 @@ import net.minecraft.block.NetherWartBlock;
 import net.minecraft.block.SaplingBlock;
 import net.minecraft.block.StemBlock;
 import net.minecraft.block.SweetBerryBushBlock;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.world.ClientWorld;
@@ -37,7 +38,9 @@ public final class CropInfo extends Module {
     private final Setting eta = add(Setting.bool("Show time left", true));
     private final Setting tickSpeed = add(Setting.number("Random tick speed", 1, 20, 3));
     private final Setting scale = add(Setting.number("Scale", 0.6, 2, 1));
-    private final Setting offset = add(Setting.number("Panel offset", 10, 120, 34));
+    private float anchorX = Float.NaN;
+    private float anchorY = Float.NaN;
+    private final Setting offset = add(Setting.number("Panel gap", 0, 120, 6));
 
     public CropInfo() {
         super("CropInfo", Category.WORLD, "Growth percent and time left for the plant you look at", false);
@@ -166,10 +169,20 @@ public final class CropInfo extends Module {
 
     @Override
     public void renderWorld(RenderEnv env) {
+        BlockPos pos = target(env.mc());
+        anchorX = Float.NaN;
+        if (pos != null && panel.on()) {
+            org.joml.Vector4f v = new org.joml.Vector4f(pos.getX() + 0.5f, pos.getY() + 1.0f, pos.getZ() + 0.5f, 1f);
+            v.mul(env.m());
+            v.mul(RenderSystem.getProjectionMatrix());
+            if (v.w > 0.05f) {
+                anchorX = (v.x / v.w * 0.5f + 0.5f) * env.mc().getWindow().getScaledWidth();
+                anchorY = (0.5f - v.y / v.w * 0.5f) * env.mc().getWindow().getScaledHeight();
+            }
+        }
         if (!worldLabel.on()) {
             return;
         }
-        BlockPos pos = target(env.mc());
         Info info = pos == null ? null : inspect(env.mc(), pos);
         if (info != null) {
             String text = info.sapling() ? "sapling " + Math.round(info.progress() * 100) + "%" : Math.round(info.progress() * 100) + "%";
@@ -210,7 +223,13 @@ public final class CropInfo extends Module {
         w = Math.max(w, 130);
         int h = line3.isEmpty() ? 42 : 54;
         ctx.getMatrices().push();
-        ctx.getMatrices().translate(ctx.getScaledWindowWidth() / 2f, ctx.getScaledWindowHeight() / 2f + offset.f(), 0);
+        float px = ctx.getScaledWindowWidth() / 2f;
+        float py = ctx.getScaledWindowHeight() / 2f + 34;
+        if (!Float.isNaN(anchorX)) {
+            px = Math.max(w * s / 2f + 4, Math.min(ctx.getScaledWindowWidth() - w * s / 2f - 4, anchorX));
+            py = Math.max(4, Math.min(ctx.getScaledWindowHeight() - h * s - 4, anchorY - h * s - offset.f()));
+        }
+        ctx.getMatrices().translate(px, py, 0);
         ctx.getMatrices().scale(s, s, 1f);
         int x = -w / 2;
         Ui.roundRect(ctx, x, 0, w, h, 6, (th.panel() & 0xFFFFFF) | 0xCC000000);
