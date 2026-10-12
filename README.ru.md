@@ -29,7 +29,7 @@
 | Категория | Модули |
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Cosmetics (своя 3D-модель) |
+| **Cosmetics** | Model (своя 3D-модель) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |

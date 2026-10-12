@@ -80,6 +80,9 @@ public final class ModuleManager {
     public void apply(Map<String, Map<String, Double>> config) {
         for (Module m : modules) {
             Map<String, Double> saved = config.get(m.name);
+            if (saved == null && m.name.equals("Model")) {
+                saved = config.get("Cosmetics");
+            }
             if (saved == null) {
                 continue;
             }

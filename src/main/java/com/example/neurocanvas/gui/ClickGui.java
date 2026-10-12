@@ -48,6 +48,13 @@ public final class ClickGui extends Screen {
     private Module bindingFor;
     private long lastNano = System.nanoTime();
     private final Map<Module, Float> switchAnim = new HashMap<>();
+    private final Map<Module, Float> hoverAnim = new HashMap<>();
+    private Category animTab;
+    private Module animSelected;
+    private float listIn = 1f;
+    private float panelIn = 1f;
+    private float underlineX = Float.NaN;
+    private float underlineW;
 
     public ClickGui() {
         super(Text.literal("NeuroCanvas"));
@@ -170,6 +177,17 @@ public final class ClickGui extends Screen {
         lastNano = now;
         boolean anim = Interface.animations();
         open = anim ? Math.min(1f, open + dt * 5f) : 1f;
+        if (animTab != tab) {
+            animTab = tab;
+            listIn = 0f;
+            panelIn = 0f;
+        }
+        if (animSelected != selected) {
+            animSelected = selected;
+            panelIn = 0f;
+        }
+        listIn = anim ? Math.min(1f, listIn + dt * 3.2f) : 1f;
+        panelIn = anim ? Math.min(1f, panelIn + dt * 5.5f) : 1f;
         float ease = 1f - (float) Math.pow(1f - open, 3);
 
         drawBackground(ctx, th, ease);
@@ -205,6 +223,10 @@ public final class ClickGui extends Screen {
         } else {
             renderModuleList(ctx, th, mouseX, mouseY, dt, anim);
             renderSettings(ctx, th, mouseX, mouseY);
+            if (panelIn < 1f) {
+                float fade = 1f - (1f - (float) Math.pow(1f - panelIn, 3));
+                Ui.roundRect(ctx, panelX(), bodyTop(), panelW(), bodyH(), 8, Ui.alpha(th.bg() & 0xFFFFFF, 0.9f * fade));
+            }
             if (pickerFor != null) {
                 drawPicker(ctx, th);
             }
@@ -278,7 +300,13 @@ public final class ClickGui extends Screen {
                 Ui.text(ctx, textRenderer, c.label, x + w / 2 - Ui.width(textRenderer, c.label) / 2, wy() + HEADER - 4, th.dim());
             }
             if (c == tab) {
-                Ui.roundRect(ctx, x - 2, wy() + HEADER - 8, w + 4, 2, 1, th.accent());
+                if (Float.isNaN(underlineX) || !Interface.animations()) {
+                    underlineX = x - 2;
+                    underlineW = w + 4;
+                }
+                underlineX += (x - 2 - underlineX) * 0.28f;
+                underlineW += (w + 4 - underlineW) * 0.28f;
+                Ui.roundRect(ctx, Math.round(underlineX), wy() + HEADER - 8, Math.round(underlineW), 2, 1, th.accent());
             }
         }
         if (searchFocus) {
@@ -299,17 +327,32 @@ public final class ClickGui extends Screen {
             int y = cardY(i);
             boolean hover = inside(mx, my, listX(), y, LIST_W, CARD_H) && my >= viewY && my < viewY + bodyH();
             boolean sel = m == selected;
-            Ui.surface(ctx, listX(), y, LIST_W, CARD_H, 6, sel ? th.panel2() : (hover ? th.hover() : th.panel()));
+            float h = hoverAnim.getOrDefault(m, 0f);
+            float ht = hover ? 1f : 0f;
+            h = anim ? h + Math.signum(ht - h) * Math.min(Math.abs(ht - h), dt * 9f) : ht;
+            hoverAnim.put(m, h);
+
+            float local = Math.max(0f, Math.min(1f, (listIn - i * 0.045f) / 0.55f));
+            float eased = 1f - (float) Math.pow(1f - local, 3);
+            ctx.getMatrices().push();
+            ctx.getMatrices().translate((1f - eased) * -16f, 0, 0);
+            int base = sel ? th.panel2() : Ui.mix(th.panel(), th.hover(), h);
+            Ui.surface(ctx, listX(), y, LIST_W, CARD_H, 6, local < 1f ? Ui.mix(th.bg() | 0xFF000000, base | 0xFF000000, eased) : base);
             if (sel) {
                 Ui.roundRect(ctx, listX(), y + 6, 3, CARD_H - 12, 1, th.accent());
+            } else if (h > 0.02f) {
+                int bar = Math.round((CARD_H - 12) * h);
+                Ui.roundRect(ctx, listX(), y + (CARD_H - bar) / 2, 3, Math.max(1, bar), 1, Ui.alpha(th.accent() & 0xFFFFFF, h));
             }
-            Ui.textMid(ctx, textRenderer, m.name, listX() + 12, y, CARD_H, m.enabled ? th.text() : th.dim());
+            int textColor = m.enabled ? th.text() : Ui.mix(th.dim(), th.text(), h);
+            Ui.textMid(ctx, textRenderer, m.name, listX() + 12 + Math.round(h * 2f), y, CARD_H, textColor);
 
             float target = m.enabled ? 1f : 0f;
             float a = switchAnim.getOrDefault(m, target);
             a = anim ? a + Math.signum(target - a) * Math.min(Math.abs(target - a), dt * 8f) : target;
             switchAnim.put(m, a);
             drawSwitch(ctx, th, listX() + LIST_W - 38, y + (CARD_H - 14) / 2, a);
+            ctx.getMatrices().pop();
         }
         ctx.disableScissor();
     }
