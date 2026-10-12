@@ -135,10 +135,14 @@ public final class ClickGui extends Screen {
         Ui.textCentered(ctx, textRenderer, selected.hold ? "Hold" : "Toggle", cx + CTRL_W / 2, y + (ROW_H - 8) / 2, th.text());
     }
 
+    private int tabWidth(Category c) {
+        return c == tab ? Icons.SIZE + 5 + Ui.width(textRenderer, c.label) : Icons.SIZE;
+    }
+
     private int tabX(int index, List<Category> cats) {
         int x = wx() + 112;
         for (int i = 0; i < index; i++) {
-            x += Ui.width(textRenderer, cats.get(i).label) + 12;
+            x += tabWidth(cats.get(i)) + 18;
         }
         return x;
     }
@@ -264,10 +268,15 @@ public final class ClickGui extends Screen {
         for (int i = 0; i < cats.size(); i++) {
             Category c = cats.get(i);
             int x = tabX(i, cats);
-            int w = Ui.width(textRenderer, c.label);
+            int w = tabWidth(c);
             boolean hover = inside(mx, my, x - 8, wy() + 6, w + 16, HEADER - 12);
             int color = c == tab ? th.text() : (hover ? th.text() : th.dim());
-            Ui.text(ctx, textRenderer, c.label, x, wy() + 16, color);
+            Icons.draw(ctx, c, x, wy() + 15, c == tab ? th.accent() : color);
+            if (c == tab) {
+                Ui.text(ctx, textRenderer, c.label, x + Icons.SIZE + 5, wy() + 16, color);
+            } else if (hover) {
+                Ui.text(ctx, textRenderer, c.label, x + w / 2 - Ui.width(textRenderer, c.label) / 2, wy() + HEADER - 4, th.dim());
+            }
             if (c == tab) {
                 Ui.roundRect(ctx, x - 2, wy() + HEADER - 8, w + 4, 2, 1, th.accent());
             }
@@ -276,7 +285,7 @@ public final class ClickGui extends Screen {
             Ui.roundRect(ctx, sbX() - 1, sbY() - 1, SEARCH_W + 2, 24, 7, th.accent());
         }
         Ui.surface(ctx, sbX(), sbY(), SEARCH_W, 22, 6, th.panel2());
-        String shown = query.isEmpty() ? "Search (Ctrl+F)" : query + (searchFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
+        String shown = query.isEmpty() ? "Search" : query + (searchFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
         Ui.text(ctx, textRenderer, shown, sbX() + 8, sbY() + 7, query.isEmpty() ? th.dim() : th.text());
         ctx.fill(wx() + PAD, wy() + HEADER, wx() + W - PAD, wy() + HEADER + 1, th.panel2());
     }
@@ -670,7 +679,7 @@ public final class ClickGui extends Screen {
         List<Category> cats = categories();
         for (int i = 0; i < cats.size(); i++) {
             int x = tabX(i, cats);
-            if (inside(mx, my, x - 8, wy() + 6, Ui.width(textRenderer, cats.get(i).label) + 16, HEADER - 12)) {
+            if (inside(mx, my, x - 8, wy() + 6, tabWidth(cats.get(i)) + 16, HEADER - 12)) {
                 query = "";
                 pickerFor = null;
                 if (tab != cats.get(i)) {

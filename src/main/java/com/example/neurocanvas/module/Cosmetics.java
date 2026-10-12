@@ -101,7 +101,7 @@ public final class Cosmetics extends Module {
     private Vec3d punchTarget = Vec3d.ZERO;
 
     public Cosmetics(Path root) {
-        super("Cosmetics", Category.VISUALS, "A 3D model that hovers behind you: built-in Phantom or your own .obj in neurocanvas/cosmetics/", false);
+        super("Cosmetics", Category.COSMETICS, "A 3D model that hovers behind you: built-in Phantom or your own .obj in neurocanvas/cosmetics/", false);
         aiControllable = false;
         this.root = root;
         model = add(Setting.choice("Model", 0, BUILT_IN));

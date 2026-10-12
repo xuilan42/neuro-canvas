@@ -1,7 +1,7 @@
 package com.example.neurocanvas.module;
 
 public enum Category {
-    VISUALS("Visuals"), COMBAT("Combat"), WORLD("World"), HUD("HUD"), MISC("Misc"), AI("NeuroAura"), CONFIG("Configs");
+    VISUALS("Visuals"), COSMETICS("Cosmetics"), COMBAT("Combat"), WORLD("World"), HUD("HUD"), MISC("Misc"), AI("NeuroAura"), CONFIG("Configs");
 
     public final String label;
 
