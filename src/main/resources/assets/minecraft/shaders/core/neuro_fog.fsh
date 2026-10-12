@@ -9,7 +9,7 @@ uniform sampler2D Sampler0;
 uniform mat4 InvProj;
 uniform mat4 InvView;
 uniform vec3 CamPos;
-uniform vec3 FogColor;
+uniform vec3 NcFogTint;
 uniform vec3 SunDir;
 uniform vec3 SunColor;
 // x density, y height falloff, z fog height, w start distance
@@ -48,7 +48,7 @@ void main() {
 
     float sunDot = max(dot(rd, SunDir), 0.0);
     float glow = pow(sunDot, 8.0) * Params1.y * clamp(SunDir.y * 4.0 + 0.4, 0.0, 1.0);
-    vec3 color = mix(FogColor, SunColor, clamp(glow, 0.0, 1.0));
+    vec3 color = mix(NcFogTint, SunColor, clamp(glow, 0.0, 1.0));
 
     float alpha = fog * Params1.x * (sky ? Params1.z : 1.0);
     fragColor = vec4(color, clamp(alpha, 0.0, 1.0));

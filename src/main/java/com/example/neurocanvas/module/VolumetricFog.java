@@ -162,7 +162,7 @@ public final class VolumetricFog extends Module {
                 u.set(invView.get(new float[16]));
             }
             set(program, "CamPos", (float) cam.x, (float) cam.y, (float) cam.z);
-            set(program, "FogColor", fogRgb[0], fogRgb[1], fogRgb[2]);
+            set(program, "NcFogTint", fogRgb[0], fogRgb[1], fogRgb[2]);
             set(program, "SunDir", (float) -Math.sin(angle), (float) Math.cos(angle), 0f);
             set(program, "SunColor", ((sc >> 16) & 0xFF) / 255f, ((sc >> 8) & 0xFF) / 255f, (sc & 0xFF) / 255f);
             set(program, "Params0", (float) c, (float) b, level.f(), start.f());
