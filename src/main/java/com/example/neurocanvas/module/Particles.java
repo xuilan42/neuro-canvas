@@ -306,6 +306,7 @@ public final class Particles extends Module {
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableDepthTest();
+        com.example.neurocanvas.fx.Shaders.finish();
     }
 
     private void draw(RenderEnv env, Vec3d center, double fade, ShaderProgram shader) {
@@ -382,6 +383,6 @@ public final class Particles extends Module {
         RenderSystem.depthMask(true);
         RenderSystem.enableCull();
         RenderSystem.disableDepthTest();
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        com.example.neurocanvas.fx.Shaders.finish();
     }
 }

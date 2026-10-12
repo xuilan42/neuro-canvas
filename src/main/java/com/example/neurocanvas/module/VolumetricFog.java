@@ -182,6 +182,7 @@ public final class VolumetricFog extends Module {
             buf.vertex(1.0, 1.0, 0.0).next();
             buf.vertex(-1.0, 1.0, 0.0).next();
             tess.draw();
+            com.example.neurocanvas.fx.Shaders.finish();
             RenderSystem.depthMask(true);
             RenderSystem.enableDepthTest();
             RenderSystem.disableBlend();

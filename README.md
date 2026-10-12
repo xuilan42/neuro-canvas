@@ -43,6 +43,9 @@ Notes on a few modules:
 - **Shaders:** the mod builds its shader programs (menu blur and effects, volumetric fog, particle shapes) once and reuses them. *Precompile shaders* in Interface (or `/shaders`) compiles
   all of them in advance, which avoids a short freeze the first time an effect appears, and prints a report; `/shaders recompile` rebuilds them. If one cannot be built, the report shows why.
   Particles then fall back to plain squares instead of disappearing. *Precompile shaders on join* does it automatically.
+- **Shader visuals:** the world visuals are drawn by the mod's own shader: lines (hitboxes, predictions, kill bolts, block outline) are glowing soft-edged beams of constant screen width,
+  boxes have a glowing rim on every face, the target ring, jump ripples and trails are drawn as smooth glowing shapes, hand trails and hit colour use it too. *Shader visuals* and
+  *Visual glow* in Interface switch it off or tune the glow; if the shader cannot be built the old basic shapes are used instead.
 - **CropInfo** shows, for the plant you look at (wheat, carrots, potatoes, beetroots, melon and pumpkin stems, nether wart, cocoa, sweet berries, saplings),
   the growth in percent with a bar and about how long is left. The time is an average based on the game's own random-tick chances (set *Random tick speed*
   to your server's `randomTickSpeed`, default 3) and on the real moisture and neighbours of the crop; it also warns when there is too little light to grow.

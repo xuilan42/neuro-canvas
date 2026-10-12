@@ -17,6 +17,11 @@ public final class Lines {
     private final Matrix4f m;
     private final BufferBuilder b;
     private final Vector3f dir = new Vector3f();
+    /** Shader path: glowing quads. Null when the old GL lines are used. */
+    private FxBatch fx;
+    private Vec3d cam = Vec3d.ZERO;
+    private double pixelScale;
+    private float width;
 
     private Lines(Matrix4f m, BufferBuilder b) {
         this.m = m;
@@ -24,6 +29,15 @@ public final class Lines {
     }
 
     public static Lines begin(RenderEnv env, float width) {
+        FxBatch batch = FxBatch.begin(env, FxBatch.LINE, 0.263f, 0f, 0f, 0);
+        if (batch != null) {
+            Lines lines = new Lines(env.m(), null);
+            lines.fx = batch;
+            lines.cam = env.mc().gameRenderer.getCamera().getPos();
+            lines.width = Math.max(width, 1.5f);
+            lines.pixelScale = 2.0 / (RenderSystem.getProjectionMatrix().m11() * Math.max(1, env.mc().getWindow().getFramebufferHeight()));
+            return lines;
+        }
         RenderSystem.setShader(GameRenderer::getRenderTypeLinesProgram);
         RenderSystem.lineWidth(width);
         BufferBuilder b = Tessellator.getInstance().getBuffer();
@@ -31,7 +45,35 @@ public final class Lines {
         return new Lines(env.m(), b);
     }
 
+    /** Half width of the glowing quad, in world units, at the given distance from the camera (about constant on screen). */
+    private double half(double distance) {
+        return (width * 0.5 + width * 1.4) * distance * pixelScale;
+    }
+
+    private void glowLine(double x1, double y1, double z1, double x2, double y2, double z2, int argb) {
+        double dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+        double vx = (x1 + x2) / 2 - cam.x, vy = (y1 + y2) / 2 - cam.y, vz = (z1 + z2) / 2 - cam.z;
+        double sx = dy * vz - dz * vy, sy = dz * vx - dx * vz, sz = dx * vy - dy * vx;
+        double len = Math.sqrt(sx * sx + sy * sy + sz * sz);
+        if (len < 1e-9) {
+            return;
+        }
+        sx /= len;
+        sy /= len;
+        sz /= len;
+        double ha = half(Math.sqrt((x1 - cam.x) * (x1 - cam.x) + (y1 - cam.y) * (y1 - cam.y) + (z1 - cam.z) * (z1 - cam.z)));
+        double hb = half(Math.sqrt((x2 - cam.x) * (x2 - cam.x) + (y2 - cam.y) * (y2 - cam.y) + (z2 - cam.z) * (z2 - cam.z)));
+        fx.vertex(x1 + sx * ha, y1 + sy * ha, z1 + sz * ha, 0f, 1f, argb);
+        fx.vertex(x1 - sx * ha, y1 - sy * ha, z1 - sz * ha, 0f, -1f, argb);
+        fx.vertex(x2 - sx * hb, y2 - sy * hb, z2 - sz * hb, 1f, -1f, argb);
+        fx.vertex(x2 + sx * hb, y2 + sy * hb, z2 + sz * hb, 1f, 1f, argb);
+    }
+
     public void line(double x1, double y1, double z1, double x2, double y2, double z2, int argb) {
+        if (fx != null) {
+            glowLine(x1, y1, z1, x2, y2, z2, argb);
+            return;
+        }
         float dx = (float) (x2 - x1);
         float dy = (float) (y2 - y1);
         float dz = (float) (z2 - z1);
@@ -91,6 +133,10 @@ public final class Lines {
 
     /** Sends the batch and restores the shader and line width other modules expect. */
     public void end() {
+        if (fx != null) {
+            fx.end();
+            return;
+        }
         Tessellator.getInstance().draw();
         RenderSystem.lineWidth(1f);
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);

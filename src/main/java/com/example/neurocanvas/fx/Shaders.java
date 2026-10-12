@@ -27,9 +27,53 @@ public final class Shaders {
         KNOWN.put("neuro_fog", VertexFormats.POSITION);
         KNOWN.put("neuro_particle", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_particle_add", VertexFormats.POSITION_TEXTURE_COLOR);
+        KNOWN.put("neuro_fx", VertexFormats.POSITION_TEXTURE_COLOR);
     }
 
+    private static java.lang.reflect.Field activeBlend;
+    private static java.lang.reflect.Field programBlend;
+    private static boolean reflected;
+
     private Shaders() { }
+
+    private static void reflect() {
+        reflected = true;
+        try {
+            net.fabricmc.loader.api.MappingResolver r = net.fabricmc.loader.api.FabricLoader.getInstance().getMappingResolver();
+            String blend = r.mapClassName("named", "net.minecraft.client.gl.GlBlendState");
+            String program = r.mapClassName("named", "net.minecraft.client.gl.ShaderProgram");
+            activeBlend = Class.forName(blend).getDeclaredField(r.mapFieldName("named", "net.minecraft.client.gl.GlBlendState",
+                    "activeBlendState", "Lnet/minecraft/client/gl/GlBlendState;"));
+            programBlend = Class.forName(program).getDeclaredField(r.mapFieldName("named", "net.minecraft.client.gl.ShaderProgram",
+                    "blendState", "Lnet/minecraft/client/gl/GlBlendState;"));
+            activeBlend.setAccessible(true);
+            programBlend.setAccessible(true);
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            activeBlend = null;
+            programBlend = null;
+        }
+    }
+
+    /**
+     * Call after drawing with one of our shaders. The game applies a shader's blend mode only when it differs from the
+     * one it applied last, so a program with its own mode would leave later draws (ours and other mods') with the wrong
+     * blending. This tells the game "the last applied mode was the normal alpha blend" and puts the GL state back.
+     */
+    public static void finish() {
+        if (!reflected) {
+            reflect();
+        }
+        try {
+            if (activeBlend != null) {
+                activeBlend.set(null, programBlend.get(net.minecraft.client.render.GameRenderer.getPositionColorProgram()));
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // The state reset is best effort.
+        }
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        com.mojang.blaze3d.systems.RenderSystem.setShader(net.minecraft.client.render.GameRenderer::getPositionColorProgram);
+    }
 
     /** The compiled program, or null if it cannot be built (the reason is in {@link #error}). Compiled once, then reused. */
     public static ShaderProgram get(String id) {

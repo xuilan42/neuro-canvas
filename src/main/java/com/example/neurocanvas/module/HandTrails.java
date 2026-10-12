@@ -74,20 +74,38 @@ public final class HandTrails extends Module {
         spec.color2 = color2.argb() & 0xFFFFFF;
         float a = alpha.f() * ((color1.argb() >>> 24) / 255f);
 
-        Matrix4f m = env.m();
         Depth.state(Depth.over(env.mc(), all.get(all.size() - 1).base));
         RenderSystem.depthMask(false);
-        BufferBuilder b = Tessellator.getInstance().getBuffer();
-        b.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
         int n = all.size();
-        for (int i = 0; i < n; i++) {
-            float f = i / (float) (n - 1);
-            float[] c = EffectDraw.blend(spec, 1f - f, a * f);
-            Seg s = all.get(i);
-            b.vertex(m, (float) s.base.x, (float) s.base.y, (float) s.base.z).color(c[0], c[1], c[2], c[3]).next();
-            b.vertex(m, (float) s.tip.x, (float) s.tip.y, (float) s.tip.z).color(c[0], c[1], c[2], c[3] * 0.35f).next();
+        com.example.neurocanvas.fx.FxBatch fx = com.example.neurocanvas.fx.FxBatch.begin(env, com.example.neurocanvas.fx.FxBatch.RIBBON, 0f, 0f, 0f, 0);
+        if (fx != null) {
+            for (int i = 0; i + 1 < n; i++) {
+                Seg sa = all.get(i);
+                Seg sb = all.get(i + 1);
+                float fa = i / (float) (n - 1), fb = (i + 1) / (float) (n - 1);
+                float[] ca = EffectDraw.blend(spec, 1f - fa, a * fa);
+                float[] cb = EffectDraw.blend(spec, 1f - fb, a * fb);
+                int colA = (Math.round(ca[3] * 255) << 24) | (Math.round(ca[0] * 255) << 16) | (Math.round(ca[1] * 255) << 8) | Math.round(ca[2] * 255);
+                int colB = (Math.round(cb[3] * 255) << 24) | (Math.round(cb[0] * 255) << 16) | (Math.round(cb[1] * 255) << 8) | Math.round(cb[2] * 255);
+                fx.vertex(sa.base.x, sa.base.y, sa.base.z, 0f, 0f, colA);
+                fx.vertex(sa.tip.x, sa.tip.y, sa.tip.z, 0f, 1f, colA);
+                fx.vertex(sb.tip.x, sb.tip.y, sb.tip.z, 1f, 1f, colB);
+                fx.vertex(sb.base.x, sb.base.y, sb.base.z, 1f, 0f, colB);
+            }
+            fx.end();
+        } else {
+            Matrix4f m = env.m();
+            BufferBuilder b = Tessellator.getInstance().getBuffer();
+            b.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
+            for (int i = 0; i < n; i++) {
+                float f = i / (float) (n - 1);
+                float[] c = EffectDraw.blend(spec, 1f - f, a * f);
+                Seg s2 = all.get(i);
+                b.vertex(m, (float) s2.base.x, (float) s2.base.y, (float) s2.base.z).color(c[0], c[1], c[2], c[3]).next();
+                b.vertex(m, (float) s2.tip.x, (float) s2.tip.y, (float) s2.tip.z).color(c[0], c[1], c[2], c[3] * 0.35f).next();
+            }
+            Tessellator.getInstance().draw();
         }
-        Tessellator.getInstance().draw();
         RenderSystem.depthMask(true);
         RenderSystem.disableDepthTest();
     }

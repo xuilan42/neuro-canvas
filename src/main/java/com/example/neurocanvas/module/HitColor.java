@@ -2,6 +2,7 @@ package com.example.neurocanvas.module;
 
 import com.example.neurocanvas.fx.Depth;
 import com.example.neurocanvas.fx.EffectDraw;
+import com.example.neurocanvas.fx.Fills;
 import com.mojang.blaze3d.systems.RenderSystem;
 import java.util.ArrayList;
 import java.util.List;
@@ -53,10 +54,17 @@ public final class HitColor extends Module {
             float e = expand.f() * (1f + progress);
             float w = f.entity.getWidth() / 2f + e;
             Depth.state(Depth.over(env.mc(), p.add(0, f.entity.getHeight() / 2, 0)));
-            drawBox(env.m(), p, w, f.entity.getHeight() + e, e, bottom, top, a);
+            net.minecraft.util.math.Box area = new net.minecraft.util.math.Box(p.x - w, p.y - e / 2, p.z - w, p.x + w, p.y + f.entity.getHeight() + e, p.z + w);
+            Fills fills = Fills.begin(env);
+            fills.box(area, withAlpha(bottom, a), withAlpha(top, a));
+            fills.end();
         }
         RenderSystem.depthMask(true);
         RenderSystem.disableDepthTest();
+    }
+
+    private static int withAlpha(int argb, float a) {
+        return ((int) (255 * Math.max(0f, Math.min(1f, a * ((argb >>> 24) / 255f)))) << 24) | (argb & 0xFFFFFF);
     }
 
     private static void drawBox(Matrix4f m, Vec3d p, float w, float h, float e, int bottom, int top, float a) {

@@ -98,6 +98,7 @@ public final class GuiFx {
             RenderSystem.enableBlend();
             RenderSystem.enableDepthTest();
             blurReady = true;
+            com.example.neurocanvas.fx.Shaders.finish();
         } catch (Throwable e) {
             blurFailed = true;
             mc.getFramebuffer().beginWrite(true);
@@ -151,6 +152,7 @@ public final class GuiFx {
             RenderSystem.setShader(() -> ui);
             fullscreenQuad();
             RenderSystem.enableDepthTest();
+            com.example.neurocanvas.fx.Shaders.finish();
         } catch (Throwable e) {
             uiFailed = true;
         }
