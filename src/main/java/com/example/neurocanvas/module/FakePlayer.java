@@ -68,6 +68,8 @@ public final class FakePlayer extends Module {
     private boolean waitingManual;
     private boolean wasEnabled;
     private long ticks;
+    private int appliedArmor = -1;
+    private double appliedMaxHealth = -1;
 
     public FakePlayer() {
         super("FakePlayer", Category.COMBAT, "A test dummy only you can see: has health, takes hits, dies and respawns", false);
@@ -164,9 +166,27 @@ public final class FakePlayer extends Module {
             }
         } else {
             deadTicks = 0;
+            applyLive();
             behave(mc);
         }
         physics();
+    }
+
+    /** Settings that describe the dummy itself take effect on the living dummy right away, without respawning it. */
+    private void applyLive() {
+        if (appliedArmor != armor.index()) {
+            appliedArmor = armor.index();
+            Item[] set = ARMOR[appliedArmor];
+            for (int i = 0; i < SLOTS.length; i++) {
+                fake.equipStack(SLOTS[i], i < set.length ? new ItemStack(set[i]) : ItemStack.EMPTY);
+            }
+        }
+        if (appliedMaxHealth != maxHealth.value) {
+            boolean full = appliedMaxHealth < 0 || fake.getHealth() >= appliedMaxHealth - 0.01f;
+            appliedMaxHealth = maxHealth.value;
+            fake.getAttributeInstance(EntityAttributes.GENERIC_MAX_HEALTH).setBaseValue(maxHealth.value);
+            fake.setHealth(full ? (float) maxHealth.value : Math.min(fake.getHealth(), (float) maxHealth.value));
+        }
     }
 
     private void spawn(MinecraftClient mc) {
@@ -196,6 +216,8 @@ public final class FakePlayer extends Module {
         } while (world.getEntityById(id) != null);
         world.addEntity(id, e);
         fake = e;
+        appliedArmor = armor.index();
+        appliedMaxHealth = maxHealth.value;
         deadTicks = 0;
         hurtCooldown = 0;
     }
@@ -241,6 +263,7 @@ public final class FakePlayer extends Module {
     /** Instant respawn: stands the same body back up where it fell, with full health. */
     private void revive() {
         fake.setHealth((float) maxHealth.value);
+        applyLive();
         fake.deathTime = 0;
         fake.hurtTime = 0;
         fake.setVelocity(Vec3d.ZERO);
