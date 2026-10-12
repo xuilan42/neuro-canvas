@@ -136,20 +136,32 @@ public final class EffectDraw {
         if (count >= 2) {
             FxBatch fx = FxBatch.begin(env, FxBatch.RIBBON, 0f, 0f, 0f, 0);
             if (fx != null) {
-                double h0 = 0.3f * s.size + 0.1f;
+                double half = 0.25 * s.size + 0.05;
+                Vec3d cam = env.mc().gameRenderer.getCamera().getPos();
+                int base = points.size() - count;
+                Vec3d[] left = new Vec3d[count];
+                Vec3d[] right = new Vec3d[count];
+                for (int i = 0; i < count; i++) {
+                    Vec3d p = points.get(base + i).add(0, 0.12, 0);
+                    Vec3d prev = points.get(base + Math.max(i - 1, 0));
+                    Vec3d next = points.get(base + Math.min(i + 1, count - 1));
+                    Vec3d tangent = next.subtract(prev);
+                    Vec3d side = tangent.crossProduct(cam.subtract(p));
+                    side = side.lengthSquared() < 1e-9 ? new Vec3d(0, 1, 0) : side.normalize();
+                    left[i] = p.add(side.multiply(half));
+                    right[i] = p.subtract(side.multiply(half));
+                }
                 for (int i = 0; i + 1 < count; i++) {
-                    Vec3d a = points.get(points.size() - count + i);
-                    Vec3d b = points.get(points.size() - count + i + 1);
                     float fa = i / (float) (count - 1);
                     float fb = (i + 1) / (float) (count - 1);
                     float[] ca = blend(s, 1f - fa, s.alpha * fa);
                     float[] cb = blend(s, 1f - fb, s.alpha * fb);
                     int colA = (Math.round(ca[3] * 255) << 24) | (Math.round(ca[0] * 255) << 16) | (Math.round(ca[1] * 255) << 8) | Math.round(ca[2] * 255);
                     int colB = (Math.round(cb[3] * 255) << 24) | (Math.round(cb[0] * 255) << 16) | (Math.round(cb[1] * 255) << 8) | Math.round(cb[2] * 255);
-                    fx.vertex(a.x, a.y + 0.05, a.z, 0f, 0f, colA);
-                    fx.vertex(a.x, a.y + 0.05 + h0, a.z, 0f, 1f, colA);
-                    fx.vertex(b.x, b.y + 0.05 + h0, b.z, 1f, 1f, colB);
-                    fx.vertex(b.x, b.y + 0.05, b.z, 1f, 0f, colB);
+                    fx.vertex(left[i].x, left[i].y, left[i].z, 0f, -1f, colA);
+                    fx.vertex(right[i].x, right[i].y, right[i].z, 0f, 1f, colA);
+                    fx.vertex(right[i + 1].x, right[i + 1].y, right[i + 1].z, 1f, 1f, colB);
+                    fx.vertex(left[i + 1].x, left[i + 1].y, left[i + 1].z, 1f, -1f, colB);
                 }
                 fx.end();
                 return;
