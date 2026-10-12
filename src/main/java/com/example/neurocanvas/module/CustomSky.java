@@ -10,6 +10,9 @@ public final class CustomSky extends Module {
     private final Setting cloudStrength = add(Setting.number("Cloud strength", 0, 1, 0.7));
     private final Setting rainbow = add(Setting.bool("Rainbow sky", false));
     private final Setting rainbowSpeed = add(Setting.number("Rainbow speed", 0.1, 5, 1));
+    private final Setting horizon = add(Setting.color("Horizon color", 0.85));
+    private final Setting horizonBlend = add(Setting.number("Horizon gradient", 0, 1, 0.5));
+    private final Setting sunset = add(Setting.bool("Sunset glow", false));
 
     public CustomSky() {
         super("CustomSky", Category.WORLD, "Your own sky and cloud colours", false);
@@ -32,6 +35,40 @@ public final class CustomSky extends Module {
             target = rgb(sky.argb());
         }
         return lerp(vanilla, target, skyStrength.value);
+    }
+
+    public boolean sunsetGlow() {
+        return sunset.on();
+    }
+
+    /**
+     * The colour the sky fades into at the horizon, and that the distant terrain fades into. It is the sky colour
+     * blended towards the horizon colour, so sky, horizon and fog form one smooth gradient with no seam.
+     */
+    private float[] horizonColor(net.minecraft.client.world.ClientWorld world, net.minecraft.client.render.Camera camera, float tickDelta) {
+        Vec3d skyNow = world.getSkyColor(camera.getPos(), tickDelta);
+        float bright = Math.max(0.2f, Math.min(1f, world.getSkyBrightness(tickDelta) * 0.8f + 0.2f));
+        Vec3d target = lerp(skyNow, rgb(horizon.argb()).multiply(bright), horizonBlend.value);
+        return new float[] {(float) target.x, (float) target.y, (float) target.z};
+    }
+
+    private boolean active(net.minecraft.client.render.Camera camera) {
+        net.minecraft.client.world.ClientWorld world = net.minecraft.client.MinecraftClient.getInstance().world;
+        return enabled && world != null && world.getDimension().hasSkyLight() && !CustomFog.specialFog(camera);
+    }
+
+    public void applyFogColor(net.minecraft.client.render.Camera camera, float tickDelta) {
+        if (active(camera)) {
+            float[] c = horizonColor(net.minecraft.client.MinecraftClient.getInstance().world, camera, tickDelta);
+            com.mojang.blaze3d.systems.RenderSystem.setShaderFogColor(c[0], c[1], c[2], 1f);
+        }
+    }
+
+    public void applyClearColor(net.minecraft.client.render.Camera camera, float tickDelta) {
+        if (active(camera)) {
+            float[] c = horizonColor(net.minecraft.client.MinecraftClient.getInstance().world, camera, tickDelta);
+            com.mojang.blaze3d.systems.RenderSystem.clearColor(c[0], c[1], c[2], 0f);
+        }
     }
 
     public Vec3d cloudColor(Vec3d vanilla) {

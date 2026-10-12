@@ -23,13 +23,17 @@ public final class CustomFog extends Module {
     }
 
     /** Fog stays vanilla underwater, in lava, in powder snow and while blind or darkened. */
-    private static boolean specialFog(Camera camera) {
+    static boolean specialFog(Camera camera) {
         if (camera.getSubmersionType() != CameraSubmersionType.NONE) {
             return true;
         }
         Entity e = camera.getFocusedEntity();
         return e instanceof LivingEntity living
                 && (living.hasStatusEffect(StatusEffects.BLINDNESS) || living.hasStatusEffect(StatusEffects.DARKNESS));
+    }
+
+    public boolean overridesColor() {
+        return useColor.on();
     }
 
     public void apply(Camera camera, BackgroundRenderer.FogType type, float viewDistance) {

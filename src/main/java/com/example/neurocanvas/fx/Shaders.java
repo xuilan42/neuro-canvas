@@ -29,6 +29,7 @@ public final class Shaders {
         KNOWN.put("neuro_particle", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_particle_add", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_fx", VertexFormats.POSITION_TEXTURE_COLOR);
+        KNOWN.put("neuro_aurora", VertexFormats.POSITION_TEXTURE_COLOR);
     }
 
     private static java.lang.reflect.Field activeBlend;

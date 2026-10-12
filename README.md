@@ -39,6 +39,8 @@ Java 17 or newer is required.
 Notes on a few modules:
 
 - **TargetESP** has 11 styles (the *Style* setting): Ring, Ghost (glowing orbs with trails), Points, Rhomb (a spinning diamond), Crystals (orbiting 3D gems), Helix (two glowing strands), Pulse (expanding rings), Spiral, Halo (a ring above the head), Pyramid (a cone above the head) and Marker (rotating corner brackets). Colours, size, speed, count and alpha apply to all of them.
+- **NorthernLights** is drawn by its own shader: several wavy curtains of thin vertical rays that brighten at the bottom edge and fade upwards (green to blue-violet by default), with soft ends, slow drifting and a smooth fade in at dusk with *Only at night*. *Ray sharpness*, *Curtain height*, distance, width and the two colours are adjustable.
+- **CustomSky** also shapes the horizon: *Horizon color* and *Horizon gradient* make the sky, the horizon and the fog fade into each other without a seam, and the orange sunrise/sunset fan is hidden unless *Sunset glow* is on.
 - **Particles** are ambient particles around you: they appear at random spots inside *Spawn radius*, drift wherever they like (*Speed*, *Wander*, *Gravity*),
   bounce off blocks (*Bounciness*), and fade out when they get past *Fade-out radius* or too old (*Lifetime*). Shapes are drawn by a shader: glow (firefly), star, sparkle,
   dot, ring, diamond, heart, snowflake, or a mix. Colours: *Gradient* over their life, *Random mix* of the two colours, *Rainbow* or *Single*; plus *Twinkle* and *Glow blending*.

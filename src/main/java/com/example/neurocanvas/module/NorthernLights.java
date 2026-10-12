@@ -22,16 +22,119 @@ public final class NorthernLights extends Module {
     private final Setting color1 = add(Setting.color("Color 1", 0.38));
     private final Setting color2 = add(Setting.color("Color 2", 0.78));
     private final Setting nightOnly = add(Setting.bool("Only at night", false));
+    private final Setting sharpness = add(Setting.number("Ray sharpness", 0.6, 3, 1.4));
+    private final Setting curtainHeight = add(Setting.number("Curtain height", 20, 120, 55));
 
     public NorthernLights() {
         super("NorthernLights", Category.WORLD, "Aurora curtains in the sky", false);
     }
 
+    /** 0 in daylight, 1 in the dark; changes smoothly through dusk and dawn. */
+    private static float darkness(RenderEnv env) {
+        float sky = env.mc().world.getSkyBrightness(env.tickDelta());
+        float x = Math.max(0f, Math.min(1f, (0.8f - sky) / 0.5f));
+        return x * x * (3f - 2f * x);
+    }
+
     @Override
     public void renderWorld(RenderEnv env) {
-        if (env.mc().world == null || (nightOnly.on() && !env.mc().world.isNight())) {
+        if (env.mc().world == null) {
             return;
         }
+        float night = nightOnly.on() ? darkness(env) : 1f;
+        if (night < 0.01f) {
+            return;
+        }
+        net.minecraft.client.gl.ShaderProgram program = com.example.neurocanvas.fx.Shaders.get("neuro_aurora");
+        if (program != null && Interface.shaderVisuals()) {
+            renderShader(env, program, night);
+        } else {
+            renderLegacy(env);
+        }
+    }
+
+    private void renderShader(RenderEnv env, net.minecraft.client.gl.ShaderProgram program, float night) {
+        Vec3d cam = env.mc().gameRenderer.getCamera().getPos();
+        Matrix4f m = env.m();
+        double t = env.t() * speed.value;
+        int c1 = color1.argb();
+        int c2 = color2.argb();
+        float alpha = intensity.f() * ((c1 >>> 24) / 255f) * night;
+        float r1 = ((c1 >> 16) & 0xFF) / 255f, g1 = ((c1 >> 8) & 0xFF) / 255f, b1 = (c1 & 0xFF) / 255f;
+
+        net.minecraft.client.gl.GlUniform u = program.getUniform("Time");
+        if (u != null) {
+            u.set((float) t);
+        }
+        u = program.getUniform("Color2");
+        if (u != null) {
+            u.set(((c2 >> 16) & 0xFF) / 255f, ((c2 >> 8) & 0xFF) / 255f, (c2 & 0xFF) / 255f);
+        }
+        u = program.getUniform("Params");
+        if (u != null) {
+            u.set(sharpness.f(), 2.2f, 0.3f, 0f);
+        }
+        net.minecraft.client.gl.GlUniform seed = program.getUniform("Seed");
+
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableCull();
+        RenderSystem.enableBlend();
+        RenderSystem.setShader(() -> program);
+        int n = (int) curtains.value;
+        int segs = 96;
+        double arcRad = Math.toRadians(arc.value);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        for (int c = 0; c < n; c++) {
+            if (seed != null) {
+                seed.set(c * 1.37f);
+            }
+            double r = radius.value * (0.85 + 0.15 * c / Math.max(1, n - 1));
+            double base = cam.y + height.value * (0.65 + 0.12 * c);
+            double start = c * 1.7 + t * 0.02;
+            float layer = alpha * (c == 0 ? 1f : 0.75f);
+            b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+            double px0 = 0, pz0 = 0, py0 = 0, px1 = 0, pz1 = 0, py1 = 0, pf = 0;
+            for (int i = 0; i <= segs; i++) {
+                double f = i / (double) segs;
+                double ang = start + (f - 0.5) * arcRad;
+                double rr = r + Math.sin(ang * 3.0 + t * 0.18 + c) * 5.0 + Math.sin(ang * 7.0 - t * 0.25) * 2.0;
+                double bottom = base + Math.sin(ang * 2.5 + t * 0.12 + c * 2.0) * 5.0;
+                double h = curtainHeight.value * (0.85 + 0.15 * Math.sin(ang * 4.0 + t * 0.2 + c));
+                double x0 = cam.x + Math.cos(ang) * rr, z0 = cam.z + Math.sin(ang) * rr;
+                double x1 = cam.x + Math.cos(ang) * (rr + 8.0), z1 = cam.z + Math.sin(ang) * (rr + 8.0);
+                if (i > 0) {
+                    float e0 = edge(pf), e1 = edge(f);
+                    float u0 = (float) ((start + (pf - 0.5) * arcRad) * r / 30.0);
+                    float uu1 = (float) (ang * r / 30.0);
+                    b.vertex(m, (float) px0, (float) py0, (float) pz0).texture(u0, 0f).color(r1, g1, b1, layer * e0).next();
+                    b.vertex(m, (float) px1, (float) py1, (float) pz1).texture(u0, 1f).color(r1, g1, b1, layer * e0).next();
+                    b.vertex(m, (float) x1, (float) (bottom + h), (float) z1).texture(uu1, 1f).color(r1, g1, b1, layer * e1).next();
+                    b.vertex(m, (float) x0, (float) bottom, (float) z0).texture(uu1, 0f).color(r1, g1, b1, layer * e1).next();
+                }
+                px0 = x0;
+                py0 = bottom;
+                pz0 = z0;
+                px1 = x1;
+                py1 = bottom + h;
+                pz1 = z1;
+                pf = f;
+            }
+            tess.draw();
+        }
+        RenderSystem.depthMask(true);
+        RenderSystem.disableDepthTest();
+        com.example.neurocanvas.fx.Shaders.finish();
+    }
+
+    /** Fades the two ends of a curtain smoothly to nothing so it never shows a cut edge. */
+    private static float edge(double f) {
+        float x = (float) Math.min(1.0, Math.min(f, 1.0 - f) / 0.2);
+        return x * x * (3f - 2f * x);
+    }
+
+    private void renderLegacy(RenderEnv env) {
         Vec3d cam = env.mc().gameRenderer.getCamera().getPos();
         Matrix4f m = env.m();
         double t = env.t() * 0.25 * speed.value;
