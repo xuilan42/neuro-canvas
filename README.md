@@ -19,7 +19,7 @@ Java 17 or newer is required.
 - **Tabs** by category, a **module list** on the left with on/off switches, and the **settings** of the selected module on the right.
 - Every module can have a **key bind** (toggle or hold mode). Search with **Ctrl+F**.
 - Colour settings open a full **colour picker** with alpha.
-- **Configs** tab: save, load and delete presets, copy a **share code** to the clipboard, import a code, and edit the **HUD layout** by dragging elements.
+- **Configs** tab: save, load and delete presets, copy a **share code** to the clipboard, import a code, and edit the **HUD layout** by dragging elements. Elements snap to the left, centre or right (and top, middle, bottom) of the screen and keep that anchor when the window changes size. The module list can be sorted in Misc > Interface (longest, shortest, A to Z, Z to A, by category, ...).
 - **Interface** (Misc tab): 6 themes, 3 bundled fonts (Cyrillic supported), animations.
 - The menu remembers the tab and module you were on. **Interface** can also derive the whole look from one accent colour, apply that accent to every module colour (a preset "Before accent" is saved first), and set the open animation, background and click sounds.
 - **Updates:** on start the mod asks GitHub's public API once whether a newer release exists and tells you in chat and in the menu. Turn it off with *Check for updates* in Interface.

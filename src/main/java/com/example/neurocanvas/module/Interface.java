@@ -34,6 +34,8 @@ public final class Interface extends Module {
     private final Setting customAccent = add(Setting.bool("Use accent color", false));
     private final Setting accent = add(Setting.color("Accent color", 0.42));
     private final Setting applyAll = add(Setting.bool("Apply accent to all modules", false));
+    private final Setting listSort = add(Setting.choice("Module list sort", 0, "Longest first", "Shortest first", "A to Z", "Z to A",
+            "By category", "By name length, then A to Z", "Shuffled"));
     private final Setting font = add(Setting.choice("Font", FONTS.length - 1, FONTS));
     private final Setting animations = add(Setting.bool("Animations", true));
     private final Setting openAnimation = add(Setting.choice("Open animation", 0, "Slide", "Zoom", "Pop"));
@@ -191,6 +193,7 @@ public final class Interface extends Module {
         return id == null || id.equals("minecraft") ? null : new Identifier("neurocanvas", id);
     }
 
+    public static int listSort() { return instance == null ? 0 : instance.listSort.index(); }
     public static boolean animations() { return instance.animations.on(); }
     public static boolean shaderEffects() { return instance.effects.on(); }
     /** World visuals (lines, boxes, rings, ribbons) drawn by the mod's own shader instead of the game's basic shapes. */

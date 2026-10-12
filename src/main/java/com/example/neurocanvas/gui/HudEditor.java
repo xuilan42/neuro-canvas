@@ -33,8 +33,13 @@ public final class HudEditor extends Screen {
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
         Theme th = Interface.theme();
         ctx.fill(0, 0, width, height, Ui.alpha(0x000000, 0.55f));
-        Ui.textCentered(ctx, textRenderer, "Drag the elements. Esc to finish.", width / 2, 14, th.text());
+        Ui.textCentered(ctx, textRenderer, "Drag the elements. They stick to the left, centre or right and the top, middle or bottom. Esc to finish.", width / 2, 14, th.text());
 
+        int guide = Ui.alpha(0xFFFFFF, 0.18f);
+        ctx.fill(width / 2, 0, width / 2 + 1, height, guide);
+        ctx.fill(0, height / 2, width, height / 2 + 1, guide);
+        ctx.fill(width / 3, 0, width / 3 + 1, height, guide);
+        ctx.fill(width * 2 / 3, 0, width * 2 / 3 + 1, height, guide);
         for (HudLayout.Element e : HudLayout.all()) {
             int x = e.x(width);
             int y = e.y(height);
@@ -42,6 +47,11 @@ public final class HudEditor extends Screen {
             Ui.roundRect(ctx, x - 2, y - 2, e.w + 4, e.h + 4, 5, hover ? th.accent() : Ui.alpha(0xFFFFFF, 0.35f));
             Ui.roundRect(ctx, x - 1, y - 1, e.w + 2, e.h + 2, 4, 0xFF000000 | (th.panel() & 0xFFFFFF));
             Ui.textCentered(ctx, textRenderer, e.label, x + e.w / 2, y + Math.max(0, (Math.min(e.h, 14) - 8) / 2 + 1), th.text());
+            if (e == dragging) {
+                String[] h = {"left", "centre", "right"};
+                String[] v = {"top", "middle", "bottom"};
+                Ui.textCentered(ctx, textRenderer, v[e.ay] + " " + h[e.ax], width / 2, 30, th.accent());
+            }
         }
 
         boolean hoverReset = inside(mouseX, mouseY, resetX(), resetY(), 120, 22);

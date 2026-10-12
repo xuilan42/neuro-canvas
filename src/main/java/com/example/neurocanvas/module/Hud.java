@@ -4,6 +4,7 @@ import com.example.neurocanvas.client.NeuroCanvasClient;
 import com.example.neurocanvas.gui.Theme;
 import com.example.neurocanvas.gui.Ui;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -34,27 +35,41 @@ public final class Hud extends Module {
         Ui.roundRect(ctx, mx, my, MARK.w, MARK.h, 4, 0xB0000000);
         Ui.text(ctx, mc.textRenderer, mark, mx + 6, my + 4, t.accent());
 
-        List<String> names = new ArrayList<>();
-        int maxW = 0;
+        List<Module> shown = new ArrayList<>();
         for (Module m : NeuroCanvasClient.modules().all()) {
             if (m.enabled && m != this && m.category != Category.MISC && m.category != Category.AI) {
-                names.add(m.name);
-                maxW = Math.max(maxW, Ui.width(mc.textRenderer, m.name));
+                shown.add(m);
             }
         }
-        if (names.isEmpty()) {
+        Comparator<Module> byWidth = Comparator.comparingInt(m -> Ui.width(mc.textRenderer, m.name));
+        switch (Interface.listSort()) {
+            case 1 -> shown.sort(byWidth);
+            case 2 -> shown.sort(Comparator.comparing((Module m) -> m.name.toLowerCase()));
+            case 3 -> shown.sort(Comparator.comparing((Module m) -> m.name.toLowerCase()).reversed());
+            case 4 -> shown.sort(Comparator.comparingInt((Module m) -> m.category.ordinal())
+                    .thenComparing(m -> m.name.toLowerCase()));
+            case 5 -> shown.sort(Comparator.comparingInt((Module m) -> m.name.length()).thenComparing(m -> m.name));
+            case 6 -> java.util.Collections.shuffle(shown, new java.util.Random(7));
+            default -> shown.sort(byWidth.reversed());
+        }
+        if (shown.isEmpty()) {
             LIST.w = 70;
             LIST.h = 14;
             return;
         }
+        int maxW = 0;
+        for (Module m : shown) {
+            maxW = Math.max(maxW, Ui.width(mc.textRenderer, m.name));
+        }
         LIST.w = maxW + 10;
-        LIST.h = names.size() * 16 - 2;
-        int right = LIST.x(sw) + LIST.w;
+        LIST.h = shown.size() * 16 - 2;
+        int left = LIST.x(sw);
         int y = LIST.y(sh);
-        for (String name : names) {
-            int w = Ui.width(mc.textRenderer, name) + 10;
-            Ui.roundRect(ctx, right - w, y, w, 14, 4, 0xB0000000);
-            Ui.text(ctx, mc.textRenderer, name, right - w + 5, y + 3, t.text());
+        for (Module m : shown) {
+            int w = Ui.width(mc.textRenderer, m.name) + 10;
+            int x = LIST.ax == 2 ? left + LIST.w - w : LIST.ax == 1 ? left + (LIST.w - w) / 2 : left;
+            Ui.roundRect(ctx, x, y, w, 14, 4, 0xB0000000);
+            Ui.text(ctx, mc.textRenderer, m.name, x + 5, y + 3, t.text());
             y += 16;
         }
     }
