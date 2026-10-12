@@ -138,5 +138,5 @@ Jar появится в `build/libs/`. Нужен JDK 17.
 
 ## Лицензия
 
-MIT, см. [LICENSE](LICENSE). Встроенные шрифты (Inter, Nunito, Montserrat) распространяются по SIL Open Font License 1.1, см. [licenses](licenses).
+MIT, см. [LICENSE](LICENSE). Код можно использовать, копировать и изменять, но уведомление об авторских правах («Copyright (c) 2026 xuilan42») и текст лицензии нужно сохранять в каждой копии или заметной части кода, чтобы автор оставался указан. Встроенные шрифты (Inter, Nunito, Montserrat) распространяются по SIL Open Font License 1.1, см. [licenses](licenses).
 Проект не связан с Mojang и Microsoft.
