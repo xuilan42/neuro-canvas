@@ -155,11 +155,11 @@ public final class VolumetricFog extends Module {
             Matrix4f invView = new Matrix4f(ctx.matrixStack().peek().getPositionMatrix()).invert();
             GlUniform u = program.getUniform("InvProj");
             if (u != null) {
-                u.set(invProj);
+                u.set(invProj.get(new float[16]));
             }
             u = program.getUniform("InvView");
             if (u != null) {
-                u.set(invView);
+                u.set(invView.get(new float[16]));
             }
             set(program, "CamPos", (float) cam.x, (float) cam.y, (float) cam.z);
             set(program, "FogColor", fogRgb[0], fogRgb[1], fogRgb[2]);
@@ -189,6 +189,7 @@ public final class VolumetricFog extends Module {
             ranLastFrame = true;
             status = "running";
         } catch (Throwable e) {
+            org.slf4j.LoggerFactory.getLogger("neurocanvas").error("VolumetricFog failed", e);
             fail(mc, e.getClass().getSimpleName() + ": " + String.valueOf(e.getMessage()).split("\n")[0]);
         }
     }

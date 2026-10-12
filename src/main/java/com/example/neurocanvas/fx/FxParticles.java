@@ -103,6 +103,10 @@ public final class FxParticles {
         float rx = cy, rz = sy;
         float ux = fy * sy, uy = fz * cy - fx * sy, uz = -fy * cy;
 
+        com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+        com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+        com.mojang.blaze3d.systems.RenderSystem.disableCull();
+        com.mojang.blaze3d.systems.RenderSystem.setShader(net.minecraft.client.render.GameRenderer::getPositionColorProgram);
         BufferBuilder b = Tessellator.getInstance().getBuffer();
         b.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
         for (P p : particles) {
@@ -143,6 +147,7 @@ public final class FxParticles {
             }
         }
         Tessellator.getInstance().draw();
+        com.mojang.blaze3d.systems.RenderSystem.enableCull();
     }
 
     private static void vertex(BufferBuilder b, Matrix4f m, P p, float lx, float ly, float size, float cr, float sr,
