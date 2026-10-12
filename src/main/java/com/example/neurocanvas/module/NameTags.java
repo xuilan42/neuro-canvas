@@ -137,10 +137,17 @@ public final class NameTags extends Module {
 
     /** Holds one WebSocket open; the registry pushes the list of online players whenever it changes. */
     private void listen(int gen, String base, String server, String name) {
-        String wsBase = base.startsWith("https://") ? "wss://" + base.substring(8)
-                : base.startsWith("http://") ? "ws://" + base.substring(7) : base;
-        URI uri = URI.create(wsBase + "/v1/ws?server=" + URLEncoder.encode(server, StandardCharsets.UTF_8)
-                + "&name=" + URLEncoder.encode(name, StandardCharsets.UTF_8));
+        // The address may be a comma separated list: the first one is used, the next one only while it is unreachable.
+        String[] bases = base.split(",");
+        URI[] uris = new URI[bases.length];
+        for (int i = 0; i < bases.length; i++) {
+            String b = bases[i].trim().replaceAll("/+$", "");
+            String wsBase = b.startsWith("https://") ? "wss://" + b.substring(8)
+                    : b.startsWith("http://") ? "ws://" + b.substring(7) : b;
+            uris[i] = URI.create(wsBase + "/v1/ws?server=" + URLEncoder.encode(server, StandardCharsets.UTF_8)
+                    + "&name=" + URLEncoder.encode(name, StandardCharsets.UTF_8));
+        }
+        int which = 0;
         while (gen == generation) {
             CompletableFuture<Void> closed = new CompletableFuture<>();
             StringBuilder buffer = new StringBuilder();
@@ -174,7 +181,7 @@ public final class NameTags extends Module {
             };
             try {
                 status = "connecting...";
-                WebSocket ws = HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8)).buildAsync(uri, listener).get();
+                WebSocket ws = HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8)).buildAsync(uris[which], listener).get();
                 if (gen != generation) {
                     ws.abort();
                     return;
@@ -191,6 +198,7 @@ public final class NameTags extends Module {
             } catch (ExecutionException | RuntimeException e) {
                 if (gen == generation) {
                     status = "registry unreachable, retrying";
+                    which = (which + 1) % uris.length;
                 }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
