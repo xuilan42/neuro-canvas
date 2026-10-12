@@ -1,6 +1,6 @@
 {
-  "vertex": "neurocanvas:neuro_blur",
-  "fragment": "neurocanvas:neuro_blur",
+  "vertex": "neuro_blur",
+  "fragment": "neuro_blur",
   "attributes": [ "Position" ],
   "samplers": [ { "name": "Sampler0" } ],
   "uniforms": [

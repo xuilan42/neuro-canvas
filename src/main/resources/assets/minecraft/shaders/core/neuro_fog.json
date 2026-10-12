@@ -1,7 +1,7 @@
 {
   "blend": { "func": "add", "srcrgb": "srcalpha", "dstrgb": "1-srcalpha" },
-  "vertex": "neurocanvas:neuro_fog",
-  "fragment": "neurocanvas:neuro_fog",
+  "vertex": "neuro_fog",
+  "fragment": "neuro_fog",
   "attributes": [ "Position" ],
   "samplers": [ { "name": "Sampler0" } ],
   "uniforms": [

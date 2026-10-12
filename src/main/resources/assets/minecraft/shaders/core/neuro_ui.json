@@ -1,7 +1,7 @@
 {
   "blend": { "func": "add", "srcrgb": "srcalpha", "dstrgb": "1-srcalpha" },
-  "vertex": "neurocanvas:neuro_ui",
-  "fragment": "neurocanvas:neuro_ui",
+  "vertex": "neuro_ui",
+  "fragment": "neuro_ui",
   "attributes": [ "Position" ],
   "samplers": [],
   "uniforms": [

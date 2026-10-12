@@ -11,7 +11,8 @@ import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
 
 /**
- * Every shader program of the mod in one place. Compiling a program is the slow part (it can freeze the game for a
+ * Every shader program of the mod in one place. The game looks programs up as shaders/core/<name> in the minecraft
+ * namespace, so the files live in assets/minecraft/shaders/core/ and carry the neuro_ prefix to stay unique. Compiling a program is the slow part (it can freeze the game for a
  * moment the first time an effect appears), so {@link #compileAll} builds them all in advance, and keeps the reason
  * when one of them fails so it can be shown instead of silently doing nothing.
  */
@@ -90,7 +91,7 @@ public final class Shaders {
     private static ShaderProgram build(String id) {
         long t0 = System.nanoTime();
         try {
-            ShaderProgram p = new ShaderProgram(MinecraftClient.getInstance().getResourceManager(), "neurocanvas:" + id, KNOWN.get(id));
+            ShaderProgram p = new ShaderProgram(MinecraftClient.getInstance().getResourceManager(), id, KNOWN.get(id));
             PROGRAMS.put(id, p);
             MILLIS.put(id, (System.nanoTime() - t0) / 1_000_000L);
             ERRORS.remove(id);
