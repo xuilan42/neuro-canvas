@@ -237,7 +237,7 @@ public final class Particles extends Module {
         if (list.isEmpty()) {
             return;
         }
-        if (program == null) {
+        {
             program = com.example.neurocanvas.fx.Shaders.get("neuro_particle");
             programAdd = com.example.neurocanvas.fx.Shaders.get("neuro_particle_add");
         }

@@ -66,7 +66,7 @@ public final class GuiFx {
         }
         try {
             ctx.draw();
-            if (blur == null) {
+            {
                 blur = com.example.neurocanvas.fx.Shaders.get("neuro_blur");
                 if (blur == null) {
                     blurFailed = true;
@@ -126,7 +126,7 @@ public final class GuiFx {
         }
         try {
             ctx.draw();
-            if (ui == null) {
+            {
                 ui = com.example.neurocanvas.fx.Shaders.get("neuro_ui");
                 if (ui == null) {
                     uiFailed = true;

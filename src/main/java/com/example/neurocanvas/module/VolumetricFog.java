@@ -116,7 +116,7 @@ public final class VolumetricFog extends Module {
             return;
         }
         try {
-            if (program == null) {
+            {
                 program = com.example.neurocanvas.fx.Shaders.get("neuro_fog");
                 if (program == null) {
                     fail(mc, "shader neuro_fog: " + com.example.neurocanvas.fx.Shaders.error("neuro_fog"));

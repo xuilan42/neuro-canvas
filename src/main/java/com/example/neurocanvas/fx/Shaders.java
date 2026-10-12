@@ -115,7 +115,6 @@ public final class Shaders {
     /** Builds every program now. With {@code force} the old ones are thrown away and compiled again. */
     public static List<String> compileAll(boolean force) {
         if (force) {
-            PROGRAMS.values().forEach(ShaderProgram::close);
             PROGRAMS.clear();
             ERRORS.clear();
         }
