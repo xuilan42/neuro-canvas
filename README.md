@@ -141,5 +141,5 @@ sky, time and dropped items, so other mods that change the same things may confl
 
 ## License
 
-MIT, see [LICENSE](LICENSE). You may use, copy and modify the code, but the copyright notice ("Copyright (c) 2026 xuilan42") and the license text must be kept in every copy or substantial portion of it, so the author stays credited. Bundled fonts (Inter, Nunito, Montserrat) are under the SIL Open Font License 1.1, see [licenses](licenses).
+GNU GPL v3, see [LICENSE](LICENSE). Copyright (c) 2026 xuilan42. You may use, modify and share the code, but every copy or derived work must keep the copyright notice, state your changes, and be released under the same GPLv3 with its source code open. Taking the code into a closed or re-licensed project is not allowed. Bundled fonts (Inter, Nunito, Montserrat) are under the SIL Open Font License 1.1, see [licenses](licenses).
 This project is not affiliated with Mojang or Microsoft.
