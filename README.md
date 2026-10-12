@@ -29,7 +29,7 @@ Java 17 or newer is required.
 | Category | Modules |
 |---|---|
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (your own 3D model), Shimmer (armour and held items shift through rainbow or gradient colours) |
+| **Cosmetics** | Model (your own 3D model), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -95,6 +95,19 @@ small parts keep their shape) and **Texture size** (Original / 1024 / 512 / 256)
 `neurocanvas/cosmetics/` (the **Open models folder** button opens it, **Reload model list** rescans it). A model in a T-pose gets a simple two-arm skeleton with elbows:
 **Pose** (Relaxed, Ready, Guard, Point, ORA barrage) and, with **Strike on hit**, the arms punch in turns when you hit. Models are not part of this repository;
 check the license of what you download. It is only visible on your own screen.
+
+## Avatar (animated Blockbench avatars)
+
+A small avatar system in the spirit of Figura, built into the mod. Make a model in **Blockbench** (cubes, bones, a texture and animations),
+save it as `.bbmodel` with the texture embedded, and put it into `neurocanvas/avatars/<name>/model.bbmodel`. Press **Reload avatar list** in the Avatar module.
+An example avatar (`Example`) is created the first time.
+
+- **Mode:** *On me* puts the avatar where you are, facing your body direction, and can hide your own body (*Hide my own body*); *Stand* makes it follow you at a distance.
+- **Animations play by their names:** `idle`, `walk`, `sprint`, `sneak`, `jump`, `fall` follow what you do; `attack` plays when you swing or hit, `hurt` when you take damage.
+- **Keys:** an optional `avatar.json` next to the model binds keys to animations: `{ "model": "model.bbmodel", "scale": 1.0, "yaw": 0, "keys": { "G": "wave" } }`.
+  An animation set to *once* plays once per press, *hold* plays while the key is held, *loop* toggles on and off.
+- Supported: cubes with box UV or per-face UV, bone hierarchy with pivots and rotations, position, rotation and scale keyframes (linear or step). Not supported yet: Molang expressions in keyframes, mesh elements, Lua scripts.
+- It is only drawn on your screen, other players do not see it. Models are not part of this repository.
 
 ## NameTags (plate over other users)
 

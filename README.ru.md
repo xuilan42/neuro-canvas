@@ -29,7 +29,7 @@
 | Категория | Модули |
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (своя 3D-модель), Shimmer (броня и предметы в руке переливаются радугой или градиентом) |
+| **Cosmetics** | Model (своя 3D-модель), Avatar (анимированные аватары из Blockbench), Shimmer (броня и предметы в руке переливаются радугой или градиентом) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -94,6 +94,19 @@
 По умолчанию модель грузится в оригинале. Кнопка **Apply optimization** сжимает её по **Triangle budget** и **Texture size**, **Restore original** возвращает оригинал,
 `/cosmetics info` показывает результат. Модель в T-позе получает простой скелет из двух рук с локтями: **Pose** (Relaxed, Ready, Guard, Point, ORA barrage),
 а при **Strike on hit** руки по очереди бьют вперёд. Моделей в репозитории нет, смотрите лицензию скачанного. Видна только вам.
+
+## Avatar (анимированные аватары из Blockbench)
+
+Небольшая система аватаров в духе Figura, встроенная в мод. Сделайте модель в **Blockbench** (кубы, кости, текстура и анимации),
+сохраните как `.bbmodel` со встроенной текстурой и положите в `neurocanvas/avatars/<имя>/model.bbmodel`. Нажмите **Reload avatar list** в модуле Avatar.
+При первом запуске создаётся пример (`Example`).
+
+- **Mode:** *On me* ставит аватар на ваше место лицом по направлению тела и может скрыть ваше тело (*Hide my own body*); *Stand* заставляет его следовать за вами.
+- **Анимации включаются по имени:** `idle`, `walk`, `sprint`, `sneak`, `jump`, `fall` следуют за вашими действиями; `attack` играет при взмахе или ударе, `hurt` при получении урона.
+- **Клавиши:** необязательный `avatar.json` рядом с моделью привязывает клавиши к анимациям: `{ "model": "model.bbmodel", "scale": 1.0, "yaw": 0, "keys": { "G": "wave" } }`.
+  Анимация *once* играет один раз за нажатие, *hold* пока клавиша зажата, *loop* включается и выключается.
+- Поддерживается: кубы с box UV или UV по граням, иерархия костей с центрами и поворотами, ключи положения, поворота и масштаба (линейные или ступенчатые). Пока нет: выражений Molang в ключах, mesh-элементов, Lua-скриптов.
+- Видно только на вашем экране, другие игроки аватар не видят. Модели не входят в этот репозиторий.
 
 ## NameTags (плашка над другими пользователями)
 
