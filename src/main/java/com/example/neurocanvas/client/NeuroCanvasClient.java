@@ -397,6 +397,13 @@ public class NeuroCanvasClient implements ClientModInitializer {
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         for (Module m : modules.all()) {
             if (m.enabled) {
+                // Every module starts from the same known state, whatever the previous one left behind.
+                RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+                RenderSystem.enableBlend();
+                RenderSystem.defaultBlendFunc();
+                RenderSystem.disableCull();
+                RenderSystem.disableDepthTest();
+                RenderSystem.depthMask(true);
                 m.renderWorld(env);
             }
         }
