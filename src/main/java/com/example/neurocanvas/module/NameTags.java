@@ -52,13 +52,14 @@ public final class NameTags extends Module {
 
     private final String url = loadUrl();
     private volatile Set<String> online = Collections.emptySet();
+    private volatile java.util.List<String> onlineDisplay = Collections.emptyList();
     private volatile String status = "off";
     private volatile int generation;
     private volatile WebSocket socket;
     private String connectedTo = "";
 
     public NameTags() {
-        super("NameTags", Category.VISUALS, "Plate above other NeuroAura users on the same server", false);
+        super("NameTags", Category.FRIENDS, "Plate above other NeuroAura users on the same server", false);
         aiControllable = false;
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> stop());
     }
@@ -228,6 +229,11 @@ public final class NameTags extends Module {
         return true;
     }
 
+    /** The users on this server who run the mod, as they spell their names. */
+    public java.util.List<String> onlineNames() {
+        return onlineDisplay;
+    }
+
     public boolean connected() {
         return socket != null;
     }
@@ -239,10 +245,17 @@ public final class NameTags extends Module {
                 MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(PingWheel.class).receive(message));
                 return;
             }
+            if (message.has("status")) {
+                MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(Friends.class).receiveStatus(message.getAsJsonObject("status")));
+                return;
+            }
             Set<String> names = new HashSet<>();
             message.getAsJsonArray("players")
                     .forEach(e -> names.add(e.getAsString().toLowerCase(Locale.ROOT)));
             online = names;
+            java.util.List<String> display = new java.util.ArrayList<>();
+            message.getAsJsonArray("players").forEach(e -> display.add(e.getAsString()));
+            onlineDisplay = display;
             status = "connected, " + names.size() + " on this server";
         } catch (RuntimeException e) {
             status = "bad message from the registry";
@@ -268,7 +281,11 @@ public final class NameTags extends Module {
     public void plate(RenderEnv env, PlayerEntity p) {
         MinecraftClient mc = env.mc();
         TextRenderer tr = mc.textRenderer;
-        Text text = Ui.text(label.option());
+        String shown = label.option();
+        if (NeuroCanvasClient.modules().get(Friends.class).inMenu(p.getName().getString())) {
+            shown += "  \u00b7 in menu";
+        }
+        Text text = Ui.text(shown);
         int bg = background.on() ? 0x66000000 : 0;
         VertexConsumerProvider.Immediate consumers = mc.getBufferBuilders().getEntityVertexConsumers();
         Vec3d pos = EffectDraw.lerpPos(p, env.tickDelta());

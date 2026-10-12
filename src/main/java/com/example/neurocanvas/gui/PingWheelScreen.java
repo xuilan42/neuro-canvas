@@ -174,8 +174,14 @@ public final class PingWheelScreen extends Screen {
         if (hover >= 0 && hover < PingIcons.PINGS && target == null) {
             Ui.textCentered(ctx, textRenderer, "no block or entity under the crosshair", (int) cx, (int) (cy + OUTER_OUT + 36), th.dim());
         }
-        if (NeuroCanvasClient.modules() != null && !NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class).connected()) {
-            Ui.textCentered(ctx, textRenderer, "Others cannot see your pings: turn NameTags on", (int) cx, (int) (cy - OUTER_OUT - 22), th.dim());
+        if (NeuroCanvasClient.modules() != null) {
+            com.example.neurocanvas.module.Friends friends = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class);
+            String hint = friends.sharesWithNobody() ? "Sharing is off (Friends tab)"
+                    : !NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class).connected() ? "Others cannot see your pings: turn NameTags on"
+                    : friends.friendsOnly() ? "Only your friends see your pings" : "";
+            if (!hint.isEmpty()) {
+                Ui.textCentered(ctx, textRenderer, hint, (int) cx, (int) (cy - OUTER_OUT - 22), th.dim());
+            }
         }
     }
 }

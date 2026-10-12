@@ -60,7 +60,7 @@ public final class PingWheel extends Module {
     private int lastCountStep = -1;
 
     public PingWheel() {
-        super("PingWheel", Category.HUD, "Hold V: a wheel of pings (!, ?, go here, danger...) for you and other users on the server", true);
+        super("PingWheel", Category.FRIENDS, "Hold V: a wheel of pings (!, ?, go here, danger...) for you and other users on the server", true);
         aiControllable = false;
     }
 
@@ -91,10 +91,6 @@ public final class PingWheel extends Module {
 
     // ---- actions ----------------------------------------------------------------------------
 
-    private NameTags tags() {
-        return NeuroCanvasClient.modules().get(NameTags.class);
-    }
-
     public void place(int type, Target target) {
         MinecraftClient mc = MinecraftClient.getInstance();
         if (target == null || mc.player == null) {
@@ -113,7 +109,7 @@ public final class PingWheel extends Module {
             o.addProperty("y", Math.round(target.pos().y * 100) / 100.0);
             o.addProperty("z", Math.round(target.pos().z * 100) / 100.0);
             o.addProperty("entity", target.entity());
-            tags().send(o.toString());
+            NeuroCanvasClient.modules().get(Friends.class).broadcast(o);
         }
     }
 
@@ -167,7 +163,7 @@ public final class PingWheel extends Module {
         if (share.on()) {
             JsonObject o = new JsonObject();
             o.addProperty("t", "count");
-            tags().send(o.toString());
+            NeuroCanvasClient.modules().get(Friends.class).broadcast(o);
         }
     }
 
@@ -195,13 +191,19 @@ public final class PingWheel extends Module {
                     return;
                 }
                 String from = p.has("from") ? p.get("from").getAsString() : "?";
+                if (!NeuroCanvasClient.modules().get(Friends.class).acceptsFrom(from)) {
+                    return;
+                }
                 while (countOf(from) >= 3) {
                     pings.remove(firstOf(from));
                 }
                 add(type, p.get("x").getAsDouble(), p.get("y").getAsDouble(), p.get("z").getAsDouble(),
                         p.has("entity") ? p.get("entity").getAsInt() : -1, from, false);
             } else if (o.has("count")) {
-                begin(o.getAsJsonObject("count").get("from").getAsString());
+                String from = o.getAsJsonObject("count").get("from").getAsString();
+                if (NeuroCanvasClient.modules().get(Friends.class).acceptsFrom(from)) {
+                    begin(from);
+                }
             }
         } catch (RuntimeException ignored) {
             // A malformed message is ignored.

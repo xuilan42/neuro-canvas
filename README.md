@@ -32,7 +32,8 @@ Java 17 or newer is required.
 | **Cosmetics** | Model (your own 3D model), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
-| **HUD** | PingWheel, HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
+| **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
+| **Friends** | Friends, PingWheel, NameTags (everything that talks to other users) |
 | **Misc** | Interface (themes, fonts, effects) |
 | **NeuroAura** | the AI chat (see below) |
 
@@ -95,6 +96,16 @@ small parts keep their shape) and **Texture size** (Original / 1024 / 512 / 256)
 `neurocanvas/cosmetics/` (the **Open models folder** button opens it, **Reload model list** rescans it). A model in a T-pose gets a simple two-arm skeleton with elbows:
 **Pose** (Relaxed, Ready, Guard, Point, ORA barrage) and, with **Strike on hit**, the arms punch in turns when you hit. Models are not part of this repository;
 check the license of what you download. It is only visible on your own screen.
+
+## Friends (the online tab)
+
+Everything that connects you with other Neuro Canvas users lives in the **Friends** tab: **NameTags** (the plate over other users), **PingWheel** and the **Friends** list.
+In the Friends module you set *Share with* (everyone, friends only or nobody), *Accept pings from* (everyone or friends only), and whether to show *when I am in the menu*
+and *who is in the menu*. Below the switches there are two lists: **Online on this server** (tap the star to make someone a friend) and **My friends** (the green dot means online,
+**x** removes); you can also type a name and press **Add**. The list is saved in `neurocanvas/online-friends.json`.
+
+With *Friends only* your messages are addressed to your friends by name on the registry server, so nobody else receives them at all. While you have the Neuro Canvas menu open,
+other users (who accept you) see "· in menu" on your plate. Everything here needs **NameTags** on, because it uses the same connection.
 
 ## PingWheel (marks like in co-op games)
 

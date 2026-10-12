@@ -57,6 +57,16 @@ public final class Icons {
         "#.#.....#",
         "#.......#",
         "#########"};
+    private static final String[] FRIENDS = {
+        ".........",
+        "..##.##..",
+        ".####.###",
+        ".####.###",
+        "..##..##.",
+        ".####.###",
+        "######.##",
+        "######...",
+        "........."};
     private static final String[] MISC = {
         "..#......",
         "#########",
@@ -97,10 +107,26 @@ public final class Icons {
             case COMBAT -> COMBAT;
             case WORLD -> WORLD;
             case HUD -> HUD;
+            case FRIENDS -> FRIENDS;
             case MISC -> MISC;
             case AI -> AI;
             case CONFIG -> CONFIG;
         };
+    }
+
+    private static final String[] STAR_FULL = {"...#...", "...#...", "#######", ".#####.", "..###..", ".##.##.", ".#...#."};
+    private static final String[] STAR_EMPTY = {"...#...", "..#.#..", "###.###", "#.....#", ".#...#.", "..#.#..", ".##.##."};
+
+    /** A 7 x 7 star, filled for a friend and hollow for everyone else. */
+    public static void star(DrawContext ctx, int x, int y, boolean filled, int color) {
+        String[] rows = filled ? STAR_FULL : STAR_EMPTY;
+        for (int j = 0; j < rows.length; j++) {
+            for (int i = 0; i < rows[j].length(); i++) {
+                if (rows[j].charAt(i) == '#') {
+                    ctx.fill(x + i, y + j, x + i + 1, y + j + 1, color);
+                }
+            }
+        }
     }
 
     public static void draw(DrawContext ctx, Category c, int x, int y, int color) {

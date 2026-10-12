@@ -139,6 +139,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         Cosmetics cosmetics = new Cosmetics(dir.resolve("cosmetics"));
         modules.register(cosmetics);
         modules.register(new com.example.neurocanvas.module.Shimmer());
+        modules.register(new com.example.neurocanvas.module.Friends(dir.resolve("online-friends.json")));
         modules.register(new PingWheel());
         modules.register(new com.example.neurocanvas.module.Avatars(dir.resolve("avatars")));
         modules.register(new VolumetricFog());
