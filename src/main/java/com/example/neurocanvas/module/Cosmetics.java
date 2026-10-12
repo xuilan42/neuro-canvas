@@ -569,7 +569,7 @@ public final class Cosmetics extends Module {
             }
             tess.draw();
         }
-        RenderSystem.enableCull();
+        RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
     }

@@ -48,6 +48,7 @@ public final class FxBatch {
             c2.set(((color2 >> 16) & 0xFF) / 255f, ((color2 >> 8) & 0xFF) / 255f, (color2 & 0xFF) / 255f);
         }
         RenderSystem.enableBlend();
+        RenderSystem.disableCull();
         RenderSystem.setShader(() -> program);
         BufferBuilder buf = Tessellator.getInstance().getBuffer();
         buf.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);

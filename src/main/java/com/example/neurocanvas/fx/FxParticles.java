@@ -147,7 +147,7 @@ public final class FxParticles {
             }
         }
         Tessellator.getInstance().draw();
-        com.mojang.blaze3d.systems.RenderSystem.enableCull();
+        com.mojang.blaze3d.systems.RenderSystem.disableCull();
     }
 
     private static void vertex(BufferBuilder b, Matrix4f m, P p, float lx, float ly, float size, float cr, float sr,

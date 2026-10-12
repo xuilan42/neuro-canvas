@@ -304,7 +304,7 @@ public final class Particles extends Module {
         }
         tess.draw();
         RenderSystem.depthMask(true);
-        RenderSystem.enableCull();
+        RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         com.example.neurocanvas.fx.Shaders.finish();
     }
@@ -381,7 +381,7 @@ public final class Particles extends Module {
         }
         RenderSystem.defaultBlendFunc();
         RenderSystem.depthMask(true);
-        RenderSystem.enableCull();
+        RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
         com.example.neurocanvas.fx.Shaders.finish();
     }
