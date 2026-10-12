@@ -90,7 +90,7 @@ public final class ModuleManager {
             if (en != null) {
                 m.enabled = en >= 0.5;
             }
-            if (saved.get("__key") != null) {
+            if (saved.get("__key") != null && !(m.customKey && saved.get("__key") < 0)) {
                 m.key = saved.get("__key").intValue();
             }
             if (saved.get("__hold") != null) {

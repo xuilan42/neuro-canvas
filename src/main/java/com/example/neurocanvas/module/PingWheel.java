@@ -60,8 +60,10 @@ public final class PingWheel extends Module {
     private int lastCountStep = -1;
 
     public PingWheel() {
-        super("PingWheel", Category.FRIENDS, "Hold V: a wheel of pings (!, ?, go here, danger...) for you and other users on the server", true);
+        super("PingWheel", Category.FRIENDS, "Hold its key (V by default, change it in the Keybind row): a wheel of pings for you and other users", true);
         aiControllable = false;
+        customKey = true;
+        key = 86;
     }
 
     // ---- picking the spot -------------------------------------------------------------------

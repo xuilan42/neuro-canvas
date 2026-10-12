@@ -109,7 +109,7 @@ other users (who accept you) see "· in menu" on your plate. Everything here nee
 
 ## PingWheel (marks like in co-op games)
 
-Hold **V** (rebindable in Controls): a wheel opens, move the cursor to a mark and let go of the key (or click). The mark appears on the block or entity you were
+Hold **V** by default (change it in the PingWheel module: the *Keybind* row, any key such as **G**): a wheel opens, move the cursor to a mark and let go of the key (or click). The mark appears on the block or entity you were
 aiming at, up to 256 blocks away: a ring and a beam in the world, plus an icon on the screen with the distance and the name (it sticks to the screen edge when it is
 off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, **Danger**, **Look**, **Loot**, **Enemy**, **Help**. Inner ring: **Clear my pings**,
 **Countdown** (a big 3-2-1-GO for everyone), **Wave** and **Dance** (play the animations `wave`/`emote_wave` and `dance`/`emote_dance` of your Avatar, if it has them).

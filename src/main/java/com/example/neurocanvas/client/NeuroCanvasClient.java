@@ -94,7 +94,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
     private static final WorldState state = new WorldState();
     private KeyBinding openGui;
-    private KeyBinding pingKey;
+    private boolean pingKeyDown;
 
     public static WorldState state() {
         return state;
@@ -181,8 +181,6 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
         openGui = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding("key.neurocanvas.gui", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.misc"));
-        pingKey = KeyBindingHelper.registerKeyBinding(
-                new KeyBinding("key.neurocanvas.pings", GLFW.GLFW_KEY_V, "key.categories.misc"));
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             state.tick(mc);
             pollKeybinds(mc);
@@ -195,13 +193,12 @@ public class NeuroCanvasClient implements ClientModInitializer {
             while (openGui.wasPressed()) {
                 mc.setScreen(new ClickGui());
             }
-            while (pingKey.wasPressed()) {
-                PingWheel pings = modules.get(PingWheel.class);
-                if (pings.enabled && mc.player != null && mc.currentScreen == null) {
-                    mc.setScreen(new com.example.neurocanvas.gui.PingWheelScreen(pings, PingWheel.capture(mc),
-                            KeyBindingHelper.getBoundKeyOf(pingKey).getCode()));
-                }
+            PingWheel pings = modules.get(PingWheel.class);
+            boolean pingDown = pings.key >= 0 && mc.getWindow() != null && InputUtil.isKeyPressed(mc.getWindow().getHandle(), pings.key);
+            if (pingDown && !pingKeyDown && pings.enabled && mc.player != null && mc.currentScreen == null) {
+                mc.setScreen(new com.example.neurocanvas.gui.PingWheelScreen(pings, PingWheel.capture(mc), pings.key));
             }
+            pingKeyDown = pingDown;
             if (mc.player != null) {
                 for (Module m : modules.all()) {
                     m.tickAlways(mc);
@@ -379,7 +376,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         }
         long window = mc.getWindow().getHandle();
         for (Module m : modules.all()) {
-            if (m.key < 0) {
+            if (m.key < 0 || m.customKey) {
                 continue;
             }
             boolean down = InputUtil.isKeyPressed(window, m.key);
