@@ -141,6 +141,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new com.example.neurocanvas.module.Shimmer());
         modules.register(new com.example.neurocanvas.module.Friends(dir.resolve("online-friends.json")));
         modules.register(new PingWheel());
+        modules.register(new com.example.neurocanvas.module.WeatherChanger());
         modules.register(new com.example.neurocanvas.module.Avatars(dir.resolve("avatars")));
         modules.register(new VolumetricFog());
         modules.register(new CropInfo());

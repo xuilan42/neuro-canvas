@@ -29,6 +29,7 @@
     "MouseMixin",
     "ParticleManagerMixin",
     "SimpleOptionMixin",
+    "WorldMixin",
     "WorldRendererMixin"
   ],
   "injectors": {

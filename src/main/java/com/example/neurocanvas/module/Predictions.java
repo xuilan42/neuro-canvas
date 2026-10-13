@@ -36,8 +36,8 @@ public final class Predictions extends Module {
 
     private record Trace(List<Vec3d> points, Vec3d landing, boolean entityHit, int ticks, int color) { }
 
-    private final Setting pathStyle = add(Setting.choice("Path style", 0, "Line", "Dashed", "Dots", "Arrows", "Glow trail", "Rainbow", "Double"));
-    private final Setting markerStyle = add(Setting.choice("Landing style", 0, "Cross", "Ring", "Target", "Diamond", "Pulse", "Pin"));
+    private final Setting pathStyle = add(Setting.choice("Path style", 0, "Line", "Dashed", "Dots", "Arrows", "Glow trail", "Rainbow", "Double", "None"));
+    private final Setting markerStyle = add(Setting.choice("Landing style", 0, "Cross", "Ring", "Target", "Diamond", "Pulse", "Pin", "None"));
     private final Setting flow = add(Setting.number("Animation speed", 0, 4, 1));
     private final Setting width = add(Setting.number("Line width", 1, 6, 2));
     private final Setting steps = add(Setting.number("Max steps", 40, 300, 150));
@@ -189,9 +189,11 @@ public final class Predictions extends Module {
                     Depth.state(over);
                     lines = Lines.begin(env, width.f());
                 }
-                path(lines, t, env.t());
+                if (pathStyle.index() != 7) {
+                    path(lines, t, env.t());
+                }
                 Vec3d l = t.landing();
-                if (l != null && marker.on()) {
+                if (l != null && marker.on() && markerStyle.index() != 6) {
                     landing(lines, l, t.entityHit() ? hitColor.argb() : landColor.argb(), env.t());
                 }
             }
