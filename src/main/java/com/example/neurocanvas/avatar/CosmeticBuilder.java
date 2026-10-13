@@ -47,7 +47,8 @@ public final class CosmeticBuilder {
         return switch (type) {
             case GRAFFITI -> new Template(graffitiSize, graffitiSize, List.of(), "A picture for a wall. Transparent pixels stay clear.");
             case CAPE -> new Template(16, 32, List.of(), "The back of the cape, seen from behind.");
-            case WINGS -> new Template(32, 32, List.of(), "One wing seen from behind: the outer edge on the left, the body side on the right. The other wing is its mirror.");
+            case WINGS -> new Template(64, 32, List.of(new Zone("Wing on the left", 0, 0, 32, 32, 0x4DD2FF), new Zone("Wing on the right", 32, 0, 32, 32, 0xFF7AB6)),
+                    "Both wings as seen from behind: the left half is the wing on your left, the right half the one on your right. Nothing is mirrored for you; use Mirror to paint both alike.");
             case HAT -> {
                 List<Zone> z = boxZones(8, 8, 8);
                 z.add(new Zone("Brim colour", 1, 1, 6, 6, 0xFF7AB6));
@@ -143,9 +144,9 @@ public final class CosmeticBuilder {
                 anims.add(flap);
                 files.put("model.bbmodel", model(img, ExamplePack.list(
                         cube("wing-r", new double[] {-16, 12, 2}, new double[] {-2, 28, 3}, false,
-                                sheet(new double[] {0, 0, w, h}, new double[] {0, 0, w, h}, edge)),
+                                sheet(new double[] {0, 0, w / 2, h}, new double[] {w / 2, 0, 0, h}, edge)),
                         cube("wing-l", new double[] {2, 12, 2}, new double[] {16, 28, 3}, false,
-                                sheet(new double[] {w, 0, 0, h}, new double[] {w, 0, 0, h}, edge))),
+                                sheet(new double[] {w / 2, 0, w, h}, new double[] {w, 0, w / 2, h}, edge))),
                         ExamplePack.list(ExamplePack.bone("wr", new double[] {-2, 22, 2}, "wing-r"), ExamplePack.bone("wl", new double[] {2, 22, 2}, "wing-l")),
                         anims).getBytes(StandardCharsets.UTF_8));
             }

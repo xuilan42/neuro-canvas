@@ -177,6 +177,7 @@ public final class BbModel {
             uvOffset[0] = number(a.get(0));
             uvOffset[1] = number(a.get(1));
         }
+        boolean mirrorUv = boxUv && o.has("mirror_uv") && o.get("mirror_uv").getAsBoolean();
         JsonObject faces = o.has("faces") && o.get("faces").isJsonObject() ? o.getAsJsonObject("faces") : new JsonObject();
         double w = Math.abs(c.to[0] - c.from[0]);
         double h = Math.abs(c.to[1] - c.from[1]);
@@ -200,6 +201,19 @@ public final class BbModel {
             int[] size = face.texture >= 0 && face.texture < textureUvSize.size() ? textureUvSize.get(face.texture) : new int[] {resolutionW, resolutionH};
             face.uv = new float[] {(float) (uv[0] / size[0]), (float) (uv[1] / size[1]), (float) (uv[2] / size[0]), (float) (uv[3] / size[1])};
             c.faces[i] = face;
+        }
+        if (mirrorUv) {
+            // Mirrored box UV: every face is flipped left to right and the east and west faces swap places.
+            for (Face f : c.faces) {
+                if (f != null && f.uv != null) {
+                    float t = f.uv[0];
+                    f.uv[0] = f.uv[2];
+                    f.uv[2] = t;
+                }
+            }
+            Face east = c.faces[1];
+            c.faces[1] = c.faces[3];
+            c.faces[3] = east;
         }
         return c;
     }

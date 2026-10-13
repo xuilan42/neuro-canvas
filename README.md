@@ -149,6 +149,18 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
 - **Admin key:** the owner of the server sets a secret key on it; with that key (copy it, then run `/neuroadmin paste`; `/neuroadmin off` forgets it) every Market card shows a red **x** that, pressed twice, deletes the item from the server (Official or Community). The key stays on your computer in `neurocanvas/admin.key`, and the server limits wrong guesses.
 - The example avatars use the game's own **Steve** skin (no picture of it is stored in the models), so they look like the original Steve.
 
+## Making cosmetics yourself (Blockbench)
+
+The simple way is the **Editor** button of each cosmetic module (a pixel canvas for a ready model). For your own shapes use the free program **Blockbench** (blockbench.net):
+
+1. Make a **Generic Model** (cubes grouped into groups; meshes are not supported). Scale: **16 units are one block**. A player stands with the feet at y 0, the body at y 12 to 24 (x from -4 to 4, z from -2 to 2), the head at y 24 to 32; the **front faces north (-z)**, the back is +z.
+2. Put cubes in **groups** and place each group's pivot at the joint (a cape at (0, 24, 2), a wing at the shoulder (±2, 22, 2)). A hat sits above y 32, an outfit is a little bigger than the body (x ±4.5, y 11.5 to 24.5, z ±2.5).
+3. Paint in Blockbench (or import a PNG) with **box UV** or per-face UV. **Save the project** as `.bbmodel`: the texture is stored inside it.
+4. **Animations:** in the Animate tab make an animation named `idle` (loop) and key the rotation, position or scale of groups. Linear and step keyframes work; Molang expressions, bezier curves, meshes and locators do not. An emote is a whole body (arms, legs, head) with an animation named in `cosmetic.json`: `{ "animation": "wave" }`.
+5. Put the files in `neurocanvas/wardrobe/<type>/<name>/` (`capes`, `wings`, `hats`, `outfits`, `emotes`), press **Reload** in the module and pick the item. **Share** uploads it (8 files at most, 1 MB each, 2 MB in all).
+6. **Graffiti** is just a PNG (any size, transparency works): `neurocanvas/wardrobe/graffiti/<name>/image.png`, painted in any program (Aseprite, Krita, GIMP, Paint.NET). Add `cosmetic.json` with `{ "size": 2 }` for its width in blocks.
+7. For a body-shaped model of Steve use the texture `minecraft:steve` (the game's own skin) instead of an embedded picture.
+
 ## Avatar (animated Blockbench avatars)
 
 A small avatar system in the spirit of Figura, built into the mod. Make a model in **Blockbench** (cubes, bones, a texture and animations),

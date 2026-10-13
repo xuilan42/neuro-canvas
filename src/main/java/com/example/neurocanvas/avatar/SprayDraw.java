@@ -25,8 +25,11 @@ public final class SprayDraw {
 
     /** One picture, {@code size} blocks wide, flat against the face with the given normal, centred on {@code pos}. */
     public static void quad(Matrix4f world, Vec3d pos, Vec3d normal, float size, Identifier image, float alpha) {
-        Vec3d u = Math.abs(normal.y) > 0.9 ? new Vec3d(1, 0, 0) : new Vec3d(-normal.z, 0, normal.x).normalize();
-        Vec3d v = Math.abs(normal.y) > 0.9 ? new Vec3d(0, 0, 1) : new Vec3d(0, 1, 0);
+        // u points to the viewer's right and v up in the picture, for someone looking at the face from outside:
+        // on a wall right = forward x up, on a floor the picture's top is north, on a ceiling it is south.
+        boolean flat = Math.abs(normal.y) > 0.9;
+        Vec3d u = flat ? new Vec3d(1, 0, 0) : new Vec3d(normal.z, 0, -normal.x).normalize();
+        Vec3d v = flat ? new Vec3d(0, 0, normal.y > 0 ? -1 : 1) : new Vec3d(0, 1, 0);
         double half = size / 2.0;
         RenderSystem.setShaderTexture(0, image);
         Tessellator tess = Tessellator.getInstance();
