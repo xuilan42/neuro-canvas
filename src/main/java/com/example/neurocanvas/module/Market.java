@@ -48,6 +48,37 @@ public final class Market extends Module {
     private volatile String status = "";
     private final Set<String> busy = new HashSet<>();
     private boolean loading;
+    private String pendingDelete = "";
+
+    public boolean deletePending(MarketClient.Entry e) {
+        return pendingDelete.equals(e.type() + "/" + e.name() + "/" + e.code());
+    }
+
+    /** Admin only: the first press asks, the second removes the item from the server. */
+    public void requestDelete(MarketClient.Entry e) {
+        if (!com.example.neurocanvas.client.AdminStore.has()) {
+            return;
+        }
+        String key = e.type() + "/" + e.name() + "/" + e.code();
+        if (!pendingDelete.equals(key)) {
+            pendingDelete = key;
+            status = "Press the red button again to delete " + e.name() + " from the server";
+            return;
+        }
+        pendingDelete = "";
+        status = "Deleting " + e.name() + "...";
+        com.example.neurocanvas.client.CommunityClient.adminDelete(e, com.example.neurocanvas.client.AdminStore.key()).whenComplete((v, error) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    if (error != null) {
+                        status = "Could not delete " + e.name() + ": " + MarketClient.reason(error);
+                        return;
+                    }
+                    status = "Deleted " + e.name();
+                    entries = null;
+                    closePreviews();
+                    refresh();
+                }));
+    }
 
     public Market(Path wardrobe) {
         super("Market", Category.COSMETICS, "Cosmetics on the project's server: one button downloads an item and puts it on", true);

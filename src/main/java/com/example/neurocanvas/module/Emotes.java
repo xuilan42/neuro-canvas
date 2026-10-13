@@ -42,6 +42,7 @@ public final class Emotes extends CosmeticModule {
         }
         playing = slots[slot];
         started = System.nanoTime();
+        com.example.neurocanvas.client.NeuroCanvasClient.modules().get(Showcase.class).announceEmote(this, playing.setting.option());
         return true;
     }
 

@@ -1,16 +1,11 @@
 package com.example.neurocanvas.module;
 
 import com.example.neurocanvas.avatar.CosmeticPack;
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.example.neurocanvas.client.NeuroCanvasClient;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.render.BufferBuilder;
-import net.minecraft.client.render.GameRenderer;
-import net.minecraft.client.render.Tessellator;
-import net.minecraft.client.render.VertexFormat;
-import net.minecraft.client.render.VertexFormats;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.hit.BlockHitResult;
@@ -79,6 +74,7 @@ public final class Graffiti extends CosmeticModule {
         s.created = System.currentTimeMillis();
         sprays.removeIf(o -> o.pos.squaredDistanceTo(s.pos) < 0.25 && o.normal.equals(s.normal));
         sprays.add(s);
+        NeuroCanvasClient.modules().get(Showcase.class).announceSpray(this, main.setting.option(), s.pos, s.normal, s.size / size.f());
         while (sprays.size() > 24) {
             sprays.remove(0);
         }
@@ -92,32 +88,11 @@ public final class Graffiti extends CosmeticModule {
             return;
         }
         Matrix4f m = env.m();
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.disableCull();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
-        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
-        Tessellator tess = Tessellator.getInstance();
+        com.example.neurocanvas.avatar.SprayDraw.begin();
         for (Spray s : sprays) {
             float fade = (float) Math.min(1.0, (lifetime.value * 1000 - (now - s.created)) / 8000.0);
-            Vec3d n = s.normal;
-            Vec3d u = Math.abs(n.y) > 0.9 ? new Vec3d(1, 0, 0) : new Vec3d(-n.z, 0, n.x).normalize();
-            Vec3d v = Math.abs(n.y) > 0.9 ? new Vec3d(0, 0, 1) : new Vec3d(0, 1, 0);
-            double half = s.size / 2;
-            RenderSystem.setShaderTexture(0, s.image);
-            BufferBuilder b = tess.getBuffer();
-            b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
-            double[][] c = {{-1, 1}, {1, 1}, {1, -1}, {-1, -1}};
-            float[][] uv = {{0, 0}, {1, 0}, {1, 1}, {0, 1}};
-            for (int i = 0; i < 4; i++) {
-                Vec3d q = s.pos.add(u.multiply(c[i][0] * half)).add(v.multiply(c[i][1] * half));
-                b.vertex(m, (float) q.x, (float) q.y, (float) q.z).texture(uv[i][0], uv[i][1]).color(1f, 1f, 1f, fade).next();
-            }
-            tess.draw();
+            com.example.neurocanvas.avatar.SprayDraw.quad(m, s.pos, s.normal, s.size, s.image, fade);
         }
-        RenderSystem.depthMask(true);
-        RenderSystem.disableDepthTest();
-        RenderSystem.setShader(GameRenderer::getPositionColorProgram);
+        com.example.neurocanvas.avatar.SprayDraw.end();
     }
 }

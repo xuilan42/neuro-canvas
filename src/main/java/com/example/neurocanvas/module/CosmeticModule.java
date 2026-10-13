@@ -20,7 +20,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 
 /**
- * Base of the cosmetic modules (capes, wings, hats, outfits, pets, emotes, graffiti). Each is its own module with a list of the
+ * Base of the cosmetic modules (capes, wings, hats, outfits, emotes, graffiti). Each is its own module with a list of the
  * items of its kind found in neurocanvas/wardrobe/&lt;type&gt;/ and the settings every cosmetic shares. Only you see them for now.
  */
 public abstract class CosmeticModule extends Module {

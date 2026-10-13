@@ -292,6 +292,14 @@ public final class NameTags extends Module {
                 MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(PingWheel.class).receive(message));
                 return;
             }
+            if (message.has("emote")) {
+                MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(Showcase.class).receiveEmote(message.getAsJsonObject("emote")));
+                return;
+            }
+            if (message.has("spray")) {
+                MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(Showcase.class).receiveSpray(message.getAsJsonObject("spray")));
+                return;
+            }
             if (message.has("wear")) {
                 MinecraftClient.getInstance().execute(() -> NeuroCanvasClient.modules().get(Showcase.class).receive(message.getAsJsonObject("wear")));
                 return;

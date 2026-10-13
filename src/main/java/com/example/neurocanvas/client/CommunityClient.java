@@ -111,6 +111,27 @@ public final class CommunityClient {
         });
     }
 
+    /** Removes an item of the Market or the Community with the admin key. */
+    public static CompletableFuture<Void> adminDelete(MarketClient.Entry e, String key) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                String path = e.code() != null ? "/v1/community/" + e.code()
+                        : "/v1/market/" + e.type() + "/" + java.net.URLEncoder.encode(e.name(), java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+                HttpRequest req = HttpRequest.newBuilder(URI.create(base() + path)).timeout(Duration.ofSeconds(15))
+                        .header("x-admin-key", key).DELETE().build();
+                HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                if (r.statusCode() != 200) {
+                    throw new IOException(r.statusCode() == 403 ? "the server does not accept this key" : message(r));
+                }
+            } catch (IOException | RuntimeException ex) {
+                throw new CompletionException(ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(ex);
+            }
+        });
+    }
+
     public static CompletableFuture<Void> remove(String code, String token) {
         return CompletableFuture.runAsync(() -> {
             try {

@@ -134,10 +134,10 @@ public final class ExamplePack {
     public static void write(Path root) throws IOException {
         Files.createDirectories(root);
         Files.writeString(root.resolve("README.txt"), "One folder per item: wardrobe/<type>/<name>/ with a model.bbmodel (graffiti: a .png) and an optional cosmetic.json.\n"
-                + "Types: capes, wings, hats, outfits, pets, emotes, graffiti.\n\n"
+                + "Types: capes, wings, hats, outfits, emotes, graffiti.\n\n"
                 + "Models use the same space as an avatar of your own body: 16 units are one block, feet at y 0, head at y 24-32, front is north (-z), back is +z.\n"
                 + "A cape hangs from y 24 at z 2 (it swings by itself), wings sit on the back, a hat sits above y 32 and follows the head, an outfit sits on the body,\n"
-                + "a pet is a small model with its feet at y 0 that walks beside you. Animations named idle (and walk, for pets) play on their own.\n"
+                + "Animations named idle play on their own.\n"
                 + "Emotes are full avatars with an animation (set \"animation\" in cosmetic.json, or the first one plays). Graffiti is a picture ({ \"size\": 1.5 } is its width in blocks).\n\n"
                 + "Then press \"Reload\" in the Wardrobe module and pick the item in its slot.\n");
 
@@ -162,12 +162,6 @@ public final class ExamplePack {
         // Outfit: a jacket a little wider than the body.
         model(root.resolve("outfits/Example Jacket"), 0x2E8B57, list(cube("jacket", new double[] {-4.6, 11.6, -2.6}, new double[] {4.6, 24.2, 2.6})),
                 list(bone("b", new double[] {0, 12, 0}, "jacket")), new JsonArray());
-
-        // Pet: a small body and head that bobs.
-        JsonArray petAnims = new JsonArray();
-        petAnims.add(loop("body", 1.0, new double[] {0, 0, 0}, new double[] {6, 0, 0}, new double[] {0, 0, 0}));
-        model(root.resolve("pets/Example Pet"), 0xE8A33D, list(cube("body", new double[] {-3, 2, -4}, new double[] {3, 8, 4}),
-                cube("head", new double[] {-2.5, 8, -6}, new double[] {2.5, 13, -1})), list(bone("body", new double[] {0, 4, 0}, "body", "head")), petAnims);
 
         // Emote: the example avatar, whose "wave" animation plays.
         if (!Files.isDirectory(root.resolve("emotes/Example Wave")) || ExampleAvatar.outdated(root.resolve("emotes/Example Wave"))) {

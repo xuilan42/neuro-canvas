@@ -54,7 +54,6 @@ public final class CosmeticBuilder {
                 yield new Template(32, 16, z, "The crown of the hat, unfolded. The pink corner sets the colour of the brim.");
             }
             case OUTFIT -> new Template(28, 18, boxZones(9, 13, 5), "A jacket around the body, unfolded: front, back, sides, top and bottom.");
-            case PET -> new Template(32, 16, boxZones(8, 8, 8), "A cube-shaped friend, unfolded. Draw its face on the front.");
             default -> new Template(16, 16, List.of(), "");
         };
     }
@@ -160,13 +159,6 @@ public final class CosmeticBuilder {
             case OUTFIT -> files.put("model.bbmodel", model(img,
                     ExamplePack.list(cube("jacket", new double[] {-4.5, 11.5, -2.5}, new double[] {4.5, 24.5, 2.5}, true, null)),
                     ExamplePack.list(ExamplePack.bone("b", new double[] {0, 12, 0}, "jacket")), new JsonArray()).getBytes(StandardCharsets.UTF_8));
-            case PET -> {
-                JsonArray anims = new JsonArray();
-                anims.add(ExamplePack.loop("body", 1.0, new double[] {0, 0, 0}, new double[] {6, 0, 0}, new double[] {0, 0, 0}));
-                files.put("model.bbmodel", model(img,
-                        ExamplePack.list(cube("pet", new double[] {-4, 0, -4}, new double[] {4, 8, 4}, true, null)),
-                        ExamplePack.list(ExamplePack.bone("body", new double[] {0, 4, 0}, "pet")), anims).getBytes(StandardCharsets.UTF_8));
-            }
             default -> throw new IOException("this kind has no editor");
         }
         return files;

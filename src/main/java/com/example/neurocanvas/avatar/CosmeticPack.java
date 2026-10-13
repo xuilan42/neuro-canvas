@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 public final class CosmeticPack {
     public enum Type {
         CAPE("capes", "Cape"), WINGS("wings", "Wings"), HAT("hats", "Hat"), OUTFIT("outfits", "Outfit"),
-        PET("pets", "Pet"), EMOTE("emotes", "Emote"), GRAFFITI("graffiti", "Graffiti");
+        EMOTE("emotes", "Emote"), GRAFFITI("graffiti", "Graffiti");
 
         public final String folder;
         public final String label;

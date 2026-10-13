@@ -46,16 +46,38 @@ public final class Showcase extends Module {
 
     private static final class Loaded {
         BbInstance model;
+        net.minecraft.util.Identifier image;
+        String animation;
         float scale = 1f;
         boolean failed;
         long failedAt;
     }
+
+    /** An emote another user is playing right now. */
+    private static final class Emoting {
+        Loaded loaded;
+        long start;
+    }
+
+    /** A graffiti another user sprayed. */
+    private static final class RemoteSpray {
+        String owner;
+        Loaded loaded;
+        Vec3d pos;
+        Vec3d normal;
+        float size;
+        long created;
+    }
+
+    private static final long SPRAY_LIFE_MS = 120_000;
 
     private final Setting announce = add(Setting.bool("Share what I wear", true));
     private final Setting showOthers = add(Setting.bool("Show what others wear", true));
     private final Setting shareAll = add(Setting.button("Share everything I wear"));
 
     private final Map<String, List<Item>> others = new HashMap<>();
+    private final Map<String, Emoting> emoting = new HashMap<>();
+    private final List<RemoteSpray> sprays = new ArrayList<>();
     private final Map<String, Loaded> cache = new LinkedHashMap<>();
     private final Set<String> officialNames = new HashSet<>();
     private boolean officialAsked;
@@ -163,6 +185,126 @@ public final class Showcase extends Module {
         wasConnected = connected;
     }
 
+    // ---- emotes and graffiti ---------------------------------------------------------------
+
+    private JsonObject itemJson(CosmeticModule m, String name) {
+        String ref = refOf(m, name);
+        if (ref == null) {
+            return null;
+        }
+        JsonObject o = new JsonObject();
+        o.addProperty("ref", ref);
+        o.addProperty("name", name);
+        return o;
+    }
+
+    /** Tells the others that you play an emote (only when it is shared or from the Market, so they can get it). */
+    public void announceEmote(CosmeticModule module, String name) {
+        if (!enabled || !announce.on()) {
+            return;
+        }
+        JsonObject item = itemJson(module, name);
+        if (item != null) {
+            JsonObject message = new JsonObject();
+            message.addProperty("t", "emote");
+            message.add("item", item);
+            NeuroCanvasClient.modules().get(Friends.class).broadcast(message);
+        }
+    }
+
+    public void announceSpray(CosmeticModule module, String name, Vec3d pos, Vec3d normal, float size) {
+        if (!enabled || !announce.on()) {
+            return;
+        }
+        JsonObject item = itemJson(module, name);
+        if (item != null) {
+            JsonObject message = new JsonObject();
+            message.addProperty("t", "spray");
+            message.add("item", item);
+            message.addProperty("x", Math.round(pos.x * 1000) / 1000.0);
+            message.addProperty("y", Math.round(pos.y * 1000) / 1000.0);
+            message.addProperty("z", Math.round(pos.z * 1000) / 1000.0);
+            message.addProperty("nx", (int) normal.x);
+            message.addProperty("ny", (int) normal.y);
+            message.addProperty("nz", (int) normal.z);
+            message.addProperty("size", Math.max(0.2, Math.min(size, 6)));
+            NeuroCanvasClient.modules().get(Friends.class).broadcast(message);
+        }
+    }
+
+    private Item readItem(JsonObject o, String type) {
+        String ref = o.get("ref").getAsString();
+        String name = o.has("name") ? o.get("name").getAsString() : "";
+        if (!REF.matcher(ref).matches() || !(name.isEmpty() || NAME.matcher(name).matches())) {
+            return null;
+        }
+        return new Item(type, ref, name.isEmpty() ? "item" : name);
+    }
+
+    public void receiveEmote(JsonObject o) {
+        if (!enabled || !showOthers.on()) {
+            return;
+        }
+        try {
+            String from = o.get("from").getAsString();
+            Item item = readItem(o.getAsJsonObject("item"), "emotes");
+            if (item == null || !NeuroCanvasClient.modules().get(Friends.class).acceptsFrom(from)) {
+                return;
+            }
+            Emoting e = new Emoting();
+            e.loaded = load(item);
+            e.start = System.nanoTime();
+            emoting.put(from.toLowerCase(Locale.ROOT), e);
+        } catch (RuntimeException ignored) {
+            // A malformed message is ignored.
+        }
+    }
+
+    public void receiveSpray(JsonObject o) {
+        if (!enabled || !showOthers.on()) {
+            return;
+        }
+        try {
+            String from = o.get("from").getAsString();
+            Item item = readItem(o.getAsJsonObject("item"), "graffiti");
+            if (item == null || !NeuroCanvasClient.modules().get(Friends.class).acceptsFrom(from)) {
+                return;
+            }
+            RemoteSpray s = new RemoteSpray();
+            s.owner = from.toLowerCase(Locale.ROOT);
+            s.loaded = load(item);
+            s.pos = new Vec3d(o.get("x").getAsDouble(), o.get("y").getAsDouble(), o.get("z").getAsDouble());
+            s.normal = new Vec3d(o.get("nx").getAsInt(), o.get("ny").getAsInt(), o.get("nz").getAsInt());
+            s.size = (float) Math.max(0.2, Math.min(o.get("size").getAsDouble(), 6));
+            s.created = System.currentTimeMillis();
+            long mine = sprays.stream().filter(x -> x.owner.equals(s.owner)).count();
+            while (mine >= 6) {
+                for (int i = 0; i < sprays.size(); i++) {
+                    if (sprays.get(i).owner.equals(s.owner)) {
+                        sprays.remove(i);
+                        break;
+                    }
+                }
+                mine--;
+            }
+            sprays.add(s);
+            while (sprays.size() > 40) {
+                sprays.remove(0);
+            }
+        } catch (RuntimeException ignored) {
+            // A malformed message is ignored.
+        }
+    }
+
+    /** True while another user's emote plays: their own body is not drawn then, the emote's model takes its place. */
+    public boolean hidesBody(net.minecraft.entity.Entity entity) {
+        if (!enabled || emoting.isEmpty() || !(entity instanceof PlayerEntity) || entity == MinecraftClient.getInstance().player) {
+            return false;
+        }
+        Emoting e = emoting.get(entity.getName().getString().toLowerCase(Locale.ROOT));
+        return e != null && e.loaded.model != null;
+    }
+
     // ---- what others wear -------------------------------------------------------------------
 
     public void receive(JsonObject wear) {
@@ -228,6 +370,9 @@ public final class Showcase extends Module {
             if (gone != null && gone.model != null) {
                 gone.model.close(MinecraftClient.getInstance());
             }
+            if (gone != null && gone.image != null) {
+                MinecraftClient.getInstance().getTextureManager().destroyTexture(gone.image);
+            }
         }
         boolean official = item.ref().startsWith("m:");
         MarketClient.Entry entry = new MarketClient.Entry(item.type(), official ? item.ref().substring(2) : "shared", "", 0, official ? null : item.ref());
@@ -237,17 +382,27 @@ public final class Showcase extends Module {
                     throw new IOException("download failed");
                 }
                 for (Map.Entry<String, byte[]> f : files.entrySet()) {
-                    if (f.getKey().toLowerCase().endsWith(".bbmodel")) {
+                    if (item.type().equals("graffiti") && f.getKey().toLowerCase().endsWith(".png") && created.image == null) {
+                        net.minecraft.client.texture.NativeImageBackedTexture tex = new net.minecraft.client.texture.NativeImageBackedTexture(
+                                net.minecraft.client.texture.NativeImage.read(new java.io.ByteArrayInputStream(f.getValue())));
+                        net.minecraft.util.Identifier id = new net.minecraft.util.Identifier("neurocanvas", "remote/" + java.util.UUID.randomUUID());
+                        MinecraftClient.getInstance().getTextureManager().registerTexture(id, tex);
+                        tex.setFilter(true, false);
+                        created.image = id;
+                    } else if (f.getKey().toLowerCase().endsWith(".bbmodel")) {
                         created.model = new BbInstance(MinecraftClient.getInstance(), BbModel.parse(new String(f.getValue(), StandardCharsets.UTF_8)));
                     } else if (f.getKey().equals("cosmetic.json")) {
                         CosmeticPack.Config cfg = new Gson().fromJson(new String(f.getValue(), StandardCharsets.UTF_8), CosmeticPack.Config.class);
                         if (cfg != null && cfg.scale != null) {
                             created.scale = Math.max(0.2f, Math.min(cfg.scale, 4f));
                         }
+                        if (cfg != null && cfg.animation != null) {
+                            created.animation = cfg.animation;
+                        }
                     }
                 }
-                if (created.model == null) {
-                    throw new IOException("no model");
+                if (created.model == null && created.image == null) {
+                    throw new IOException("nothing to show");
                 }
             } catch (IOException | RuntimeException e) {
                 created.failed = true;
@@ -266,7 +421,38 @@ public final class Showcase extends Module {
         long now = System.nanoTime();
         float td = env.tickDelta();
         double t = env.t();
+        long nowMs = System.currentTimeMillis();
+        sprays.removeIf(x -> nowMs - x.created > SPRAY_LIFE_MS);
+        if (!sprays.isEmpty()) {
+            com.example.neurocanvas.avatar.SprayDraw.begin();
+            for (RemoteSpray x : sprays) {
+                if (x.loaded.image != null && x.pos.squaredDistanceTo(mc.player.getPos()) < 128 * 128) {
+                    float fade = (float) Math.min(1.0, (SPRAY_LIFE_MS - (nowMs - x.created)) / 8000.0);
+                    com.example.neurocanvas.avatar.SprayDraw.quad(env.m(), x.pos, x.normal, x.size, x.loaded.image, fade);
+                }
+            }
+            com.example.neurocanvas.avatar.SprayDraw.end();
+        }
         for (AbstractClientPlayerEntity p : mc.world.getPlayers()) {
+            Emoting em = p == mc.player ? null : emoting.get(p.getName().getString().toLowerCase(Locale.ROOT));
+            if (em != null && em.loaded.model != null) {
+                BbInstance model = em.loaded.model;
+                BbModel.Anim a = em.loaded.animation != null ? model.find(em.loaded.animation) : null;
+                if (a == null && !model.model.animations.isEmpty()) {
+                    a = model.model.animations.values().iterator().next();
+                }
+                if (a == null || (now - em.start) / 1_000_000_000.0 > a.length) {
+                    emoting.remove(p.getName().getString().toLowerCase(Locale.ROOT));
+                } else {
+                    model.resetPose();
+                    model.apply(a, BbInstance.time(a, em.start, now, 1.0));
+                    Vec3d at = EffectDraw.lerpPos(p, td);
+                    float yaw = MathHelper.lerpAngleDegrees(td, p.prevBodyYaw, p.bodyYaw);
+                    float lit = 0.35f + 0.65f * mc.world.getLightLevel(BlockPos.ofFloored(at.x, at.y + 1, at.z)) / 15f;
+                    model.draw(Attach.base(env.m(), at, yaw, em.loaded.scale / 16f), lit, 0.5f);
+                    continue;
+                }
+            }
             if (p == mc.player || p.isInvisible() || p.isSpectator()) {
                 continue;
             }

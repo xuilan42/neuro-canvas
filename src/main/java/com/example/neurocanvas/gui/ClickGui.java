@@ -749,6 +749,11 @@ public final class ClickGui extends Screen {
             String kind = kindLabel(e.type());
             Ui.roundRect(ctx, pvx + 4, pvy + 4, Ui.width(textRenderer, kind) + 8, 12, 5, Ui.alpha(th.bg() & 0xFFFFFF, 0.8f));
             Ui.text(ctx, textRenderer, kind, pvx + 8, pvy + 6, th.accent());
+            if (com.example.neurocanvas.client.AdminStore.has()) {
+                boolean ask = m.deletePending(e);
+                Ui.roundRect(ctx, pvx + pvw - 20, pvy + 4, 16, 14, 5, ask ? 0xFFE53935 : 0xB0602020);
+                Ui.textCentered(ctx, textRenderer, ask ? "!" : "x", pvx + pvw - 12, pvy + 7, 0xFFFFFFFF);
+            }
 
             // the bottom part: name and the button
             int by = cy + PREVIEW_H + 6;
@@ -812,6 +817,11 @@ public final class ClickGui extends Screen {
             } else if (r.kind() == M_CARD) {
                 int cx = px + r.col() * (cw + 8);
                 int by = r.y() + PREVIEW_H + 6;
+                if (com.example.neurocanvas.client.AdminStore.has() && inside(mx, my, cx + 4 + cw - 8 - 20, r.y() + 4 + 4, 16, 14)) {
+                    m.requestDelete(r.entry());
+                    Interface.click(0.8f);
+                    return true;
+                }
                 if (inside(mx, my, cx + cw - marketButtonW() - 8, by + 2, marketButtonW(), 24)) {
                     m.get(r.entry());
                     Interface.click(1.3f);

@@ -19,7 +19,8 @@ public abstract class PlayerEntityRendererMixin {
     private void neurocanvas$hideBody(AbstractClientPlayerEntity player, float yaw, float tickDelta, MatrixStack matrices,
                                       VertexConsumerProvider vertexConsumers, int light, CallbackInfo ci) {
         if (NeuroCanvasClient.modules() != null && (NeuroCanvasClient.modules().get(Avatars.class).hidesBody(player)
-                || NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Emotes.class).hidesBody(player))) {
+                || NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Emotes.class).hidesBody(player)
+                || NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Showcase.class).hidesBody(player))) {
             ci.cancel();
         }
     }

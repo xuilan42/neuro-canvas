@@ -146,11 +146,11 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new com.example.neurocanvas.module.Avatars(dir.resolve("avatars")));
         Path wardrobe = dir.resolve("wardrobe");
         SharedStore.init(dir.resolve("shared.json"));
+        AdminStore.init(dir.resolve("admin.key"));
         modules.register(new com.example.neurocanvas.module.Capes(wardrobe));
         modules.register(new com.example.neurocanvas.module.Wings(wardrobe));
         modules.register(new com.example.neurocanvas.module.Hats(wardrobe));
         modules.register(new com.example.neurocanvas.module.Outfits(wardrobe));
-        modules.register(new com.example.neurocanvas.module.Pets(wardrobe));
         modules.register(new com.example.neurocanvas.module.Emotes(wardrobe));
         modules.register(new com.example.neurocanvas.module.Graffiti(wardrobe));
         modules.register(new com.example.neurocanvas.module.Market(wardrobe));
@@ -356,6 +356,19 @@ public class NeuroCanvasClient implements ClientModInitializer {
                             : "[NameTags] a room name is 3-40 letters, digits, _ or -");
                     return 1;
                 })))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("neuroadmin")
+                .then(literal("paste").executes(ctx -> {
+                    // The key comes from the clipboard, so it never appears in the chat or in the command history.
+                    say(AdminStore.set(MinecraftClient.getInstance().keyboard.getClipboard())
+                            ? "[Admin] key saved: the Market now shows a delete button on every card"
+                            : "[Admin] the clipboard does not hold a key");
+                    return 1;
+                }))
+                .then(literal("off").executes(ctx -> {
+                    AdminStore.set("");
+                    say("[Admin] key forgotten");
+                    return 1;
+                }))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("cloudcfg")
                 .then(literal("put").executes(ctx -> {
                     say("[Cloud] uploading...");

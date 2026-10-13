@@ -30,7 +30,7 @@ Java 17 or newer is required.
 | Category | Modules |
 |---|---|
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (your own 3D model), Capes, Wings, Hats, Outfits, Pets, Emotes, Graffiti, Market (one-click catalog), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
+| **Cosmetics** | Model (your own 3D model), Capes, Wings, Hats, Outfits, Emotes, Graffiti, Market (one-click catalog), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, WeatherChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -124,20 +124,20 @@ off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, 
 - In **FreeCam** the wheel aims from the free camera, so you can fly up and mark a spot far away from your character.
 - Each user can have 3 pings at a time; they fade after *Lifetime*. The server limits how fast pings can be sent.
 
-## Cosmetics: Capes, Wings, Hats, Outfits, Pets, Emotes, Graffiti and the Market
+## Cosmetics: Capes, Wings, Hats, Outfits, Emotes, Graffiti and the Market
 
 Each kind of cosmetic is its own module in the **Cosmetics** tab, with a list of its items and the shared settings (*Size*, *Shading*, *Animation speed*, *Show in first person*, *Reload*, *Open folder*).
-Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `wings`, `hats`, `outfits`, `pets`, `emotes`, `graffiti`) with a Blockbench `.bbmodel` (for graffiti a `.png`) and an optional
+Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `wings`, `hats`, `outfits`, `emotes`, `graffiti`) with a Blockbench `.bbmodel` (for graffiti a `.png`) and an optional
 `cosmetic.json` (`model`, `scale`, `animation`, `image`, `size`). One small example of every kind is created the first time; *Reload* finds new folders; a `README.txt` in the folder describes the format.
 
 - Models share the space of an Avatar made for your own body (16 units per block, feet at y 0, head at y 24 to 32, front is north). A **cape** hangs from the shoulders and swings as you move (the game's own cape is hidden while one is worn),
-  **wings** sit on your back, a **hat** follows your head, an **outfit** sits on your body, a **pet** follows you on the ground. Animations named `idle` (and `walk`) play by themselves.
+  **wings** sit on your back, a **hat** follows your head, an **outfit** sits on your body. Animations named `idle` play by themselves.
 - **Emotes** are full avatars with an animation (`animation` in `cosmetic.json`): pick up to four (*Emote 1* to *Emote 4*) and play them from the PingWheel's **Emotes** wheel; your body is replaced while one plays.
 - **Graffiti:** the PingWheel's **Graffiti** action sprays it, or set the module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Lifetime*).
 - **Market:** a catalog of cosmetics kept on the project's server, shown as cards: the top of a card shows how the item looks (a model turning around, or the picture of a graffiti), the bottom its name, its author and a **Get** button. Choose a kind in *Show* if you like. **Get** downloads the item into your wardrobe, switches the matching module on and puts the item on.
   Items you already have show **Wear**. Everything that is downloaded is checked first (the kind, the folder and file names, the extensions `.bbmodel`, `.png`, `.json`, and the sizes), so a catalog item cannot write anything else or anywhere else.
 - **Editor:** every cosmetic module except Emotes has an **Editor** button. It opens a pixel canvas whose size and layout depend on the kind: a graffiti picture (16, 32, 48 or 64 px), the back of a cape, one wing (the other is its mirror),
-  the unfolded crown of a hat (the pink corner colours the brim), the unfolded jacket of an outfit, or the unfolded cube of a pet; a coloured guide shows which part of the canvas is the front, back, sides, top and bottom.
+  the unfolded crown of a hat (the pink corner colours the brim), the unfolded jacket of an outfit. A coloured guide shows which part of the canvas is the front, back, sides, top and bottom.
   Tools: pencil, eraser, fill, colour picker, brush size, mirror drawing, grid, undo (Ctrl+Z), a colour square, hue strip and a palette. Type a name in the box in the top corner and press **Save**: the picture becomes a new item
   (model included) in your wardrobe and is put on at once. A name that already exists is not overwritten.
 - **Share your own cosmetic:** every cosmetic module has **Share** and **Unshare** buttons. *Share* uploads the item chosen in the module to the project's server and copies its code; it then appears in everybody's Market under **Source: Community**
@@ -145,7 +145,8 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
   only `.bbmodel`, `.png` and `.json` files; the server checks that models are valid JSON and pictures are PNGs. Do not share what you do not have the right to share.
 - **See who wears what:** with the **Showcase** module (Friends tab) your worn cape, wings, hat and outfit are announced to the other users on your server (only items that are shared or come from the Market; `Share everything I wear` uploads the rest),
   and theirs are downloaded, checked and drawn on them. In the Friends tab a user's row shows "wears ..." with a **Get** button that downloads and puts on everything they wear. *Friends only* in the Friends module limits who sees your items.
-  Pets, emotes and graffiti are not drawn on other players yet.
+  The emotes you play (your body is replaced by the emote's model for everyone who has it) and the graffiti you spray are shown to them too, when the emote or graffiti is shared or from the Market.
+- **Admin key:** the owner of the server sets a secret key on it; with that key (copy it, then run `/neuroadmin paste`; `/neuroadmin off` forgets it) every Market card shows a red **x** that, pressed twice, deletes the item from the server (Official or Community). The key stays on your computer in `neurocanvas/admin.key`, and the server limits wrong guesses.
 - The example avatars use the game's own **Steve** skin (no picture of it is stored in the models), so they look like the original Steve.
 
 ## Avatar (animated Blockbench avatars)
