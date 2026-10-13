@@ -189,6 +189,9 @@ public final class BbInstance {
     /** The game's own skin: Steve, or the skin of the player who plays. */
     private static Identifier skin(String ref) {
         MinecraftClient mc = MinecraftClient.getInstance();
+        if (ref.equals("neurocanvas:steve")) {
+            return new Identifier("neurocanvas", "textures/steve.png");
+        }
         if (ref.equals("minecraft:player") && mc.player != null) {
             return mc.player.getSkinTexture();
         }

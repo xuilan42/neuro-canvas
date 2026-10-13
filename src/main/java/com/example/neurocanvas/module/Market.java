@@ -33,6 +33,8 @@ public final class Market extends Module {
     public static final class Preview {
         public BbInstance model;
         public String type = "";
+        /** The animation an emote plays (from its cosmetic.json), or null for the first one. */
+        public String animation;
         public Identifier image;
         public int imageW = 1;
         public int imageH = 1;
@@ -142,6 +144,16 @@ public final class Market extends Module {
                 }
             }
             throw new IOException("no picture");
+        }
+        for (Map.Entry<String, byte[]> f : files.entrySet()) {
+            if (f.getKey().equals("cosmetic.json")) {
+                try {
+                    CosmeticPack.Config cfg = new com.google.gson.Gson().fromJson(new String(f.getValue(), StandardCharsets.UTF_8), CosmeticPack.Config.class);
+                    p.animation = cfg == null ? null : cfg.animation;
+                } catch (RuntimeException ignored) {
+                    // The first animation plays.
+                }
+            }
         }
         for (Map.Entry<String, byte[]> f : files.entrySet()) {
             if (f.getKey().toLowerCase().endsWith(".bbmodel")) {

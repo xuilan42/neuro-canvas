@@ -95,7 +95,7 @@ public final class BbModel {
                     data = Base64.getDecoder().decode(src.substring(comma + 1).trim());
                 }
                 m.textures.add(data);
-                m.textureRefs.add(src.equals("minecraft:steve") || src.equals("minecraft:player") ? src : null);
+                m.textureRefs.add(src.equals("minecraft:steve") || src.equals("minecraft:player") || src.equals("neurocanvas:steve") ? src : null);
                 int uw = t.has("uv_width") ? t.get("uv_width").getAsInt() : m.resolutionW;
                 int uh = t.has("uv_height") ? t.get("uv_height").getAsInt() : m.resolutionH;
                 m.textureUvSize.add(new int[] {Math.max(1, uw), Math.max(1, uh)});

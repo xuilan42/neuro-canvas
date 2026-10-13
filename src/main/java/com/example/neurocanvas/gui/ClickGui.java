@@ -795,6 +795,15 @@ public final class ClickGui extends Screen {
                 com.example.neurocanvas.avatar.Mannequin.drawWith(p.model, p.type, m, ms / 1000.0);
             } else {
                 p.model.resetPose();
+                // An emote plays its animation over and over, with a short pause between the repeats.
+                com.example.neurocanvas.avatar.BbModel.Anim a = p.animation != null ? p.model.find(p.animation) : null;
+                if (a == null && !p.model.model.animations.isEmpty()) {
+                    a = p.model.model.animations.values().iterator().next();
+                }
+                if (a != null) {
+                    double t = (ms / 1000.0) % (a.length + 0.7);
+                    p.model.apply(a, Math.min(t, a.length));
+                }
                 p.model.draw(m, 1f, 0.7f);
             }
             ctx.disableScissor();

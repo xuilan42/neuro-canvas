@@ -147,7 +147,7 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
   and theirs are downloaded, checked and drawn on them. In the Friends tab a user's row shows "wears ..." with a **Get** button that downloads and puts on everything they wear. *Friends only* in the Friends module limits who sees your items.
   The emotes you play (your body is replaced by the emote's model for everyone who has it) and the graffiti you spray are shown to them too, when the emote or graffiti is shared or from the Market.
 - **Admin key:** the owner of the server sets a secret key on it; with that key (copy it, then run `/neuroadmin paste`; `/neuroadmin off` forgets it) every Market card shows a red **x** that, pressed twice, deletes the item from the server (Official or Community). The key stays on your computer in `neurocanvas/admin.key`, and the server limits wrong guesses.
-- The example avatars use the game's own **Steve** skin (the model has the arms and legs on the player's correct sides) (no picture of it is stored in the models), so they look like the original Steve.
+- The example avatars and the Steve mannequin use a bundled Steve skin (`neurocanvas:steve`; `minecraft:steve` is the game's own Steve and `minecraft:player` your skin, usable as a model's texture source too). In the Market, emotes play their animation on the card right away. (no picture of it is stored in the models), so they look like the original Steve.
 
 ## Making cosmetics yourself (Blockbench)
 

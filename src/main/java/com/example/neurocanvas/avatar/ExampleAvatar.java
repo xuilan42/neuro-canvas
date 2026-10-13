@@ -26,13 +26,22 @@ public final class ExampleAvatar {
         c.add("from", arr(from));
         c.add("to", arr(to));
         c.add("origin", arr(origin));
-        c.addProperty("box_uv", true);
-        c.add("uv_offset", arr(u, v));
+        // The skin layout of a box w x h x d at (u, v). In this space the front is north and the player's right is +x, so the
+        // east face (the player's right side) takes the tile a skin keeps for the right side, and the west face the left one.
+        double w = Math.abs(to[0] - from[0]), h = Math.abs(to[1] - from[1]), d = Math.abs(to[2] - from[2]);
+        double[][] uv = {
+            {u + d, v + d, u + d + w, v + d + h},
+            {u, v + d, u + d, v + d + h},
+            {u + 2 * d + w, v + d, u + 2 * d + 2 * w, v + d + h},
+            {u + d + w, v + d, u + 2 * d + w, v + d + h},
+            {u + d, v, u + d + w, v + d},
+            {u + d + w, v + d, u + d + 2 * w, v}};
         JsonObject faces = new JsonObject();
-        for (String f : BbModel.FACES) {
+        for (int i = 0; i < BbModel.FACES.length; i++) {
             JsonObject face = new JsonObject();
             face.addProperty("texture", 0);
-            faces.add(f, face);
+            face.add("uv", arr(uv[i]));
+            faces.add(BbModel.FACES[i], face);
         }
         c.add("faces", faces);
         return c;
@@ -89,13 +98,14 @@ public final class ExampleAvatar {
                 return false;
             }
             String text = Files.readString(model);
-            return text.contains("\"source\":\"data:image") || text.contains("\"uuid\":\"c-rarm\",\"name\":\"right arm\",\"from\":[-8.0");
+            return text.contains("\"source\":\"data:image") || text.contains("\"box_uv\":true")
+                    || text.contains("\"uuid\":\"c-rarm\",\"name\":\"right arm\",\"from\":[-8.0") || text.contains("\"source\":\"minecraft:steve\"");
         } catch (IOException e) {
             return false;
         }
     }
 
-    /** A Steve with bones; {@code animated} adds idle, walk, attack and wave. Its texture is the game's skin ({@code skin} is "minecraft:steve" or "minecraft:player"). */
+    /** A Steve with bones; {@code animated} adds idle, walk, attack and wave. {@code skin} is the texture: "neurocanvas:steve" (bundled), "minecraft:steve" (the game's) or "minecraft:player". */
     static JsonObject steve(String skin, boolean animated) {
         JsonObject root = new JsonObject();
         JsonObject res = new JsonObject();
@@ -166,12 +176,12 @@ public final class ExampleAvatar {
 
     /** The Steve used to show cosmetics in menus: no animations, wearing the skin of the player who plays. */
     public static String mannequinJson() {
-        return steve("minecraft:player", false).toString();
+        return steve("neurocanvas:steve", false).toString();
     }
 
     public static void write(Path folder) throws IOException {
         Files.createDirectories(folder);
-        JsonObject root = steve("minecraft:steve", true);
+        JsonObject root = steve("neurocanvas:steve", true);
         Files.writeString(folder.resolve("model.bbmodel"), root.toString(), StandardCharsets.UTF_8);
         Files.writeString(folder.resolve("avatar.json"), "{\n  \"model\": \"model.bbmodel\",\n  \"scale\": 1.0,\n  \"yaw\": 0,\n  \"keys\": { \"G\": \"wave\" }\n}\n",
                 StandardCharsets.UTF_8);
