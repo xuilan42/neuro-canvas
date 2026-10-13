@@ -30,6 +30,25 @@ public final class Mannequin {
         return type.equals("capes") || type.equals("wings") || type.equals("hats") || type.equals("outfits");
     }
 
+    /** Draws the Steve doing an emote, the way the emote moves a player's own body. */
+    public static void drawEmote(BbInstance emote, BbModel.Anim anim, Matrix4f base, double seconds) {
+        BbInstance steve = get();
+        if (steve == null) {
+            return;
+        }
+        steve.resetPose();
+        if (anim != null) {
+            double t = seconds % (anim.length + 0.7);
+            float[][] rot = EmotePose.read(emote, anim, Math.min(t, anim.length));
+            for (int i = 0; i < EmotePose.PARTS.length; i++) {
+                if (rot[i] != null) {
+                    steve.setRotation(EmotePose.PARTS[i], rot[i][0], rot[i][1], rot[i][2]);
+                }
+            }
+        }
+        steve.draw(base, 1f, 0.6f);
+    }
+
     /** Draws the Steve and then the item on it, standing still. {@code base} puts model space (16 units per block) where you want it. */
     public static void drawWith(BbInstance item, String type, Matrix4f base, double seconds) {
         BbInstance steve = get();

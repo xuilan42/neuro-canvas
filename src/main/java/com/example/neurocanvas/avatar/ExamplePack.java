@@ -138,7 +138,7 @@ public final class ExamplePack {
                 + "Models use the same space as an avatar of your own body: 16 units are one block, feet at y 0, head at y 24-32, front is north (-z), back is +z.\n"
                 + "A cape hangs from y 24 at z 2 (it swings by itself), wings sit on the back, a hat sits above y 32 and follows the head, an outfit sits on the body,\n"
                 + "Animations named idle play on their own.\n"
-                + "Emotes are full avatars with an animation (set \"animation\" in cosmetic.json, or the first one plays). Graffiti is a picture ({ \"size\": 1.5 } is its width in blocks).\n\n"
+                + "Emotes are animations that move your own character: the bones named head, body, right arm, left arm, right leg and left leg are applied to it (set \"animation\" in cosmetic.json, or the first one plays). Graffiti is a picture ({ \"size\": 1.5 } is its width in blocks).\n\n"
                 + "Then press \"Reload\" in the Wardrobe module and pick the item in its slot.\n");
 
         // Cape: 8 wide, 16 long, 1 thick, hanging from the shoulders at the back.
@@ -171,6 +171,11 @@ public final class ExamplePack {
         if (!Files.isDirectory(root.resolve("emotes/Example Strike")) || ExampleAvatar.outdated(root.resolve("emotes/Example Strike"))) {
             ExampleAvatar.write(root.resolve("emotes/Example Strike"));
             Files.writeString(root.resolve("emotes/Example Strike/cosmetic.json"), "{ \"animation\": \"attack\" }\n");
+        }
+
+        if (!Files.isDirectory(root.resolve("emotes/Example Dance")) || ExampleAvatar.outdated(root.resolve("emotes/Example Dance"))) {
+            ExampleAvatar.write(root.resolve("emotes/Example Dance"));
+            Files.writeString(root.resolve("emotes/Example Dance/cosmetic.json"), "{ \"animation\": \"dance\" }\n");
         }
 
         // Graffiti: a heart.

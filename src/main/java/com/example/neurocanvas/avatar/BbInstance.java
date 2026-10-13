@@ -85,6 +85,42 @@ public final class BbInstance {
         return a.loop == 0 ? t % a.length : Math.min(t, a.length);
     }
 
+    private static String norm(String s) {
+        return s.toLowerCase(java.util.Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
+    private BbModel.Bone boneNamed(String name) {
+        String want = norm(name);
+        for (BbModel.Bone b : model.bonesByUuid.values()) {
+            if (norm(b.name).equals(want)) {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    /** The rotation (x, y, z in degrees) a bone has now: its own rotation plus the current pose; null when there is no such bone. */
+    public float[] rotationOf(String name) {
+        BbModel.Bone b = boneNamed(name);
+        if (b == null) {
+            return null;
+        }
+        float[] s = pose.get(b.uuid);
+        return new float[] {(float) b.rotation[0] + (s == null ? 0 : s[3]), (float) b.rotation[1] + (s == null ? 0 : s[4]),
+            (float) b.rotation[2] + (s == null ? 0 : s[5])};
+    }
+
+    public void setRotation(String name, float x, float y, float z) {
+        BbModel.Bone b = boneNamed(name);
+        if (b == null) {
+            return;
+        }
+        float[] s = pose.computeIfAbsent(b.uuid, k -> new float[] {0, 0, 0, 0, 0, 0, 1, 1, 1});
+        s[3] = x - (float) b.rotation[0];
+        s[4] = y - (float) b.rotation[1];
+        s[5] = z - (float) b.rotation[2];
+    }
+
     public void resetPose() {
         pose.clear();
     }

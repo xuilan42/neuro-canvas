@@ -296,13 +296,27 @@ public final class Showcase extends Module {
         }
     }
 
-    /** True while another user's emote plays: their own body is not drawn then, the emote's model takes its place. */
-    public boolean hidesBody(net.minecraft.entity.Entity entity) {
+    /** The pose another user's emote gives their body this moment, or null. The emote stops when its animation ends. */
+    public float[][] poseFor(net.minecraft.entity.Entity entity) {
         if (!enabled || emoting.isEmpty() || !(entity instanceof PlayerEntity) || entity == MinecraftClient.getInstance().player) {
-            return false;
+            return null;
         }
-        Emoting e = emoting.get(entity.getName().getString().toLowerCase(Locale.ROOT));
-        return e != null && e.loaded.model != null;
+        String key = entity.getName().getString().toLowerCase(Locale.ROOT);
+        Emoting e = emoting.get(key);
+        if (e == null || e.loaded.model == null) {
+            return null;
+        }
+        BbInstance model = e.loaded.model;
+        BbModel.Anim a = e.loaded.animation != null ? model.find(e.loaded.animation) : null;
+        if (a == null && !model.model.animations.isEmpty()) {
+            a = model.model.animations.values().iterator().next();
+        }
+        long now = System.nanoTime();
+        if (a == null || (now - e.start) / 1_000_000_000.0 > a.length) {
+            emoting.remove(key);
+            return null;
+        }
+        return com.example.neurocanvas.avatar.EmotePose.read(model, a, BbInstance.time(a, e.start, now, 1.0));
     }
 
     // ---- what others wear -------------------------------------------------------------------
@@ -434,28 +448,6 @@ public final class Showcase extends Module {
             com.example.neurocanvas.avatar.SprayDraw.end();
         }
         for (AbstractClientPlayerEntity p : mc.world.getPlayers()) {
-            Emoting em = p == mc.player ? null : emoting.get(p.getName().getString().toLowerCase(Locale.ROOT));
-            if (em != null && em.loaded.model != null) {
-                BbInstance model = em.loaded.model;
-                BbModel.Anim a = em.loaded.animation != null ? model.find(em.loaded.animation) : null;
-                if (a == null && !model.model.animations.isEmpty()) {
-                    a = model.model.animations.values().iterator().next();
-                }
-                if (a == null || (now - em.start) / 1_000_000_000.0 > a.length) {
-                    emoting.remove(p.getName().getString().toLowerCase(Locale.ROOT));
-                } else {
-                    model.resetPose();
-                    model.apply(a, BbInstance.time(a, em.start, now, 1.0));
-                    Vec3d at = EffectDraw.lerpPos(p, td);
-                    float yaw = MathHelper.lerpAngleDegrees(td, p.prevBodyYaw, p.bodyYaw);
-                    float lit = 0.35f + 0.65f * mc.world.getLightLevel(BlockPos.ofFloored(at.x, at.y + 1, at.z)) / 15f;
-                    model.draw(Attach.base(env.m(), at, yaw, em.loaded.scale / 16f), lit, 0.5f);
-                    continue;
-                }
-            }
-            if (p == mc.player || p.isInvisible() || p.isSpectator()) {
-                continue;
-            }
             List<Item> items = others.get(p.getName().getString().toLowerCase(Locale.ROOT));
             if (items == null || p.squaredDistanceTo(mc.player) > 96 * 96) {
                 continue;

@@ -77,6 +77,8 @@ public final class CosmeticEditor extends Screen {
     private boolean nameFocus;
     private String status = "";
     private String savedName = "";
+    private boolean importStretch;
+    private int importIndex;
     private int drag;
     private static final int PREVIEW_W = 150;
     private com.example.neurocanvas.avatar.BbInstance previewItem;
@@ -198,7 +200,7 @@ public final class CosmeticEditor extends Screen {
 
     private int toolsY() { return 40; }
     private int optionsY() { return toolsY() + 62; }
-    private int colorY() { return optionsY() + 110; }
+    private int colorY() { return optionsY() + 112; }
 
     // ---- painting ---------------------------------------------------------------------------
 
@@ -316,6 +318,112 @@ public final class CosmeticEditor extends Screen {
         }
     }
 
+    // ---- importing a picture ------------------------------------------------------------------
+
+    private static final java.util.Set<String> IMAGE_EXT = java.util.Set.of(".png", ".jpg", ".jpeg", ".gif", ".bmp");
+
+    private static boolean isImage(Path p) {
+        String n = p.getFileName() == null ? "" : p.getFileName().toString().toLowerCase(java.util.Locale.ROOT);
+        return IMAGE_EXT.stream().anyMatch(n::endsWith);
+    }
+
+    private static Path importFolder() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("neurocanvas").resolve("import");
+    }
+
+    /** Puts a picture on the canvas, scaled to fit (or stretched) with the colours averaged, so a photo stays readable. */
+    private void importImage(Path file) {
+        try {
+            BufferedImage src = javax.imageio.ImageIO.read(file.toFile());
+            if (src == null) {
+                status = "That file is not a picture I can read";
+                return;
+            }
+            snapshot();
+            Arrays.fill(pixels, 0);
+            int sw = src.getWidth(), sh = src.getHeight();
+            double scale = importStretch ? 0 : Math.min(cw / (double) sw, ch / (double) sh);
+            int dw = importStretch ? cw : Math.max(1, (int) Math.round(sw * scale));
+            int dh = importStretch ? ch : Math.max(1, (int) Math.round(sh * scale));
+            int ox = (cw - dw) / 2, oy = (ch - dh) / 2;
+            for (int y = 0; y < dh; y++) {
+                int y0 = (int) Math.floor(y * sh / (double) dh);
+                int y1 = Math.max(y0 + 1, (int) Math.floor((y + 1) * sh / (double) dh));
+                for (int x = 0; x < dw; x++) {
+                    int x0 = (int) Math.floor(x * sw / (double) dw);
+                    int x1 = Math.max(x0 + 1, (int) Math.floor((x + 1) * sw / (double) dw));
+                    double a = 0, r = 0, g = 0, b = 0;
+                    int n = 0;
+                    for (int yy = y0; yy < Math.min(y1, sh); yy++) {
+                        for (int xx = x0; xx < Math.min(x1, sw); xx++) {
+                            int c = src.getRGB(xx, yy);
+                            double al = (c >>> 24) / 255.0;
+                            a += al;
+                            r += ((c >> 16) & 0xFF) * al;
+                            g += ((c >> 8) & 0xFF) * al;
+                            b += (c & 0xFF) * al;
+                            n++;
+                        }
+                    }
+                    if (n == 0 || a <= 0) {
+                        continue;
+                    }
+                    int alpha = (int) Math.round(a / n * 255);
+                    if (alpha < 8) {
+                        continue;
+                    }
+                    pixels[(oy + y) * cw + ox + x] = (alpha << 24) | ((int) Math.round(r / a) << 16) | ((int) Math.round(g / a) << 8) | (int) Math.round(b / a);
+                }
+            }
+            previewDirty = true;
+            status = "Imported " + file.getFileName() + " (" + sw + " x " + sh + ")";
+        } catch (IOException | RuntimeException e) {
+            status = "Could not read the picture: " + e.getMessage();
+        }
+    }
+
+    /** The Import button: a file path on the clipboard first, then the pictures in neurocanvas/import one after another. */
+    private void importNext() {
+        try {
+            String clip = client.keyboard.getClipboard().trim().replaceAll("^\"|\"$", "");
+            if (!clip.isEmpty() && clip.length() < 400) {
+                Path p = Path.of(clip);
+                if (Files.isRegularFile(p) && isImage(p)) {
+                    importImage(p);
+                    return;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // The clipboard is not a path.
+        }
+        try {
+            Files.createDirectories(importFolder());
+            java.util.List<Path> files;
+            try (java.util.stream.Stream<Path> s = Files.list(importFolder())) {
+                files = s.filter(Files::isRegularFile).filter(CosmeticEditor::isImage).sorted().toList();
+            }
+            if (files.isEmpty()) {
+                status = "Drop a picture on this window, copy its path, or put pictures into neurocanvas/import (opened)";
+                net.minecraft.util.Util.getOperatingSystem().open(importFolder().toFile());
+                return;
+            }
+            importImage(files.get(importIndex++ % files.size()));
+        } catch (IOException e) {
+            status = "Could not look in the import folder: " + e.getMessage();
+        }
+    }
+
+    @Override
+    public void filesDragged(java.util.List<Path> paths) {
+        for (Path p : paths) {
+            if (isImage(p)) {
+                importImage(p);
+                return;
+            }
+        }
+        status = "Drop a PNG, JPG, GIF or BMP picture";
+    }
+
     // ---- saving -----------------------------------------------------------------------------
 
     private void save() {
@@ -398,6 +506,8 @@ public final class CosmeticEditor extends Screen {
         if (target.sizes() != null) {
             button(ctx, th, tx + 62, oy + 66, 58, 18, cw + " px", false, inside(mx, my, tx + 62, oy + 66, 58, 18));
         }
+        button(ctx, th, tx, oy + 88, 58, 18, "Import", false, inside(mx, my, tx, oy + 88, 58, 18));
+        button(ctx, th, tx + 62, oy + 88, 58, 18, importStretch ? "Stretch" : "Fit", importStretch, inside(mx, my, tx + 62, oy + 88, 58, 18));
 
         // colour: saturation/value square, hue strip, palette
         int cy = colorY();
@@ -594,6 +704,10 @@ public final class CosmeticEditor extends Screen {
         } else if (target.sizes() != null && inside(mx, my, tx + 62, oy + 66, 58, 18)) {
             graffitiSizeIndex = (graffitiSizeIndex + 1) % target.sizes().length;
             resetCanvas();
+        } else if (inside(mx, my, tx, oy + 88, 58, 18)) {
+            importNext();
+        } else if (inside(mx, my, tx + 62, oy + 88, 58, 18)) {
+            importStretch = !importStretch;
         } else {
             int cy = colorY();
             int hyBar = cy + SV_H + 6;

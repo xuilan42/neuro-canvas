@@ -9,8 +9,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 
 /**
- * Full-body emotes: an avatar with an animation that replaces your body while it plays. The PingWheel's Wave plays the first
- * slot and its Dance plays the second.
+ * Emotes: animations that move your own character. The bones of an emote model named head, body, right arm, left arm, right leg
+ * and left leg are applied to your body while it plays (the model itself is not drawn); the PingWheel's Emotes wheel plays them.
  */
 public final class Emotes extends CosmeticModule {
     private final Worn[] slots = new Worn[4];
@@ -46,30 +46,21 @@ public final class Emotes extends CosmeticModule {
         return true;
     }
 
-    /** True while an emote plays on this player: its model replaces the body. */
-    public boolean hidesBody(Entity entity) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        return enabled && playing != null && entity == mc.player && (!mc.options.getPerspective().isFirstPerson() || firstPerson.on());
-    }
-
-    @Override
-    public void renderWorld(RenderEnv env) {
-        Body b = body(env);
-        if (b == null || playing == null || playing.model == null || !b.visible()) {
-            return;
+    /** The pose the emote gives the player's body this moment, or null when none plays on this entity (the emote stops when it ends). */
+    public float[][] poseFor(Entity entity) {
+        if (!enabled || playing == null || playing.model == null || entity != MinecraftClient.getInstance().player) {
+            return null;
         }
         BbInstance model = playing.model;
         BbModel.Anim a = playing.config.animation != null ? model.find(playing.config.animation) : null;
         if (a == null && !model.model.animations.isEmpty()) {
             a = model.model.animations.values().iterator().next();
         }
-        long now = System.nanoTime();
-        if (a == null || (now - started) / 1_000_000_000.0 * animSpeed.value > a.length) {
+        double seconds = (System.nanoTime() - started) / 1_000_000_000.0 * animSpeed.value;
+        if (a == null || seconds > a.length) {
             playing = null;
-            return;
+            return null;
         }
-        model.resetPose();
-        model.apply(a, BbInstance.time(a, started, now, animSpeed.value));
-        model.draw(base(env, b.pos(), b.bodyYaw(), playing), b.light(), shading.f());
+        return com.example.neurocanvas.avatar.EmotePose.read(model, a, BbInstance.time(a, started, System.nanoTime(), animSpeed.value));
     }
 }

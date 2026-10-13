@@ -99,7 +99,7 @@ public final class ExampleAvatar {
             }
             String text = Files.readString(model);
             return text.contains("\"source\":\"data:image") || text.contains("\"box_uv\":true")
-                    || text.contains("\"uuid\":\"c-rarm\",\"name\":\"right arm\",\"from\":[-8.0") || text.contains("\"source\":\"minecraft:steve\"");
+                    || text.contains("\"uuid\":\"c-rarm\",\"name\":\"right arm\",\"from\":[-8.0") || text.contains("\"source\":\"minecraft:steve\"") || !text.contains("\"name\":\"dance\"");
         } catch (IOException e) {
             return false;
         }
@@ -164,12 +164,20 @@ public final class ExampleAvatar {
         walk.add("b-larm", animator(key("rotation", 0, 30, 0, 0), key("rotation", 0.5, -30, 0, 0), key("rotation", 1, 30, 0, 0)));
         anims.add(anim("walk", "loop", 1, walk));
         JsonObject attack = new JsonObject();
-        attack.add("b-rarm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.12, -110, 0, 0), key("rotation", 0.4, 0, 0, 0)));
+        attack.add("b-rarm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.12, 100, 0, 0), key("rotation", 0.4, 0, 0, 0)));
         attack.add("b-body", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.12, 0, -15, 0), key("rotation", 0.4, 0, 0, 0)));
         anims.add(anim("attack", "once", 0.4, attack));
         JsonObject wave = new JsonObject();
         wave.add("b-larm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.25, 0, 0, -150), key("rotation", 0.5, 0, 0, -125), key("rotation", 0.75, 0, 0, -150), key("rotation", 1, 0, 0, 0)));
         anims.add(anim("wave", "once", 1, wave));
+        JsonObject dance = new JsonObject();
+        dance.add("b-rarm", animator(key("rotation", 0, 0, 0, 120), key("rotation", 0.5, 0, 0, 0), key("rotation", 1, 0, 0, 120), key("rotation", 1.5, 0, 0, 0), key("rotation", 2, 0, 0, 120)));
+        dance.add("b-larm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.5, 0, 0, -120), key("rotation", 1, 0, 0, 0), key("rotation", 1.5, 0, 0, -120), key("rotation", 2, 0, 0, 0)));
+        dance.add("b-rleg", animator(key("rotation", 0, 25, 0, 0), key("rotation", 0.5, -25, 0, 0), key("rotation", 1, 25, 0, 0), key("rotation", 1.5, -25, 0, 0), key("rotation", 2, 25, 0, 0)));
+        dance.add("b-lleg", animator(key("rotation", 0, -25, 0, 0), key("rotation", 0.5, 25, 0, 0), key("rotation", 1, -25, 0, 0), key("rotation", 1.5, 25, 0, 0), key("rotation", 2, -25, 0, 0)));
+        dance.add("b-head", animator(key("rotation", 0, 0, -20, 0), key("rotation", 0.5, 0, 20, 0), key("rotation", 1, 0, -20, 0), key("rotation", 1.5, 0, 20, 0), key("rotation", 2, 0, -20, 0)));
+        dance.add("b-body", animator(key("rotation", 0, 0, 12, 0), key("rotation", 0.5, 0, -12, 0), key("rotation", 1, 0, 12, 0), key("rotation", 1.5, 0, -12, 0), key("rotation", 2, 0, 12, 0)));
+        anims.add(anim("dance", "once", 2, dance));
         root.add("animations", anims);
         return root;
     }

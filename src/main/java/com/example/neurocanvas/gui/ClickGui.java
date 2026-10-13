@@ -783,6 +783,8 @@ public final class ClickGui extends Screen {
         if (p.model != null) {
             ctx.enableScissor(x, y, x + w, y + h);
             boolean onSteve = com.example.neurocanvas.avatar.Mannequin.wears(p.type);
+            boolean emote = p.type.equals("emotes");
+            onSteve |= emote;
             float radius = onSteve ? 21f : p.radius;
             float[] center = onSteve ? new float[] {0, 16, 0} : p.center;
             float s = Math.min(w, h) * 0.45f / radius;
@@ -791,7 +793,13 @@ public final class ClickGui extends Screen {
             org.joml.Matrix4f m = new org.joml.Matrix4f(ctx.getMatrices().peek().getPositionMatrix());
             m.translate(x + w / 2f, y + h / 2f, 100f).scale(s, -s, s).rotateX(0.2f).rotateY(angle)
                     .translate(-center[0], -center[1], -center[2]);
-            if (onSteve) {
+            if (emote) {
+                com.example.neurocanvas.avatar.BbModel.Anim a = p.animation != null ? p.model.find(p.animation) : null;
+                if (a == null && !p.model.model.animations.isEmpty()) {
+                    a = p.model.model.animations.values().iterator().next();
+                }
+                com.example.neurocanvas.avatar.Mannequin.drawEmote(p.model, a, m, ms / 1000.0);
+            } else if (onSteve) {
                 com.example.neurocanvas.avatar.Mannequin.drawWith(p.model, p.type, m, ms / 1000.0);
             } else {
                 p.model.resetPose();
