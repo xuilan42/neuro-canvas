@@ -32,6 +32,7 @@ public final class Market extends Module {
     /** How an item looks, for its card: a model that is turned around, or a flat picture. */
     public static final class Preview {
         public BbInstance model;
+        public String type = "";
         public Identifier image;
         public int imageW = 1;
         public int imageH = 1;
@@ -103,6 +104,7 @@ public final class Market extends Module {
             return p;
         }
         Preview created = new Preview();
+        created.type = e.type();
         previews.put(key, created);
         if (previews.size() > MAX_PREVIEWS) {
             String oldest = previews.keySet().iterator().next();

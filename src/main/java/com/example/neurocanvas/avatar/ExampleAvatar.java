@@ -95,8 +95,8 @@ public final class ExampleAvatar {
         }
     }
 
-    public static void write(Path folder) throws IOException {
-        Files.createDirectories(folder);
+    /** A Steve with bones; {@code animated} adds idle, walk, attack and wave. Its texture is the game's skin ({@code skin} is "minecraft:steve" or "minecraft:player"). */
+    static JsonObject steve(String skin, boolean animated) {
         JsonObject root = new JsonObject();
         JsonObject res = new JsonObject();
         res.addProperty("width", 64);
@@ -106,7 +106,7 @@ public final class ExampleAvatar {
         JsonObject tex = new JsonObject();
         tex.addProperty("name", "texture.png");
         // The game's own Steve skin is used at run time; no picture is stored in the model.
-        tex.addProperty("source", "minecraft:steve");
+        tex.addProperty("source", skin);
         tex.addProperty("uv_width", 64);
         tex.addProperty("uv_height", 64);
         textures.add(tex);
@@ -138,6 +138,9 @@ public final class ExampleAvatar {
         }
         root.add("outliner", outliner);
 
+        if (!animated) {
+            return root;
+        }
         JsonArray anims = new JsonArray();
         JsonObject idle = new JsonObject();
         idle.add("b-larm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 1, 0, 0, -4), key("rotation", 2, 0, 0, 0)));
@@ -158,7 +161,17 @@ public final class ExampleAvatar {
         wave.add("b-larm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.25, 0, 0, -150), key("rotation", 0.5, 0, 0, -125), key("rotation", 0.75, 0, 0, -150), key("rotation", 1, 0, 0, 0)));
         anims.add(anim("wave", "once", 1, wave));
         root.add("animations", anims);
+        return root;
+    }
 
+    /** The Steve used to show cosmetics in menus: no animations, wearing the skin of the player who plays. */
+    public static String mannequinJson() {
+        return steve("minecraft:player", false).toString();
+    }
+
+    public static void write(Path folder) throws IOException {
+        Files.createDirectories(folder);
+        JsonObject root = steve("minecraft:steve", true);
         Files.writeString(folder.resolve("model.bbmodel"), root.toString(), StandardCharsets.UTF_8);
         Files.writeString(folder.resolve("avatar.json"), "{\n  \"model\": \"model.bbmodel\",\n  \"scale\": 1.0,\n  \"yaw\": 0,\n  \"keys\": { \"G\": \"wave\" }\n}\n",
                 StandardCharsets.UTF_8);

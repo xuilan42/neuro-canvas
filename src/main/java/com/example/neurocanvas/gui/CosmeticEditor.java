@@ -37,6 +37,16 @@ public final class CosmeticEditor extends Screen {
         boolean exists(String name);
 
         void save(String name, BufferedImage image) throws IOException;
+
+        /** The kind of cosmetic to show on a Steve next to the canvas ("capes", "hats"...), or null for no preview. */
+        default String previewType() {
+            return null;
+        }
+
+        /** The files of the model the picture makes, for the preview. */
+        default Map<String, byte[]> previewFiles(BufferedImage image) throws IOException {
+            return null;
+        }
     }
 
     private enum Tool { PENCIL, ERASER, FILL, PICK }
@@ -68,6 +78,9 @@ public final class CosmeticEditor extends Screen {
     private String status = "";
     private String savedName = "";
     private int drag;
+    private static final int PREVIEW_W = 150;
+    private com.example.neurocanvas.avatar.BbInstance previewItem;
+    private boolean previewDirty = true;
     private int lastX = -1;
     private int lastY = -1;
 
@@ -108,6 +121,16 @@ public final class CosmeticEditor extends Screen {
             }
 
             @Override
+            public String previewType() {
+                return com.example.neurocanvas.avatar.Mannequin.wears(type.folder) ? type.folder : null;
+            }
+
+            @Override
+            public Map<String, byte[]> previewFiles(BufferedImage image) throws IOException {
+                return previewType() == null ? null : CosmeticBuilder.build(type, image);
+            }
+
+            @Override
             public void save(String name, BufferedImage image) throws IOException {
                 Path folder = module.folder().resolve(name);
                 Map<String, byte[]> files = CosmeticBuilder.build(type, image);
@@ -123,6 +146,7 @@ public final class CosmeticEditor extends Screen {
 
     private void resetCanvas() {
         int[] sizes = target.sizes();
+        previewDirty = true;
         template = target.template(sizes == null ? 0 : sizes[graffitiSizeIndex % sizes.length]);
         cw = template.width();
         ch = template.height();
@@ -156,7 +180,9 @@ public final class CosmeticEditor extends Screen {
 
     private int areaX() { return LEFT_W + 20; }
     private int areaY() { return 40; }
-    private int areaW() { return width - areaX() - 12; }
+    private boolean hasPreview() { return target.previewType() != null && width >= 560; }
+    private int previewX() { return width - 12 - PREVIEW_W; }
+    private int areaW() { return width - areaX() - 12 - (hasPreview() ? PREVIEW_W + 10 : 0); }
     private int areaH() { return height - areaY() - 28; }
 
     private int pix() {
@@ -177,6 +203,7 @@ public final class CosmeticEditor extends Screen {
     // ---- painting ---------------------------------------------------------------------------
 
     private void snapshot() {
+        previewDirty = true;
         history.push(pixels.clone());
         while (history.size() > 40) {
             history.removeLast();
@@ -186,6 +213,7 @@ public final class CosmeticEditor extends Screen {
     private void undo() {
         if (!history.isEmpty()) {
             pixels = history.pop();
+            previewDirty = true;
         }
     }
 
@@ -399,10 +427,72 @@ public final class CosmeticEditor extends Screen {
         Ui.text(ctx, textRenderer, String.format("#%06X", color() & 0xFFFFFF), tx + 46, py + 36, th.dim());
 
         renderCanvas(ctx, th, mx, my);
+        if (hasPreview()) {
+            renderPreview(ctx, th);
+        }
 
         Ui.text(ctx, textRenderer, textRenderer.trimToWidth(template.hint(), width - 24), 12, height - 22, th.dim());
         if (!status.isEmpty()) {
             Ui.text(ctx, textRenderer, textRenderer.trimToWidth(status, width - 24), 12, height - 11, th.accent());
+        }
+    }
+
+    /** Rebuilds the model from the canvas when something was painted. Done between strokes, never while the mouse is down. */
+    private void refreshPreview() {
+        if (!previewDirty || drag != 0) {
+            return;
+        }
+        previewDirty = false;
+        if (previewItem != null) {
+            previewItem.close(client);
+            previewItem = null;
+        }
+        boolean empty = true;
+        for (int p : pixels) {
+            empty &= (p >>> 24) == 0;
+        }
+        if (empty) {
+            return;
+        }
+        try {
+            BufferedImage img = new BufferedImage(cw, ch, BufferedImage.TYPE_INT_ARGB);
+            for (int y = 0; y < ch; y++) {
+                for (int x = 0; x < cw; x++) {
+                    img.setRGB(x, y, pixels[y * cw + x]);
+                }
+            }
+            Map<String, byte[]> files = target.previewFiles(img);
+            byte[] model = files == null ? null : files.get("model.bbmodel");
+            if (model != null) {
+                previewItem = new com.example.neurocanvas.avatar.BbInstance(client,
+                        com.example.neurocanvas.avatar.BbModel.parse(new String(model, java.nio.charset.StandardCharsets.UTF_8)));
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // No preview this time.
+        }
+    }
+
+    /** A turning Steve wearing what is being painted. */
+    private void renderPreview(DrawContext ctx, Theme th) {
+        refreshPreview();
+        int x = previewX(), y = areaY(), w = PREVIEW_W, h = areaH();
+        Ui.roundRect(ctx, x, y, w, h, 6, th.panel());
+        Ui.text(ctx, textRenderer, "Preview", x + 8, y + 6, th.dim());
+        ctx.enableScissor(x, y + 18, x + w, y + h);
+        float s = Math.min(w, h - 18) * 0.42f / 21f;
+        long ms = System.currentTimeMillis();
+        float angle = (ms % 9000) / 9000f * (float) (Math.PI * 2);
+        org.joml.Matrix4f m = new org.joml.Matrix4f(ctx.getMatrices().peek().getPositionMatrix());
+        m.translate(x + w / 2f, y + 18 + (h - 18) / 2f, 100f).scale(s, -s, s).rotateX(0.2f).rotateY(angle).translate(0f, -16f, 0f);
+        com.example.neurocanvas.avatar.Mannequin.drawWith(previewItem, target.previewType(), m, ms / 1000.0);
+        ctx.disableScissor();
+    }
+
+    @Override
+    public void removed() {
+        if (previewItem != null) {
+            previewItem.close(client);
+            previewItem = null;
         }
     }
 
@@ -541,6 +631,9 @@ public final class CosmeticEditor extends Screen {
 
     @Override
     public boolean mouseReleased(double mx, double my, int button) {
+        if (drag == 1) {
+            previewDirty = true;
+        }
         drag = 0;
         lastX = -1;
         return true;

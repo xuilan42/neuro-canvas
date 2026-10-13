@@ -782,13 +782,21 @@ public final class ClickGui extends Screen {
         }
         if (p.model != null) {
             ctx.enableScissor(x, y, x + w, y + h);
-            float s = Math.min(w, h) * 0.42f / p.radius;
-            float angle = (System.currentTimeMillis() % 8000) / 8000f * (float) (Math.PI * 2);
+            boolean onSteve = com.example.neurocanvas.avatar.Mannequin.wears(p.type);
+            float radius = onSteve ? 21f : p.radius;
+            float[] center = onSteve ? new float[] {0, 16, 0} : p.center;
+            float s = Math.min(w, h) * 0.45f / radius;
+            long ms = System.currentTimeMillis();
+            float angle = (ms % 9000) / 9000f * (float) (Math.PI * 2);
             org.joml.Matrix4f m = new org.joml.Matrix4f(ctx.getMatrices().peek().getPositionMatrix());
-            m.translate(x + w / 2f, y + h / 2f, 100f).scale(s, -s, s).rotateX(0.35f).rotateY(angle)
-                    .translate(-p.center[0], -p.center[1], -p.center[2]);
-            p.model.resetPose();
-            p.model.draw(m, 1f, 0.7f);
+            m.translate(x + w / 2f, y + h / 2f, 100f).scale(s, -s, s).rotateX(0.2f).rotateY(angle)
+                    .translate(-center[0], -center[1], -center[2]);
+            if (onSteve) {
+                com.example.neurocanvas.avatar.Mannequin.drawWith(p.model, p.type, m, ms / 1000.0);
+            } else {
+                p.model.resetPose();
+                p.model.draw(m, 1f, 0.7f);
+            }
             ctx.disableScissor();
             return;
         }
