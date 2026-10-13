@@ -34,7 +34,7 @@ import net.minecraft.world.RaycastContext;
 public final class Predictions extends Module {
     private record Shot(double speed, double gravity, float roll) { }
 
-    private record Trace(List<Vec3d> points, Vec3d landing, boolean entityHit, int ticks, int color) { }
+    private record Trace(List<Vec3d> points, Vec3d landing, Vec3d normal, boolean entityHit, int ticks, int color) { }
 
     private final Setting pathStyle = add(Setting.choice("Path style", 0, "Line", "Dashed", "Dots", "Arrows", "Glow trail", "Rainbow", "Double", "None"));
     private final Setting markerStyle = add(Setting.choice("Landing style", 0, "Cross", "Ring", "Target", "Diamond", "Pulse", "Pin", "None"));
@@ -89,6 +89,7 @@ public final class Predictions extends Module {
         Vec3d pos = start;
         Vec3d vel = velocity;
         Vec3d landing = null;
+        Vec3d normal = new Vec3d(0, 1, 0);
         boolean entityHit = false;
         int ticks = 0;
         Entity context = ignore != null ? ignore : mc.player;
@@ -97,6 +98,8 @@ public final class Predictions extends Module {
             BlockHitResult block = mc.world.raycast(new RaycastContext(pos, next, RaycastContext.ShapeType.COLLIDER,
                     RaycastContext.FluidHandling.NONE, context));
             Vec3d blockPoint = block.getType() != HitResult.Type.MISS ? block.getPos() : null;
+            Vec3d hitNormal = block.getType() != HitResult.Type.MISS
+                    ? new Vec3d(block.getSide().getOffsetX(), block.getSide().getOffsetY(), block.getSide().getOffsetZ()) : null;
             Vec3d end = blockPoint != null ? blockPoint : next;
             for (Entity e : mc.world.getOtherEntities(ignore, new Box(pos, end).expand(0.3),
                     x -> x.canHit() && !x.isSpectator() && x != owner)) {
@@ -104,6 +107,7 @@ public final class Predictions extends Module {
                 if (hit.isPresent()) {
                     end = hit.get();
                     blockPoint = end;
+                    hitNormal = new Vec3d(0, 1, 0);
                     entityHit = true;
                     break;
                 }
@@ -112,11 +116,14 @@ public final class Predictions extends Module {
             ticks++;
             if (blockPoint != null) {
                 landing = end;
+                if (hitNormal != null) {
+                    normal = hitNormal;
+                }
             }
             vel = vel.multiply(0.99).subtract(0, gravity, 0);
             pos = next;
         }
-        return new Trace(points, landing, entityHit, ticks, color);
+        return new Trace(points, landing, normal, entityHit, ticks, color);
     }
 
     private Trace ownShot(RenderEnv env, ClientPlayerEntity p, Shot shot) {
@@ -194,7 +201,7 @@ public final class Predictions extends Module {
                 }
                 Vec3d l = t.landing();
                 if (l != null && marker.on() && markerStyle.index() != 6) {
-                    landing(lines, l, t.entityHit() ? hitColor.argb() : landColor.argb(), env.t());
+                    landing(lines, l, t.normal(), t.entityHit() ? hitColor.argb() : landColor.argb(), env.t());
                 }
             }
             if (lines != null) {
@@ -296,59 +303,79 @@ public final class Predictions extends Module {
         }
     }
 
-    private void ringAt(Lines lines, Vec3d c, double r, int argb, int segs, double y) {
-        for (int i = 0; i < segs; i++) {
-            double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
-            lines.line(c.x + Math.cos(a0) * r, y, c.z + Math.sin(a0) * r, c.x + Math.cos(a1) * r, y, c.z + Math.sin(a1) * r, argb);
+    /** A flat frame on the surface that was hit: u and v lie in the surface, n points out of it. */
+    private static final class Plane {
+        final Vec3d o;
+        final Vec3d u;
+        final Vec3d v;
+        final Vec3d n;
+
+        Plane(Vec3d origin, Vec3d normal) {
+            n = normal.lengthSquared() < 1e-9 ? new Vec3d(0, 1, 0) : normal.normalize();
+            Vec3d tangent = Math.abs(n.y) > 0.9 ? new Vec3d(1, 0, 0) : new Vec3d(-n.z, 0, n.x).normalize();
+            u = tangent;
+            v = n.crossProduct(u);
+            o = origin.add(n.multiply(0.02));
+        }
+
+        Vec3d at(double a, double b, double c) {
+            return o.add(u.multiply(a)).add(v.multiply(b)).add(n.multiply(c));
         }
     }
 
-    /** The mark where the projectile lands, in the chosen style. */
-    private void landing(Lines lines, Vec3d l, int color, double time) {
+    private static void seg(Lines lines, Vec3d a, Vec3d b, int argb) {
+        lines.line(a.x, a.y, a.z, b.x, b.y, b.z, argb);
+    }
+
+    private static void ring(Lines lines, Plane p, double r, int argb, int segs, double lift) {
+        for (int i = 0; i < segs; i++) {
+            double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
+            seg(lines, p.at(Math.cos(a0) * r, Math.sin(a0) * r, lift), p.at(Math.cos(a1) * r, Math.sin(a1) * r, lift), argb);
+        }
+    }
+
+    /** The mark where the projectile lands, lying on the surface it hits (a wall gets a vertical mark, a ceiling a hanging one). */
+    private void landing(Lines lines, Vec3d l, Vec3d normal, int color, double time) {
         double run = time * flow.value;
-        double y = l.y + 0.02;
+        Plane p = new Plane(l, normal);
         switch (markerStyle.index()) {
-            case 1 -> ringAt(lines, l, 0.4, color, 24, y);
+            case 1 -> ring(lines, p, 0.4, color, 24, 0);
             case 2 -> {
-                ringAt(lines, l, 0.5, color, 24, y);
-                ringAt(lines, l, 0.25, withAlpha(color, 0.8), 18, y);
-                lines.line(l.x - 0.7, y, l.z, l.x - 0.35, y, l.z, color);
-                lines.line(l.x + 0.35, y, l.z, l.x + 0.7, y, l.z, color);
-                lines.line(l.x, y, l.z - 0.7, l.x, y, l.z - 0.35, color);
-                lines.line(l.x, y, l.z + 0.35, l.x, y, l.z + 0.7, color);
+                ring(lines, p, 0.5, color, 24, 0);
+                ring(lines, p, 0.25, withAlpha(color, 0.8), 18, 0);
+                seg(lines, p.at(-0.7, 0, 0), p.at(-0.35, 0, 0), color);
+                seg(lines, p.at(0.35, 0, 0), p.at(0.7, 0, 0), color);
+                seg(lines, p.at(0, -0.7, 0), p.at(0, -0.35, 0), color);
+                seg(lines, p.at(0, 0.35, 0), p.at(0, 0.7, 0), color);
             }
             case 3 -> {
                 double r = 0.38;
-                double top = l.y + 0.45;
-                double bottom = l.y + 0.02;
-                double mid = (top + bottom) / 2;
-                double[][] ring = {{r, 0}, {0, r}, {-r, 0}, {0, -r}};
+                double[][] corner = {{r, 0}, {0, r}, {-r, 0}, {0, -r}};
                 for (int i = 0; i < 4; i++) {
-                    double[] p = ring[i], q = ring[(i + 1) % 4];
-                    lines.line(l.x + p[0], mid, l.z + p[1], l.x + q[0], mid, l.z + q[1], color);
-                    lines.line(l.x, top, l.z, l.x + p[0], mid, l.z + p[1], color);
-                    lines.line(l.x, bottom, l.z, l.x + p[0], mid, l.z + p[1], color);
+                    double[] a = corner[i], b = corner[(i + 1) % 4];
+                    seg(lines, p.at(a[0], a[1], 0.22), p.at(b[0], b[1], 0.22), color);
+                    seg(lines, p.at(0, 0, 0.45), p.at(a[0], a[1], 0.22), color);
+                    seg(lines, p.at(0, 0, 0), p.at(a[0], a[1], 0.22), color);
                 }
             }
             case 4 -> {
                 for (int i = 0; i < 3; i++) {
                     double f = (run * 0.5 + i / 3.0) % 1.0;
-                    ringAt(lines, l, 0.12 + 0.6 * f, withAlpha(color, 1 - f), 24, y);
+                    ring(lines, p, 0.12 + 0.6 * f, withAlpha(color, 1 - f), 24, 0);
                 }
             }
             case 5 -> {
-                double bob = 0.06 * Math.sin(run * 3);
-                double tip = l.y + 0.05;
-                double head = l.y + 0.55 + bob;
-                lines.line(l.x, tip, l.z, l.x, head - 0.12, l.z, color);
-                ringAt(lines, l, 0.12, color, 12, head);
-                ringAt(lines, l, 0.2, withAlpha(color, 0.5), 12, y);
+                double head = 0.55 + 0.06 * Math.sin(run * 3);
+                seg(lines, p.at(0, 0, 0.03), p.at(0, 0, head - 0.12), color);
+                ring(lines, p, 0.12, color, 12, head);
+                ring(lines, p, 0.2, withAlpha(color, 0.5), 12, 0);
             }
+            case 6 -> { }
             default -> {
                 double r = 0.3;
-                lines.line(l.x - r, l.y, l.z, l.x + r, l.y, l.z, color);
-                lines.line(l.x, l.y - r, l.z, l.x, l.y + r, l.z, color);
-                lines.line(l.x, l.y, l.z - r, l.x, l.y, l.z + r, color);
+                seg(lines, p.at(-r, 0, 0), p.at(r, 0, 0), color);
+                seg(lines, p.at(0, -r, 0), p.at(0, r, 0), color);
+                seg(lines, p.at(0, 0, -r), p.at(0, 0, r), color);
             }
         }
     }
