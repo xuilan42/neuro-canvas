@@ -134,6 +134,10 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
 - **Graffiti:** the PingWheel's **Graffiti** action sprays it, or set the module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Lifetime*).
 - **Market:** a catalog of cosmetics kept on the project's server. Open the module, choose a kind in *Show* if you like, and press **Get & wear** next to an item: it is downloaded into your wardrobe, the matching module is switched on and the item is put on.
   Items you already have show **Wear**. Everything that is downloaded is checked first (the kind, the folder and file names, the extensions `.bbmodel`, `.png`, `.json`, and the sizes), so a catalog item cannot write anything else or anywhere else.
+- **Editor:** every cosmetic module except Emotes has an **Editor** button. It opens a pixel canvas whose size and layout depend on the kind: a graffiti picture (16, 32, 48 or 64 px), the back of a cape, one wing (the other is its mirror),
+  the unfolded crown of a hat (the pink corner colours the brim), the unfolded jacket of an outfit, or the unfolded cube of a pet; a coloured guide shows which part of the canvas is the front, back, sides, top and bottom.
+  Tools: pencil, eraser, fill, colour picker, brush size, mirror drawing, grid, undo (Ctrl+Z), a colour square, hue strip and a palette. Type a name in the box in the top corner and press **Save**: the picture becomes a new item
+  (model included) in your wardrobe and is put on at once. A name that already exists is not overwritten.
 - For now only you see your items; showing them to other users is the next step.
 
 ## Avatar (animated Blockbench avatars)

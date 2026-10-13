@@ -18,7 +18,7 @@ import javax.imageio.ImageIO;
 public final class ExamplePack {
     private ExamplePack() { }
 
-    private static JsonArray arr(double... v) {
+    static JsonArray arr(double... v) {
         JsonArray a = new JsonArray();
         for (double d : v) {
             a.add(d);
@@ -44,7 +44,7 @@ public final class ExamplePack {
         return c;
     }
 
-    private static JsonObject bone(String uuid, double[] origin, String... children) {
+    static JsonObject bone(String uuid, double[] origin, String... children) {
         JsonObject b = new JsonObject();
         b.addProperty("uuid", uuid);
         b.addProperty("name", uuid);
@@ -72,7 +72,7 @@ public final class ExamplePack {
         return k;
     }
 
-    private static JsonObject loop(String bone, double length, double[]... frames) {
+    static JsonObject loop(String bone, double length, double[]... frames) {
         JsonObject animators = new JsonObject();
         JsonObject a = new JsonObject();
         JsonArray ks = new JsonArray();
@@ -123,7 +123,7 @@ public final class ExamplePack {
         Files.writeString(folder.resolve("model.bbmodel"), root.toString(), StandardCharsets.UTF_8);
     }
 
-    private static JsonArray list(JsonObject... items) {
+    static JsonArray list(JsonObject... items) {
         JsonArray a = new JsonArray();
         for (JsonObject o : items) {
             a.add(o);

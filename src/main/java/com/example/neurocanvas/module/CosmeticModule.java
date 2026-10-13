@@ -37,6 +37,7 @@ public abstract class CosmeticModule extends Module {
     protected final Setting shading = add(Setting.number("Shading", 0, 1, 0.5));
     protected final Setting animSpeed = add(Setting.number("Animation speed", 0.2, 3, 1));
     protected final Setting firstPerson;
+    private final Setting editor;
     private final Setting reload = add(Setting.button("Reload"));
     private final Setting openFolder = add(Setting.button("Open folder"));
     protected final Worn main;
@@ -53,6 +54,7 @@ public abstract class CosmeticModule extends Module {
         item = add(Setting.choice(slotLabel, 0, Worn.NONE));
         settings.add(0, settings.remove(settings.size() - 1));
         firstPerson = wornOnBody ? add(Setting.bool("Show in first person", false)) : null;
+        editor = com.example.neurocanvas.avatar.CosmeticBuilder.hasEditor(type) ? add(Setting.button("Editor")) : null;
         main = wear(item);
         writeExamples(root);
         rescan();
@@ -121,6 +123,11 @@ public abstract class CosmeticModule extends Module {
                 // Opening a missing folder just fails quietly.
             }
             net.minecraft.util.Util.getOperatingSystem().open(folder().toFile());
+        }
+        if (editor != null && editor.on()) {
+            editor.set(0);
+            mc.setScreen(new com.example.neurocanvas.gui.CosmeticEditor(this, mc.currentScreen));
+            return;
         }
         if (reload.on()) {
             reload.set(0);
