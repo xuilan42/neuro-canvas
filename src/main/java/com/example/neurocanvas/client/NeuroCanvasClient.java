@@ -345,6 +345,35 @@ public class NeuroCanvasClient implements ClientModInitializer {
                             : "[NameTags] a room name is 3-40 letters, digits, _ or -");
                     return 1;
                 })))));
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("cloudcfg")
+                .then(literal("put").executes(ctx -> {
+                    say("[Cloud] uploading...");
+                    CloudConfigs.upload(modules.exportCode()).whenComplete((code, error) -> MinecraftClient.getInstance().execute(() -> {
+                        if (error != null) {
+                            say("[Cloud] upload failed: " + CloudConfigs.reason(error));
+                        } else {
+                            MinecraftClient.getInstance().keyboard.setClipboard(code);
+                            say("[Cloud] short code " + code + " (copied). Send it to a friend, they run /cloudcfg get " + code);
+                        }
+                    }));
+                    return 1;
+                }))
+                .then(literal("get").then(argument("code", StringArgumentType.word()).executes(ctx -> {
+                    String code = StringArgumentType.getString(ctx, "code");
+                    CloudConfigs.download(code).whenComplete((data, error) -> MinecraftClient.getInstance().execute(() -> {
+                        if (error != null) {
+                            say("[Cloud] " + CloudConfigs.reason(error));
+                            return;
+                        }
+                        try {
+                            modules.importCode(data);
+                            say("[Cloud] loaded the config " + code.toUpperCase());
+                        } catch (IOException e) {
+                            say("[Cloud] import failed: " + e.getMessage());
+                        }
+                    }));
+                    return 1;
+                })))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("teams")
                 .then(literal("add").then(argument("name", StringArgumentType.word()).executes(ctx -> {
                     String name = StringArgumentType.getString(ctx, "name");

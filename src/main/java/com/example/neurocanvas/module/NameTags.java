@@ -107,6 +107,13 @@ public final class NameTags extends Module {
         return status;
     }
 
+    /** The first registry address (the main server), for plain HTTPS requests. Empty when this build has none. */
+    public static String mainUrl() {
+        String all = loadUrl();
+        int comma = all.indexOf(',');
+        return (comma < 0 ? all : all.substring(0, comma)).trim().replaceAll("/+$", "");
+    }
+
     /** Registry address baked in at build time; the system property is for developers testing a local registry. */
     private static String loadUrl() {
         String override = System.getProperty("neurocanvas.registry");

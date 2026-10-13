@@ -754,6 +754,9 @@ public final class ClickGui extends Screen {
         out.add(new Btn("Copy share code", bx, y2, half, 24, this::copyCode, false));
         out.add(new Btn("Import from clipboard", bx + half + 8, y2, half, 24, this::importCode, false));
         out.add(new Btn("Edit HUD layout", bx, y3, full, 24, () -> client.setScreen(new HudEditor(this)), false));
+        int y4 = y3 + 32;
+        out.add(new Btn("Upload: get short code", bx, y4, half, 24, this::cloudUpload, true));
+        out.add(new Btn("Download: code from clipboard", bx + half + 8, y4, half, 24, this::cloudDownload, false));
         return out;
     }
 
@@ -800,6 +803,41 @@ public final class ClickGui extends Screen {
         } catch (IOException e) {
             status = "Could not delete: " + e.getMessage();
         }
+    }
+
+    private void cloudUpload() {
+        status = "Uploading...";
+        com.example.neurocanvas.client.CloudConfigs.upload(NeuroCanvasClient.modules().exportCode()).whenComplete((code, error) ->
+                client.execute(() -> {
+                    if (error != null) {
+                        status = "Upload failed: " + com.example.neurocanvas.client.CloudConfigs.reason(error);
+                    } else {
+                        client.keyboard.setClipboard(code);
+                        status = "Short code " + code + " copied. Send it to a friend.";
+                    }
+                }));
+    }
+
+    private void cloudDownload() {
+        String code = client.keyboard.getClipboard().trim();
+        if (!com.example.neurocanvas.client.CloudConfigs.looksLikeCode(code)) {
+            status = "Copy a short code first (8 letters and digits)";
+            return;
+        }
+        status = "Downloading...";
+        com.example.neurocanvas.client.CloudConfigs.download(code).whenComplete((data, error) ->
+                client.execute(() -> {
+                    if (error != null) {
+                        status = "Download failed: " + com.example.neurocanvas.client.CloudConfigs.reason(error);
+                        return;
+                    }
+                    try {
+                        NeuroCanvasClient.modules().importCode(data);
+                        status = "Loaded the config " + code.toUpperCase();
+                    } catch (IOException e) {
+                        status = "Import failed: " + e.getMessage();
+                    }
+                }));
     }
 
     private void copyCode() {
@@ -855,7 +893,7 @@ public final class ClickGui extends Screen {
                     b.primary() ? (th.bg() | 0xFF000000) : th.text());
         }
         if (!status.isEmpty()) {
-            Ui.text(ctx, textRenderer, textRenderer.trimToWidth(status, panelW() - 2 * PAD), panelX() + PAD, rowsTop() + 40 + 32 * 3 + 6, th.dim());
+            Ui.text(ctx, textRenderer, textRenderer.trimToWidth(status, panelW() - 2 * PAD), panelX() + PAD, rowsTop() + 40 + 32 * 4 + 6, th.dim());
         }
     }
 
