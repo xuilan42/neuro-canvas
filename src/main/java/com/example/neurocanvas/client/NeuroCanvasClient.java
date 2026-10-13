@@ -331,9 +331,20 @@ public class NeuroCanvasClient implements ClientModInitializer {
                 }))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("neurotag")
                 .then(literal("status").executes(ctx -> {
-                    say("[NameTags] " + (nameTags.enabled ? "on" : "off") + ", " + nameTags.status());
+                    say("[NameTags] " + (nameTags.enabled ? "on" : "off") + ", " + nameTags.status()
+                            + (nameTags.room().isEmpty() ? "" : ", room \"" + nameTags.room() + "\""));
                     return 1;
-                }))));
+                }))
+                .then(literal("room").then(literal("off").executes(ctx -> {
+                    nameTags.setRoom("");
+                    say("[NameTags] back to matching by server address");
+                    return 1;
+                })).then(argument("name", StringArgumentType.word()).executes(ctx -> {
+                    String name = StringArgumentType.getString(ctx, "name");
+                    say(nameTags.setRoom(name) ? "[NameTags] room \"" + name.toLowerCase() + "\": everyone who types the same room name sees each other, whatever server they are on"
+                            : "[NameTags] a room name is 3-40 letters, digits, _ or -");
+                    return 1;
+                })))));
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("teams")
                 .then(literal("add").then(argument("name", StringArgumentType.word()).executes(ctx -> {
                     String name = StringArgumentType.getString(ctx, "name");

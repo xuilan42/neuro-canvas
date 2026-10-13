@@ -56,12 +56,51 @@ public final class NameTags extends Module {
     private volatile String status = "off";
     private volatile int generation;
     private volatile WebSocket socket;
+    private volatile String room = "";
+    private static final java.util.regex.Pattern ROOM = java.util.regex.Pattern.compile("[a-z0-9_-]{3,40}");
     private String connectedTo = "";
 
     public NameTags() {
         super("NameTags", Category.FRIENDS, "Plate above other NeuroAura users on the same server", false);
         aiControllable = false;
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> stop());
+        try {
+            java.nio.file.Path f = roomFile();
+            if (java.nio.file.Files.exists(f)) {
+                String r = java.nio.file.Files.readString(f).trim().toLowerCase(Locale.ROOT);
+                room = ROOM.matcher(r).matches() ? r : "";
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // No room saved.
+        }
+    }
+
+    private static java.nio.file.Path roomFile() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("neurocanvas").resolve("online-room.txt");
+    }
+
+    public String room() {
+        return room;
+    }
+
+    /** Sets a shared room name (or clears it with an empty one). Returns false when the name is not valid. */
+    public boolean setRoom(String name) {
+        String r = name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
+        if (!r.isEmpty() && !ROOM.matcher(r).matches()) {
+            return false;
+        }
+        room = r;
+        try {
+            if (r.isEmpty()) {
+                java.nio.file.Files.deleteIfExists(roomFile());
+            } else {
+                java.nio.file.Files.createDirectories(roomFile().getParent());
+                java.nio.file.Files.writeString(roomFile(), r);
+            }
+        } catch (IOException ignored) {
+            // The room still works until the game is closed.
+        }
+        return true;
     }
 
     public String status() {
@@ -102,7 +141,8 @@ public final class NameTags extends Module {
 
     @Override
     public void tickAlways(MinecraftClient mc) {
-        String server = serverKey(mc);
+        String r = room;
+        String server = !r.isEmpty() && mc.player != null ? "room:" + r : serverKey(mc);
         String name = mc.player == null ? null : mc.player.getName().getString();
         if (!enabled || server == null || url.isBlank()) {
             stop();
