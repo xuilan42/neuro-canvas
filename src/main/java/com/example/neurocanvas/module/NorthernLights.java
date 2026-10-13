@@ -22,6 +22,7 @@ public final class NorthernLights extends Module {
     private final Setting color1 = add(Setting.color("Color 1", 0.38));
     private final Setting color2 = add(Setting.color("Color 2", 0.78));
     private final Setting nightOnly = add(Setting.bool("Only at night", false));
+    private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
     private final Setting sharpness = add(Setting.number("Ray sharpness", 0.6, 3, 1.4));
     private final Setting curtainHeight = add(Setting.number("Curtain height", 20, 120, 55));
 
@@ -74,6 +75,9 @@ public final class NorthernLights extends Module {
         if (u != null) {
             u.set(sharpness.f(), 2.2f, 0.3f, 0f);
         }
+        com.example.neurocanvas.fx.Shaders.setScale(brightness.f());
+        com.example.neurocanvas.fx.Shaders.applyBrightness(program);
+        com.example.neurocanvas.fx.Shaders.setScale(1f);
         net.minecraft.client.gl.GlUniform seed = program.getUniform("Seed");
 
         RenderSystem.enableDepthTest();

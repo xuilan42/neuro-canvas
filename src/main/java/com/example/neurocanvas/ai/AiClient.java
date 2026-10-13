@@ -41,7 +41,7 @@ public final class AiClient {
         JsonArray messages = new JsonArray();
         messages.add(message("system", system));
         for (String[] m : conversation) {
-            messages.add(message(m[0], m[1]));
+            messages.add(m.length > 2 && m[2] != null ? messageWithImage(m[0], m[1], m[2]) : message(m[0], m[1]));
         }
         body.add("messages", messages);
         if (jsonMode) {
@@ -72,6 +72,85 @@ public final class AiClient {
                     : "Request failed: " + cause.getClass().getSimpleName();
             return CompletableFuture.failedFuture(new AiException(text, cause));
         });
+    }
+
+    /** A message with a picture, in the format vision models take: a text part and an image part holding a data URL. */
+    private static JsonObject messageWithImage(String role, String text, String dataUrl) {
+        JsonObject m = new JsonObject();
+        m.addProperty("role", role);
+        JsonArray parts = new JsonArray();
+        JsonObject t = new JsonObject();
+        t.addProperty("type", "text");
+        t.addProperty("text", text);
+        parts.add(t);
+        JsonObject img = new JsonObject();
+        img.addProperty("type", "image_url");
+        JsonObject url = new JsonObject();
+        url.addProperty("url", dataUrl);
+        img.add("image_url", url);
+        parts.add(img);
+        m.add("content", parts);
+        return m;
+    }
+
+    /** Turns a recording (a WAV file) into text with an OpenAI-compatible speech-to-text endpoint. */
+    public CompletableFuture<String> transcribe(AiConfig config, byte[] wav) {
+        String url = config.voiceUrl.isBlank() ? config.baseUrl.trim().replaceAll("/chat/completions$", "").replaceAll("/+$", "") + "/audio/transcriptions"
+                : config.voiceUrl.trim();
+        String boundary = "----neurocanvas" + System.nanoTime();
+        java.io.ByteArrayOutputStream body = new java.io.ByteArrayOutputStream();
+        try {
+            field(body, boundary, "model", config.voiceModel.isBlank() ? "whisper-1" : config.voiceModel.trim());
+            if (!config.voiceLanguage.isBlank()) {
+                field(body, boundary, "language", config.voiceLanguage.trim());
+            }
+            body.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"file\"; filename=\"speech.wav\"\r\nContent-Type: audio/wav\r\n\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            body.write(wav);
+            body.write(("\r\n--" + boundary + "--\r\n").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            return CompletableFuture.failedFuture(new AiException("Could not prepare the recording"));
+        }
+        HttpRequest.Builder request;
+        try {
+            request = HttpRequest.newBuilder(URI.create(url));
+        } catch (IllegalArgumentException e) {
+            return CompletableFuture.failedFuture(new AiException("The speech address is not a valid URL"));
+        }
+        request.timeout(Duration.ofSeconds(60)).header("Content-Type", "multipart/form-data; boundary=" + boundary);
+        String key = config.effectiveKey();
+        if (!key.isEmpty()) {
+            request.header("Authorization", "Bearer " + key);
+        }
+        request.POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()));
+        return HTTP.sendAsync(request.build(), HttpResponse.BodyHandlers.ofString()).handle((response, error) -> {
+            if (error != null) {
+                Throwable cause = error.getCause() != null ? error.getCause() : error;
+                throw new AiException("Cannot reach the speech server: " + shorten(String.valueOf(cause.getMessage()), 120), cause);
+            }
+            int status = response.statusCode();
+            if (status == 404) {
+                throw new AiException("This server has no speech to text (HTTP 404). Set a server that has /audio/transcriptions, or type instead");
+            }
+            if (status < 200 || status >= 300) {
+                throw new AiException("Speech to text failed (HTTP " + status + "): " + shorten(response.body().replaceAll("\\s+", " "), 140));
+            }
+            try {
+                String text = JsonParser.parseString(response.body()).getAsJsonObject().get("text").getAsString().trim();
+                if (text.isEmpty()) {
+                    throw new AiException("Nothing was heard");
+                }
+                return text;
+            } catch (AiException e) {
+                throw e;
+            } catch (RuntimeException e) {
+                throw new AiException("Unexpected reply from the speech server", e);
+            }
+        });
+    }
+
+    private static void field(java.io.ByteArrayOutputStream out, String boundary, String name, String value) throws IOException {
+        out.write(("--" + boundary + "\r\nContent-Disposition: form-data; name=\"" + name + "\"\r\n\r\n" + value + "\r\n")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     private static JsonObject message(String role, String content) {

@@ -10,6 +10,7 @@ public final class ToggleSprint extends Module {
 
     public ToggleSprint() {
         super("ToggleSprint", Category.WORLD, "Sprint automatically while moving forward", false);
+        risky = true;
         aiControllable = false;
     }
 

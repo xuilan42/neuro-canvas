@@ -52,9 +52,30 @@ public final class Market extends Module {
     private final Set<String> busy = new HashSet<>();
     private boolean loading;
     private String pendingDelete = "";
+    private String pendingReport = "";
 
     public boolean deletePending(MarketClient.Entry e) {
         return pendingDelete.equals(e.type() + "/" + e.name() + "/" + e.code());
+    }
+
+    public boolean reportPending(MarketClient.Entry e) {
+        return pendingReport.equals(e.type() + "/" + e.name() + "/" + e.code());
+    }
+
+    /** Reports a shared item as inappropriate: the first press asks, the second sends. */
+    public void requestReport(MarketClient.Entry e) {
+        if (e.code() == null) {
+            return;
+        }
+        String key = e.type() + "/" + e.name() + "/" + e.code();
+        if (!pendingReport.equals(key)) {
+            pendingReport = key;
+            status = "Press the flag again to report " + e.name() + " (broken, offensive or copied)";
+            return;
+        }
+        pendingReport = "";
+        com.example.neurocanvas.client.CommunityClient.report(e.code()).whenComplete((v, error) ->
+                MinecraftClient.getInstance().execute(() -> status = error != null ? "Could not report: " + MarketClient.reason(error) : "Thanks, " + e.name() + " was reported"));
     }
 
     /** Admin only: the first press asks, the second removes the item from the server. */

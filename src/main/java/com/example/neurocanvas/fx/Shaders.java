@@ -36,7 +36,26 @@ public final class Shaders {
     private static java.lang.reflect.Field programBlend;
     private static boolean reflected;
 
+    private static float scale = 1f;
+
     private Shaders() { }
+
+    /** A module that has its own Brightness setting sets it here while it draws, and 1 afterwards. */
+    public static void setScale(float s) {
+        scale = s;
+    }
+
+    /** The brightness the visuals have now: the global setting in Interface times the module's own. */
+    public static float brightness() {
+        return com.example.neurocanvas.module.Interface.brightness() * scale;
+    }
+
+    public static void applyBrightness(ShaderProgram p) {
+        net.minecraft.client.gl.GlUniform u = p.getUniform("Brightness");
+        if (u != null) {
+            u.set(brightness());
+        }
+    }
 
     private static void reflect() {
         reflected = true;

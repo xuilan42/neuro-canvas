@@ -53,6 +53,7 @@ public final class Predictions extends Module {
 
     public Predictions() {
         super("Predictions", Category.COMBAT, "Trajectory and landing time of projectiles you aim and projectiles already in the air", false);
+        risky = true;
     }
 
     private static Shot shotFor(ClientPlayerEntity p) {

@@ -127,6 +127,7 @@ public final class FxParticles {
         com.mojang.blaze3d.systems.RenderSystem.enableBlend();
         com.mojang.blaze3d.systems.RenderSystem.disableCull();
         com.mojang.blaze3d.systems.RenderSystem.setShader(() -> program);
+        Shaders.applyBrightness(program);
         net.minecraft.client.gl.GlUniform shapeUniform = program.getUniform("Shape");
         Tessellator tess = Tessellator.getInstance();
         BufferBuilder b = tess.getBuffer();

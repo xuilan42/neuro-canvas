@@ -66,6 +66,14 @@
       "values": [
         0.0
       ]
+    },
+    {
+      "name": "Brightness",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
     }
   ]
 }

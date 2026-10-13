@@ -48,6 +48,10 @@ public final class NeuroAura extends Module {
     private final AiClient client = new AiClient();
     private final List<ChatMessage> chat = new ArrayList<>();
     private boolean working;
+    private String attachedUrl;
+    private String attachedName = "";
+    private final com.example.neurocanvas.ai.VoiceRecorder recorder = new com.example.neurocanvas.ai.VoiceRecorder();
+    private boolean transcribing;
 
     public NeuroAura(AiConfig config) {
         super("NeuroAura", Category.AI, "Chat with an AI that answers briefly and configures the client for you", true);
@@ -65,6 +69,103 @@ public final class NeuroAura extends Module {
 
     public boolean working() {
         return working;
+    }
+
+    // ---- picture and voice ------------------------------------------------------------------
+
+    public String attachedName() {
+        return attachedUrl == null ? "" : attachedName;
+    }
+
+    public boolean attached() {
+        return attachedUrl != null;
+    }
+
+    public void clearAttachment() {
+        attachedUrl = null;
+        attachedName = "";
+    }
+
+    private void fail(String message) {
+        chat.add(new ChatMessage(false, message, true));
+    }
+
+    /** Attaches a picture to the next message. The model must understand images (a vision model). */
+    public void attach(java.nio.file.Path file) {
+        try {
+            attachedUrl = com.example.neurocanvas.ai.ImagePrep.dataUrl(file);
+            attachedName = file.getFileName().toString();
+        } catch (java.io.IOException e) {
+            fail("Could not use the picture: " + e.getMessage());
+        }
+    }
+
+    /** The Attach button: a picture path on the clipboard first, otherwise the newest screenshot. */
+    public void attachFromClipboardOrScreenshot() {
+        try {
+            String clip = MinecraftClient.getInstance().keyboard.getClipboard().trim().replaceAll("^\"|\"$", "");
+            if (!clip.isEmpty() && clip.length() < 400) {
+                java.nio.file.Path p = java.nio.file.Path.of(clip);
+                if (java.nio.file.Files.isRegularFile(p)) {
+                    attach(p);
+                    return;
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // The clipboard is not a path.
+        }
+        java.nio.file.Path shot = com.example.neurocanvas.ai.ImagePrep.latestScreenshot();
+        if (shot == null) {
+            fail("No picture: copy the path of a file, drop a file on the window, or take a screenshot with F2");
+            return;
+        }
+        attach(shot);
+    }
+
+    public boolean recording() {
+        return recorder.recording();
+    }
+
+    public int recordingSeconds() {
+        return recorder.seconds();
+    }
+
+    public boolean transcribing() {
+        return transcribing;
+    }
+
+    /** The Mic button: the first press starts recording, the second stops it and turns the speech into text for the input box. */
+    public void toggleVoice(java.util.function.Consumer<String> onText) {
+        if (transcribing) {
+            return;
+        }
+        if (!recorder.recording()) {
+            try {
+                recorder.start();
+            } catch (com.example.neurocanvas.ai.AiException e) {
+                fail(e.getMessage());
+            }
+            return;
+        }
+        byte[] wav = recorder.stop();
+        if (wav == null) {
+            fail("The recording was too short");
+            return;
+        }
+        if (!config.ready()) {
+            fail("Not configured yet. Open Connection and set the API address, key and model.");
+            return;
+        }
+        transcribing = true;
+        client.transcribe(config, wav).whenComplete((text, throwable) -> MinecraftClient.getInstance().execute(() -> {
+            transcribing = false;
+            if (throwable != null) {
+                Throwable cause = throwable.getCause() != null ? throwable.getCause() : throwable;
+                fail(cause instanceof com.example.neurocanvas.ai.AiException ai ? ai.getMessage() : "Speech to text failed: " + cause.getMessage());
+                return;
+            }
+            onText.accept(text);
+        }));
     }
 
     public void clearChat() {
@@ -107,14 +208,22 @@ public final class NeuroAura extends Module {
         if (t.isEmpty() || working) {
             return;
         }
-        chat.add(new ChatMessage(true, t, false));
+        String image = attachedUrl;
+        chat.add(new ChatMessage(true, image == null ? t : t + "  [picture: " + attachedName + "]", false));
+        attachedUrl = null;
+        attachedName = "";
         if (!config.ready()) {
             chat.add(new ChatMessage(false, "Not configured yet. Open Connection and set the API address, key and model.", true));
             return;
         }
         working = true;
         String system = PromptBuilder.system(NeuroCanvasClient.modules());
-        client.complete(config, system, conversation()).whenComplete((reply, throwable) ->
+        List<String[]> conv = conversation();
+        if (image != null && !conv.isEmpty()) {
+            String[] last = conv.get(conv.size() - 1);
+            conv.set(conv.size() - 1, new String[] {last[0], t + "\n(The player attached a picture: use its colours, mood and style where it helps.)", image});
+        }
+        client.complete(config, system, conv).whenComplete((reply, throwable) ->
                 MinecraftClient.getInstance().execute(() -> {
                     working = false;
                     try {

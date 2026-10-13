@@ -3,6 +3,7 @@
 // Particle shapes drawn procedurally on a quad whose corners are (-1,-1) .. (1,1).
 // Shape: 0 glow (firefly), 1 star, 2 sparkle, 3 dot, 4 ring, 5 diamond, 6 heart, 7 snowflake.
 uniform float Shape;
+uniform float Brightness;
 
 in vec2 uv;
 in vec4 vertexColor;
@@ -72,5 +73,5 @@ void main() {
         discard;
     }
     vec3 color = vertexColor.rgb * (0.9 + 0.6 * pow(mask, 3.0));
-    fragColor = vec4(min(color, vec3(1.0)), mask * vertexColor.a);
+    fragColor = vec4(min(color * Brightness, vec3(1.0)), clamp(mask * vertexColor.a * (0.5 + 0.5 * Brightness), 0.0, 1.0));
 }

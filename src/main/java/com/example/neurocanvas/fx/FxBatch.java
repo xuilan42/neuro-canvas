@@ -39,6 +39,7 @@ public final class FxBatch {
         set(program, "Mode", mode);
         set(program, "Glow", Interface.visualGlow());
         set(program, "Time", (float) env.t());
+        Shaders.applyBrightness(program);
         GlUniform params = program.getUniform("Params");
         if (params != null) {
             params.set(p0, p1, p2, 0f);

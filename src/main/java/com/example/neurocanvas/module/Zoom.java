@@ -12,6 +12,7 @@ public final class Zoom extends Module {
 
     public Zoom() {
         super("Zoom", Category.WORLD, "Zoom in while the key is held (default C)", false);
+        risky = true;
         key = 67;
         hold = true;
     }

@@ -5,6 +5,7 @@
 uniform float Mode;
 uniform float Glow;
 uniform float Time;
+uniform float Brightness;
 uniform vec4 Params;   // x: line core width / ring half thickness, y: ring centre radius, z: animation speed
 uniform vec3 Color2;
 
@@ -48,5 +49,5 @@ void main() {
     if (a < 0.004) {
         discard;
     }
-    fragColor = vec4(min(rgb, vec3(1.0)), clamp(a, 0.0, 1.0));
+    fragColor = vec4(min(rgb * Brightness, vec3(1.0)), clamp(a * (0.5 + 0.5 * Brightness), 0.0, 1.0));
 }

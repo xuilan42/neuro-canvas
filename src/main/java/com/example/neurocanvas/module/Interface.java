@@ -44,6 +44,8 @@ public final class Interface extends Module {
     private final Setting drawOver = add(Setting.bool("Draw effects over models", true));
     private final Setting shaderVis = add(Setting.bool("Shader visuals", true));
     private final Setting visGlow = add(Setting.number("Visual glow", 0, 1, 0.7));
+    private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
+    private final Setting safeMode = add(Setting.bool("Safe mode", false));
     private final Setting sounds = add(Setting.bool("Sounds", true));
     private final Setting updates = add(Setting.bool("Check for updates", true));
     private final Setting applyPack = add(Setting.button("Apply theme pack"));
@@ -198,6 +200,10 @@ public final class Interface extends Module {
     public static boolean animations() { return instance.animations.on(); }
     public static boolean shaderEffects() { return instance.effects.on(); }
     /** World visuals (lines, boxes, rings, ribbons) drawn by the mod's own shader instead of the game's basic shapes. */
+    /** When on, the modules marked as risky (an advantage on strict servers) are switched off and cannot be switched on. */
+    public static boolean safeMode() { return instance != null && instance.safeMode.on(); }
+    /** How bright the shader visuals are (1 is the normal look): particles, glow lines, rings, the aurora. */
+    public static float brightness() { return instance == null ? 1f : instance.brightness.f(); }
     public static boolean shaderVisuals() { return instance == null || instance.shaderVis.on(); }
     public static float visualGlow() { return instance == null ? 0.7f : instance.visGlow.f(); }
     /** When on, world effects that the camera can see are not hidden by player and mob models. */

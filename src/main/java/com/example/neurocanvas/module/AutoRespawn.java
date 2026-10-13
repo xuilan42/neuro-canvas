@@ -10,6 +10,7 @@ public final class AutoRespawn extends Module {
 
     public AutoRespawn() {
         super("AutoRespawn", Category.WORLD, "Respawn automatically after dying", false);
+        risky = true;
         aiControllable = false;
     }
 

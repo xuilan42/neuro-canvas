@@ -35,6 +35,7 @@ public final class AiPanel {
     private final TextBox url = new TextBox("https://api.openai.com/v1", 200, false);
     private final TextBox key = new TextBox("API key", 300, true);
     private final TextBox model = new TextBox("gpt-4o-mini", 100, false);
+    private final TextBox voice = new TextBox("whisper-1", 100, false);
     private final List<Btn> buttons = new ArrayList<>();
     private final List<Row> rows = new ArrayList<>();
     private final List<TextBox> boxes = new ArrayList<>();
@@ -65,6 +66,7 @@ public final class AiPanel {
         url.focused = false;
         key.focused = false;
         model.focused = false;
+        voice.focused = false;
     }
 
     private void show(View next) {
@@ -165,6 +167,7 @@ public final class AiPanel {
         url.set(c.baseUrl);
         key.set(c.apiKey);
         model.set(c.model);
+        voice.set(c.voiceModel);
         show(View.CONNECTION);
     }
 
@@ -173,6 +176,7 @@ public final class AiPanel {
         c.baseUrl = url.text().trim();
         c.apiKey = key.text().trim();
         c.model = model.text().trim();
+        c.voiceModel = voice.text().trim().isEmpty() ? "whisper-1" : voice.text().trim();
         try {
             c.save();
             note = c.ready() ? "Saved." : "Saved, but the key is still missing.";
@@ -262,11 +266,31 @@ public final class AiPanel {
         int inputY = y + h - 34;
         boxes.add(input);
         boolean busy = a.working();
-        input.draw(ctx, tr, th, x + 12, inputY, w - 24 - 70, 24);
+        int inputW = w - 24 - 70 - 84;
+        input.draw(ctx, tr, th, x + 12, inputY, inputW, 24);
+        boolean rec = a.recording();
+        button("Img", x + 12 + inputW + 4, inputY, 38, 24, a::attachFromClipboardOrScreenshot, a.attached(), !rec);
+        String micLabel = a.transcribing() ? "..." : rec ? ("\u25CF" + a.recordingSeconds() + "s") : "Mic";
+        button(micLabel, x + 12 + inputW + 46, inputY, 38, 24, () -> a.toggleVoice(text -> {
+            input.set(input.text().isEmpty() ? text : input.text() + " " + text);
+            unfocusAll();
+            input.focused = true;
+        }), rec, !a.transcribing());
         button(busy ? "..." : "Send", x + w - 12 - 62, inputY, 62, 24, this::send, true, !busy && !input.text().isBlank());
+        int chipH = 0;
+        if (a.attached()) {
+            chipH = 18;
+            String chip = "Picture: " + trim(tr, a.attachedName(), w - 90);
+            Ui.roundRect(ctx, x + 12, inputY - 20, Ui.width(tr, chip) + 30, 16, 6, th.panel2());
+            Ui.text(ctx, tr, chip, x + 20, inputY - 16, th.text());
+            int cx = x + 12 + Ui.width(tr, chip) + 14;
+            boolean xh = mx >= cx && mx < cx + 14 && my >= inputY - 20 && my < inputY - 4;
+            Ui.text(ctx, tr, "x", cx + 3, inputY - 16, xh ? 0xFFFF6B6B : th.dim());
+            rows.add(new Row(cx, inputY - 20, 14, 16, a::clearAttachment, null, false));
+        }
 
         viewTop = y + 60;
-        viewBottom = inputY - 8;
+        viewBottom = inputY - 8 - chipH;
         int innerW = w - 24;
         List<Item> items = layout(a, tr, innerW);
         int contentH = items.isEmpty() ? 0 : items.get(items.size() - 1).y() + items.get(items.size() - 1).h() + 8;
@@ -429,9 +453,13 @@ public final class AiPanel {
         boxes.add(key);
         key.draw(ctx, tr, th, bx, cy + 12, bw, 22);
         cy += 44;
-        Ui.text(ctx, tr, "Model name", bx, cy, th.text());
+        Ui.text(ctx, tr, "Model name (to attach pictures it must understand images)", bx, cy, th.text());
         boxes.add(model);
         model.draw(ctx, tr, th, bx, cy + 12, bw, 22);
+        cy += 44;
+        Ui.text(ctx, tr, "Speech to text model (the Mic button; needs /audio/transcriptions on the same server)", bx, cy, th.text());
+        boxes.add(voice);
+        voice.draw(ctx, tr, th, bx, cy + 12, bw, 22);
         cy += 44;
         button("Save", bx, cy, 80, 22, this::saveConnection, true, true);
         button("Back", bx + 88, cy, 80, 22, () -> show(View.CHAT), false, true);

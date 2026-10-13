@@ -21,6 +21,10 @@ public final class AiConfig {
     public String baseUrl = "https://api.openai.com/v1";
     public String apiKey = "";
     public String model = "gpt-4o-mini";
+    /** Speech to text (an OpenAI-compatible /audio/transcriptions endpoint): the model, an optional full address and an optional language code. */
+    public String voiceModel = "whisper-1";
+    public String voiceUrl = "";
+    public String voiceLanguage = "";
     /** In the chat, apply what the AI suggests right away (an Undo button is always shown). */
     public boolean autoApply = true;
 
@@ -42,6 +46,9 @@ public final class AiConfig {
         if (config.baseUrl == null) config.baseUrl = "";
         if (config.apiKey == null) config.apiKey = "";
         if (config.model == null) config.model = "";
+        if (config.voiceModel == null) config.voiceModel = "whisper-1";
+        if (config.voiceUrl == null) config.voiceUrl = "";
+        if (config.voiceLanguage == null) config.voiceLanguage = "";
         return config;
     }
 

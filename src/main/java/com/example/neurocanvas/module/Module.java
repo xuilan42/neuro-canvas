@@ -20,6 +20,8 @@ public abstract class Module {
     public boolean customKey;
     /** True for modules that are just settings (no on/off switch, no key): they are always on. */
     public boolean alwaysOn;
+    /** True for modules that can count as an advantage on strict servers (see-through boxes, free camera, zoom...): Safe mode switches them off. */
+    public boolean risky;
     public boolean keyDown;
     public final List<Setting> settings = new ArrayList<>();
 

@@ -20,6 +20,8 @@ Java 17 or newer is required.
 - Every module can have a **key bind** (toggle or hold mode). Search with **Ctrl+F**.
 - Colour settings open a full **colour picker** with alpha.
 - **Configs** tab: save, load and delete presets, copy a **share code** to the clipboard, import a code, and edit the **HUD layout** by dragging elements. Elements snap to the left, centre or right (and top, middle, bottom) of the screen and keep that anchor when the window changes size. The module list can be sorted in Misc > Interface (longest, shortest, A to Z, Z to A, by category, ...).
+- **Safe mode** (Interface): one switch that turns off, and keeps off, the modules that can count as an advantage on strict servers (ESP, FreeCam, Zoom, Fullbright, Predictions, Arrow, CustomHitbox, ToggleSprint, AutoRespawn); they show "safe mode" instead of a switch.
+- **Brightness** (Interface, and in Particles, TargetESP and NorthernLights): how bright the shader visuals are (particles, glow lines, rings, the aurora). 1 is the normal look; above 1 they glow stronger, which suits additive *Glow blending*.
 - **Interface** (Misc tab): themes, 3 bundled fonts (Cyrillic supported) and animations: cards slide in when you change tab, the tab underline glides, hover and switches fade, the settings panel fades in. *Animations* turns them all off.
 - The menu remembers the tab and module you were on. **Interface** can also derive the whole look from one accent colour, apply that accent to every module colour (a preset "Before accent" is saved first), and set the open animation, background and click sounds.
 - - **Cloud configs:** *Upload: get short code* in the Configs tab (or `/cloudcfg put`) stores your settings on the project's server and copies a short code like `NRNA7VF3`; send it to a friend, who copies it and presses *Download: code from clipboard* (or runs `/cloudcfg get NRNA7VF3`). The code is the only key: anyone who has it can load that config, so it is not a place for secrets (AI keys are never part of a config). Limits: 12 uploads per hour per user, configs are kept for 90 days after they were last used.
@@ -105,7 +107,7 @@ check the license of what you download. It is only visible on your own screen.
 ## Friends (the online tab)
 
 Everything that connects you with other Neuro Canvas users lives in the **Friends** tab: **NameTags** (the plate over other users), **PingWheel** and the **Friends** list.
-In the Friends module you set *Share with* (everyone, friends only or nobody), *Accept pings from* (everyone or friends only), and whether to show *when I am in the menu*
+In the Friends module you set *Room* (a name two friends type to meet whatever server address they use; it replaces the `/neurotag room` command), *Share with* (everyone, friends only or nobody), *Accept pings from* (everyone or friends only), and whether to show *when I am in the menu*
 and *who is in the menu*. Below the switches there are two lists: **Online on this server** (tap the star to make someone a friend) and **My friends** (the green dot means online,
 **x** removes); you can also type a name and press **Add**. The list is saved in `neurocanvas/online-friends.json`.
 
@@ -147,6 +149,7 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
 - **See who wears what:** with the **Showcase** module (Friends tab) your worn cape, wings, hat and outfit are announced to the other users on your server (only items that are shared or come from the Market; `Share everything I wear` uploads the rest),
   and theirs are downloaded, checked and drawn on them. In the Friends tab a user's row shows "wears ..." with a **Get** button that downloads and puts on everything they wear. *Friends only* in the Friends module limits who sees your items.
   The emotes you play (your body is replaced by the emote's model for everyone who has it) and the graffiti you spray are shown to them too, when the emote or graffiti is shared or from the Market.
+- **Reports:** every card of the Community has a small flag: pressed twice it reports the item (offensive, broken or copied). When three different people have reported an item it is hidden from the list; the admin still sees it, with the number of reports, and can delete it.
 - **Admin key:** the owner of the server sets a secret key on it; with that key (copy it, then run `/neuroadmin paste`; `/neuroadmin off` forgets it) every Market card shows a red **x** that, pressed twice, deletes the item from the server (Official or Community). The key stays on your computer in `neurocanvas/admin.key`, and the server limits wrong guesses.
 - The example avatars and the Steve mannequin use a bundled Steve skin (`neurocanvas:steve`; `minecraft:steve` is the game's own Steve and `minecraft:player` your skin, usable as a model's texture source too). In the Market, emotes play their animation on the card right away. (no picture of it is stored in the models), so they look like the original Steve.
 
@@ -196,8 +199,10 @@ The AI answers in a sentence or two and changes the settings of the normal modul
 It remembers the last 12 messages, every change is saved as a preset, and **Undo** reverts the newest one.
 With **Auto-apply** off it shows the changes first and waits for **Apply**.
 
+**Pictures and voice.** The **Img** button attaches a picture to your next message: a file path on the clipboard, or else your newest screenshot (F2); you can also drop a picture on the window. The picture is shrunk to 1024 px and sent with the message, so the model must be able to see images (a vision model such as gpt-4o); the AI then uses its colours and mood, for example *"make the menu match this picture"*. The **Mic** button records your voice (press to start, press again to stop, up to a minute) and puts the recognised text into the input box; it needs a server with an OpenAI-compatible `/audio/transcriptions` (OpenAI, Groq and local Whisper servers have one); the model name is in *Connection*, optional `voiceUrl` and `voiceLanguage` are in `neurocanvas/ai.json`.
+
 **Privacy.** Only what you type in the chat, the recent conversation, and a list of module settings with their current
-values are sent, and only to the address you configured. No world data, coordinates or account details are sent.
+values are sent (plus a picture or a recording when you attach or record one), and only to the address you configured. No world data, coordinates or account details are sent.
 The key is stored in plain text in `neurocanvas/ai.json` (owner-only permissions on Linux and macOS) and is never part of presets or share codes.
 
 ## Files

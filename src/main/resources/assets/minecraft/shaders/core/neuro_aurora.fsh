@@ -4,6 +4,7 @@
 // Rays are noise stretched upwards; the bottom edge is sharp and bright, the top fades out slowly.
 uniform float Time;
 uniform float Seed;
+uniform float Brightness;
 uniform vec3 Color2;
 uniform vec4 Params;   // x: ray sharpness, y: how fast it fades upwards, z: shimmer, w: unused
 
@@ -52,5 +53,5 @@ void main() {
     if (a < 0.002) {
         discard;
     }
-    fragColor = vec4(min(col, vec3(1.4)), clamp(a, 0.0, 1.0));
+    fragColor = vec4(min(col * Brightness, vec3(1.4)), clamp(a * (0.5 + 0.5 * Brightness), 0.0, 1.0));
 }

@@ -23,6 +23,7 @@ public final class FreeCam extends Module {
 
     public FreeCam() {
         super("FreeCam", Category.WORLD, "Fly the camera around while your character stays in place (WASD, Space up, Shift down)", false);
+        risky = true;
         aiControllable = false;
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             enabled = false;

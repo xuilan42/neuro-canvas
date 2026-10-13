@@ -6,6 +6,7 @@ public final class Fullbright extends Module {
 
     public Fullbright() {
         super("Fullbright", Category.WORLD, "See clearly in the dark", false);
+        risky = true;
     }
 
     public double gamma() {

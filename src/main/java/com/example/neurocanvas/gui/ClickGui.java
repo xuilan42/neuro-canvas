@@ -357,7 +357,9 @@ public final class ClickGui extends Screen {
             float a = switchAnim.getOrDefault(m, target);
             a = anim ? a + Math.signum(target - a) * Math.min(Math.abs(target - a), dt * 8f) : target;
             switchAnim.put(m, a);
-            if (!m.alwaysOn) {
+            if (m.risky && Interface.safeMode()) {
+                Ui.text(ctx, textRenderer, "safe mode", listX() + LIST_W - 8 - Ui.width(textRenderer, "safe mode"), y + (CARD_H - 8) / 2, th.dim());
+            } else if (!m.alwaysOn) {
                 drawSwitch(ctx, th, listX() + LIST_W - 38, y + (CARD_H - 14) / 2, a);
             }
             ctx.getMatrices().pop();
@@ -449,7 +451,9 @@ public final class ClickGui extends Screen {
 
     private record FRow(int kind, int y, int h, String text, Setting setting, boolean flag, boolean extra) { }
 
-    private static final int F_SETTING = 0, F_HEADER = 1, F_USER = 2, F_FRIEND = 3, F_INPUT = 4, F_NOTE = 5;
+    private static final int F_SETTING = 0, F_HEADER = 1, F_USER = 2, F_FRIEND = 3, F_INPUT = 4, F_NOTE = 5, F_ROOM = 6;
+    private String roomInput = "";
+    private boolean roomFocus;
     private String friendInput = "";
     private boolean friendFocus;
     private int friendsContent;
@@ -468,6 +472,12 @@ public final class ClickGui extends Screen {
             rows.add(new FRow(F_SETTING, y, ROW_H, s.name, s, false, false));
             y += ROW_H;
         }
+        y += 6;
+        String room = tags.room();
+        rows.add(new FRow(F_HEADER, y, 20, room.isEmpty() ? "Meet in a room (for friends on other addresses)" : "Room: " + room, null, false, false));
+        y += 20;
+        rows.add(new FRow(F_ROOM, y, 28, "", null, false, false));
+        y += 28;
         String me = client.player == null ? "" : client.player.getName().getString();
         List<String> online = new ArrayList<>();
         for (String n : tags.onlineNames()) {
@@ -566,6 +576,21 @@ public final class ClickGui extends Screen {
                         Ui.textCentered(ctx, textRenderer, "x", bx + 13, r.y() + 7, xHover ? 0xFFFF6B6B : th.dim());
                     }
                 }
+                case F_ROOM -> {
+                    int btnW = 60;
+                    int boxW = pw - btnW - 8;
+                    com.example.neurocanvas.module.NameTags roomTags = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class);
+                    if (roomFocus) {
+                        Ui.roundRect(ctx, px - 1, r.y() - 1, boxW + 2, 26, 7, th.accent());
+                    }
+                    Ui.roundRect(ctx, px, r.y(), boxW, 24, 6, th.panel2());
+                    String shownRoom = roomInput.isEmpty() ? "Room name (3-40 letters, digits, _ or -; the same for both)" : roomInput + (roomFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
+                    Ui.text(ctx, textRenderer, textRenderer.trimToWidth(shownRoom, boxW - 14), px + 8, r.y() + 8, roomInput.isEmpty() ? th.dim() : th.text());
+                    boolean leave = roomInput.isEmpty() && !roomTags.room().isEmpty();
+                    boolean rh = inside(mx, my, px + boxW + 8, r.y(), btnW, 24);
+                    Ui.roundRect(ctx, px + boxW + 8, r.y(), btnW, 24, 6, rh ? th.accent2() : th.accent());
+                    Ui.textCentered(ctx, textRenderer, leave ? "Leave" : "Join", px + boxW + 8 + btnW / 2, r.y() + 8, th.bg() | 0xFF000000);
+                }
                 case F_INPUT -> {
                     int addW = 60;
                     int boxW = pw - addW - 8;
@@ -626,6 +651,23 @@ public final class ClickGui extends Screen {
                     if (mx >= px + pw - 30) {
                         f.remove(r.text());
                         Interface.click(0.8f);
+                    }
+                    return true;
+                }
+                case F_ROOM -> {
+                    int btnW = 60;
+                    int boxW = pw - btnW - 8;
+                    if (mx >= px + boxW + 8 && mx < px + boxW + 8 + btnW) {
+                        com.example.neurocanvas.module.NameTags roomTags = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class);
+                        if (roomInput.isEmpty()) {
+                            roomTags.setRoom("");
+                        } else if (roomTags.setRoom(roomInput)) {
+                            roomInput = "";
+                        }
+                        Interface.click(1.3f);
+                    } else {
+                        roomFocus = true;
+                        friendFocus = false;
                     }
                     return true;
                 }
@@ -749,6 +791,15 @@ public final class ClickGui extends Screen {
             String kind = kindLabel(e.type());
             Ui.roundRect(ctx, pvx + 4, pvy + 4, Ui.width(textRenderer, kind) + 8, 12, 5, Ui.alpha(th.bg() & 0xFFFFFF, 0.8f));
             Ui.text(ctx, textRenderer, kind, pvx + 8, pvy + 6, th.accent());
+            if (e.code() != null) {
+                boolean ask = m.reportPending(e);
+                int fx = pvx + pvw - (com.example.neurocanvas.client.AdminStore.has() ? 38 : 20);
+                Ui.roundRect(ctx, fx, pvy + 4, 16, 14, 5, ask ? 0xFFE59A35 : 0xB0404050);
+                Ui.textCentered(ctx, textRenderer, "\u2691", fx + 8, pvy + 7, 0xFFFFFFFF);
+            }
+            if (com.example.neurocanvas.client.AdminStore.has() && e.reports() > 0) {
+                Ui.text(ctx, textRenderer, e.reports() + " report" + (e.reports() == 1 ? "" : "s"), pvx + 8, pvy + pvh - 12, 0xFFFF6B6B);
+            }
             if (com.example.neurocanvas.client.AdminStore.has()) {
                 boolean ask = m.deletePending(e);
                 Ui.roundRect(ctx, pvx + pvw - 20, pvy + 4, 16, 14, 5, ask ? 0xFFE53935 : 0xB0602020);
@@ -845,6 +896,11 @@ public final class ClickGui extends Screen {
                 if (com.example.neurocanvas.client.AdminStore.has() && inside(mx, my, cx + 4 + cw - 8 - 20, r.y() + 4 + 4, 16, 14)) {
                     m.requestDelete(r.entry());
                     Interface.click(0.8f);
+                    return true;
+                }
+                if (r.entry().code() != null && inside(mx, my, cx + 4 + cw - 8 - (com.example.neurocanvas.client.AdminStore.has() ? 38 : 20), r.y() + 8, 16, 14)) {
+                    m.requestReport(r.entry());
+                    Interface.click(0.9f);
                     return true;
                 }
                 if (inside(mx, my, cx + cw - marketButtonW() - 8, by + 2, marketButtonW(), 24)) {
@@ -1187,6 +1243,7 @@ public final class ClickGui extends Screen {
         }
         nameFocus = false;
         friendFocus = false;
+        roomFocus = false;
         bindingFor = null;
         List<Category> cats = categories();
         for (int i = 0; i < cats.size(); i++) {
@@ -1221,7 +1278,9 @@ public final class ClickGui extends Screen {
                 if (inside(mx, my, listX(), cardY(i), LIST_W, CARD_H)) {
                     Module m = list.get(i);
                     boolean onSwitch = mx >= listX() + LIST_W - 44;
-                    if (!m.alwaysOn && (onSwitch || button == 1)) {
+                    if (m.risky && Interface.safeMode() && (onSwitch || button == 1)) {
+                        Interface.click(0.6f);
+                    } else if (!m.alwaysOn && (onSwitch || button == 1)) {
                         m.enabled = !m.enabled;
                         Interface.click(m.enabled ? 1.3f : 0.8f);
                     }
@@ -1277,6 +1336,16 @@ public final class ClickGui extends Screen {
     }
 
     @Override
+    public void filesDragged(java.util.List<java.nio.file.Path> paths) {
+        // A picture dropped on the NeuroAura tab is attached to the next message.
+        if (aiView() && !paths.isEmpty()) {
+            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NeuroAura.class).attach(paths.get(0));
+            return;
+        }
+        super.filesDragged(paths);
+    }
+
+    @Override
     public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
         if (pickDrag != 0) {
             applyPicker(mx, my);
@@ -1324,6 +1393,12 @@ public final class ClickGui extends Screen {
         if (aiView() && AI.charTyped(chr)) {
             return true;
         }
+        if (roomFocus) {
+            if (roomInput.length() < 40 && (Character.isLetterOrDigit(chr) && chr < 128 || chr == '_' || chr == '-')) {
+                roomInput += Character.toLowerCase(chr);
+            }
+            return true;
+        }
         if (friendFocus) {
             if (friendInput.length() < 16 && (Character.isLetterOrDigit(chr) && chr < 128 || chr == '_')) {
                 friendInput += chr;
@@ -1352,6 +1427,18 @@ public final class ClickGui extends Screen {
             } else {
                 bindingFor.key = keyCode == 259 || keyCode == 261 ? -1 : keyCode;
                 bindingFor = null;
+            }
+            return true;
+        }
+        if (roomFocus) {
+            if (keyCode == 259 && !roomInput.isEmpty()) {
+                roomInput = roomInput.substring(0, roomInput.length() - 1);
+            } else if (keyCode == 256) {
+                roomFocus = false;
+            } else if (keyCode == 257 || keyCode == 335) {
+                NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class).setRoom(roomInput);
+                roomInput = "";
+                roomFocus = false;
             }
             return true;
         }

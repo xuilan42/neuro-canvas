@@ -111,6 +111,25 @@ public final class CommunityClient {
         });
     }
 
+    /** Reports a shared item; after enough reports from different people it is hidden from the list. */
+    public static CompletableFuture<Void> report(String code) {
+        return CompletableFuture.runAsync(() -> {
+            try {
+                HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/v1/community/" + code + "/report")).timeout(Duration.ofSeconds(15))
+                        .POST(HttpRequest.BodyPublishers.noBody()).build();
+                HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                if (r.statusCode() != 200) {
+                    throw new IOException(message(r));
+                }
+            } catch (IOException | RuntimeException ex) {
+                throw new CompletionException(ex);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(ex);
+            }
+        });
+    }
+
     /** Removes an item of the Market or the Community with the admin key. */
     public static CompletableFuture<Void> adminDelete(MarketClient.Entry e, String key) {
         return CompletableFuture.runAsync(() -> {

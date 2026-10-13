@@ -211,6 +211,13 @@ public class NeuroCanvasClient implements ClientModInitializer {
                 mc.setScreen(new com.example.neurocanvas.gui.PingWheelScreen(pings, PingWheel.capture(mc), pings.key));
             }
             pingKeyDown = pingDown;
+            if (Interface.safeMode()) {
+                for (Module m : modules.all()) {
+                    if (m.risky && m.enabled) {
+                        m.enabled = false;
+                    }
+                }
+            }
             if (mc.player != null) {
                 for (Module m : modules.all()) {
                     m.tickAlways(mc);
@@ -445,6 +452,10 @@ public class NeuroCanvasClient implements ClientModInitializer {
                 continue;
             }
             boolean down = InputUtil.isKeyPressed(window, m.key);
+            if (m.risky && Interface.safeMode()) {
+                m.keyDown = down;
+                continue;
+            }
             if (m.hold) {
                 m.enabled = down;
             } else if (down && !m.keyDown) {

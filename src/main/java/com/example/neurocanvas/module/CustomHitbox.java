@@ -34,6 +34,7 @@ public final class CustomHitbox extends Module {
 
     public CustomHitbox() {
         super("CustomHitbox", Category.COMBAT, "Entity hitboxes in your own colours", false);
+        risky = true;
         playerColor.setArgb(0xFFFFFFFF);
         hostileColor.setArgb(0xFFFF4D4D);
         otherColor.setArgb(0xFF4DFF88);

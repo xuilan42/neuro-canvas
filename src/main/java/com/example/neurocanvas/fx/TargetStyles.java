@@ -72,6 +72,7 @@ public final class TargetStyles {
             RenderSystem.enableBlend();
             RenderSystem.disableCull();
             RenderSystem.setShader(() -> program);
+            Shaders.applyBrightness(program);
             GlUniform u = program.getUniform("Shape");
             if (u != null) {
                 u.set((float) shape);

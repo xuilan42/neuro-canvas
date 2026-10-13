@@ -20,6 +20,7 @@ public final class Arrow extends Module {
 
     public Arrow() {
         super("Arrow", Category.COMBAT, "Arrow pointing at your target or the nearest player", false);
+        risky = true;
     }
 
     private Entity pick(MinecraftClient mc) {

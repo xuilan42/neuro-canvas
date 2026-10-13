@@ -68,6 +68,7 @@ public final class Particles extends Module {
     private final Setting twinkle = add(Setting.number("Twinkle", 0, 1, 0.4));
     private final Setting spin = add(Setting.bool("Spin", true));
     private final Setting glow = add(Setting.bool("Glow blending", true));
+    private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
     private final Setting sprite = add(Setting.choice("Custom sprite", 0, "None"));
     private final Setting spriteEditor = add(Setting.button("Sprite editor"));
 
@@ -519,6 +520,9 @@ public final class Particles extends Module {
         RenderSystem.depthMask(false);
         RenderSystem.disableCull();
         RenderSystem.setShader(() -> shader);
+        com.example.neurocanvas.fx.Shaders.setScale(brightness.f());
+        com.example.neurocanvas.fx.Shaders.applyBrightness(shader);
+        com.example.neurocanvas.fx.Shaders.setScale(1f);
         GlUniform shapeUniform = shader.getUniform("Shape");
         Tessellator tess = Tessellator.getInstance();
         BufferBuilder b = tess.getBuffer();

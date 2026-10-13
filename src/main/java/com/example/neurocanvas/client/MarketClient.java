@@ -30,7 +30,11 @@ import java.util.regex.Pattern;
  */
 public final class MarketClient {
     /** {@code code} is set for items shared by users and null for the official ones. */
-    public record Entry(String type, String name, String author, long size, String code) { }
+    public record Entry(String type, String name, String author, long size, String code, int reports) {
+        public Entry(String type, String name, String author, long size, String code) {
+            this(type, name, author, size, code, 0);
+        }
+    }
 
     private static final HttpClient HTTP = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(8)).build();
@@ -61,7 +65,11 @@ public final class MarketClient {
     }
 
     private static JsonObject get(String path) throws IOException, InterruptedException {
-        HttpRequest req = HttpRequest.newBuilder(URI.create(base() + path)).timeout(Duration.ofSeconds(20)).GET().build();
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base() + path)).timeout(Duration.ofSeconds(20)).GET();
+        if (path.equals("/v1/community") && AdminStore.has()) {
+            b.header("x-admin-key", AdminStore.key());
+        }
+        HttpRequest req = b.build();
         HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
         if (r.statusCode() != 200) {
             throw new IOException(r.statusCode() == 404 ? "not found on the server" : "server answered " + r.statusCode());
@@ -80,7 +88,7 @@ public final class MarketClient {
                     String name = o.get("name").getAsString();
                     if (knownType(type) && NAME.matcher(name).matches()) {
                         out.add(new Entry(type, name, o.has("author") ? o.get("author").getAsString() : "", o.has("size") ? o.get("size").getAsLong() : 0,
-                                community && o.has("code") ? o.get("code").getAsString() : null));
+                                community && o.has("code") ? o.get("code").getAsString() : null, o.has("reports") ? o.get("reports").getAsInt() : 0));
                     }
                 }
                 return out;

@@ -55,6 +55,7 @@ public final class Esp extends Module {
 
     public Esp() {
         super("ESP", Category.COMBAT, "Boxes, 2D frames or outlines around players, mobs and items", false);
+        risky = true;
         aiControllable = false;
         playerColor.setArgb(0xFFFFFFFF);
         hostileColor.setArgb(0xFFFF4D4D);
