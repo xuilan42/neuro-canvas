@@ -98,17 +98,18 @@ public final class CosmeticBuilder {
         return new double[][] {inner, edge, outer, edge, edge, edge};
     }
 
-    private static String model(BufferedImage img, JsonArray elements, JsonArray outliner, JsonArray animations) throws IOException {
+    private static String model(BufferedImage img, int baseW, int baseH, JsonArray elements, JsonArray outliner, JsonArray animations) throws IOException {
         JsonObject root = new JsonObject();
         JsonObject res = new JsonObject();
-        res.addProperty("width", img.getWidth());
-        res.addProperty("height", img.getHeight());
+        res.addProperty("width", baseW);
+        res.addProperty("height", baseH);
         root.add("resolution", res);
         JsonObject tex = new JsonObject();
         tex.addProperty("name", "texture.png");
         tex.addProperty("source", "data:image/png;base64," + pngBase64(img));
-        tex.addProperty("uv_width", img.getWidth());
-        tex.addProperty("uv_height", img.getHeight());
+        // The texture may have more pixels than the layout has units; UVs are in units, so any resolution works.
+        tex.addProperty("uv_width", baseW);
+        tex.addProperty("uv_height", baseH);
         JsonArray textures = new JsonArray();
         textures.add(tex);
         root.add("textures", textures);
@@ -121,8 +122,11 @@ public final class CosmeticBuilder {
     /** The files of the cosmetic, by file name. */
     public static Map<String, byte[]> build(CosmeticPack.Type type, BufferedImage img) throws IOException {
         Map<String, byte[]> files = new LinkedHashMap<>();
-        double w = img.getWidth();
-        double h = img.getHeight();
+        Template base = template(type, 32);
+        int bw = base.width();
+        int bh = base.height();
+        double w = bw;
+        double h = bh;
         double[] edge = {0, 0, 1, 1};
         switch (type) {
             case GRAFFITI -> {
@@ -132,7 +136,7 @@ public final class CosmeticBuilder {
                 files.put("cosmetic.json", "{ \"size\": 1.5 }\n".getBytes(StandardCharsets.UTF_8));
                 return files;
             }
-            case CAPE -> files.put("model.bbmodel", model(img,
+            case CAPE -> files.put("model.bbmodel", model(img, bw, bh,
                     ExamplePack.list(cube("cape", new double[] {-4, 8, 2}, new double[] {4, 24, 3}, false,
                             sheet(new double[] {0, 0, w, h}, new double[] {0, 0, w, h}, edge))),
                     ExamplePack.list(ExamplePack.bone("b", new double[] {0, 24, 2}, "cape")), new JsonArray()).getBytes(StandardCharsets.UTF_8));
@@ -142,7 +146,7 @@ public final class CosmeticBuilder {
                 flap.getAsJsonObject("animators").add("wl", flapLeft.getAsJsonObject("animators").get("wl"));
                 JsonArray anims = new JsonArray();
                 anims.add(flap);
-                files.put("model.bbmodel", model(img, ExamplePack.list(
+                files.put("model.bbmodel", model(img, bw, bh, ExamplePack.list(
                         cube("wing-r", new double[] {-16, 12, 2}, new double[] {-2, 28, 3}, false,
                                 sheet(new double[] {0, 0, w / 2, h}, new double[] {w / 2, 0, 0, h}, edge)),
                         cube("wing-l", new double[] {2, 12, 2}, new double[] {16, 28, 3}, false,
@@ -152,12 +156,12 @@ public final class CosmeticBuilder {
             }
             case HAT -> {
                 double[] brim = {1, 1, 2, 2};
-                files.put("model.bbmodel", model(img, ExamplePack.list(
+                files.put("model.bbmodel", model(img, bw, bh, ExamplePack.list(
                         cube("crown", new double[] {-4, 33, -4}, new double[] {4, 41, 4}, true, null),
                         cube("brim", new double[] {-6, 32, -6}, new double[] {6, 33, 6}, false, new double[][] {brim, brim, brim, brim, brim, brim})),
                         ExamplePack.list(ExamplePack.bone("b", new double[] {0, 32, 0}, "crown", "brim")), new JsonArray()).getBytes(StandardCharsets.UTF_8));
             }
-            case OUTFIT -> files.put("model.bbmodel", model(img,
+            case OUTFIT -> files.put("model.bbmodel", model(img, bw, bh,
                     ExamplePack.list(cube("jacket", new double[] {-4.5, 11.5, -2.5}, new double[] {4.5, 24.5, 2.5}, true, null)),
                     ExamplePack.list(ExamplePack.bone("b", new double[] {0, 12, 0}, "jacket")), new JsonArray()).getBytes(StandardCharsets.UTF_8));
             default -> throw new IOException("this kind has no editor");

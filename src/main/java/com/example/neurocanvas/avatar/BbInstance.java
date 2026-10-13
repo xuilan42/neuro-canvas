@@ -49,10 +49,13 @@ public final class BbInstance {
             if (data.length == 0) {
                 continue;
             }
-            NativeImageBackedTexture tex = new NativeImageBackedTexture(NativeImage.read(new ByteArrayInputStream(data)));
+            NativeImage image = NativeImage.read(new ByteArrayInputStream(data));
+            boolean smooth = image.getWidth() > 64 || image.getHeight() > 64;
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(image);
             Identifier id = new Identifier("neurocanvas", "cosmetic/" + UUID.randomUUID());
             mc.getTextureManager().registerTexture(id, tex);
-            tex.setFilter(false, false);
+            // Pixel art stays crisp; a detailed picture is smoothed.
+            tex.setFilter(smooth, false);
             registered.add(id);
             textures.put(i, id);
         }
