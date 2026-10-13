@@ -110,7 +110,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules = new ModuleManager(dir.resolve("modules.json"));
         modules.register(new TargetEsp());
         modules.register(new JumpCircles());
-        modules.register(new Particles());
+        modules.register(new Particles(dir.resolve("particles")));
         modules.register(new Trails());
         modules.register(new HitParticles());
         modules.register(new HitBubbles());

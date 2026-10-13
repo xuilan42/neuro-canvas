@@ -126,7 +126,7 @@ public abstract class CosmeticModule extends Module {
         }
         if (editor != null && editor.on()) {
             editor.set(0);
-            mc.setScreen(new com.example.neurocanvas.gui.CosmeticEditor(this, mc.currentScreen));
+            mc.setScreen(com.example.neurocanvas.gui.CosmeticEditor.forCosmetic(this, mc.currentScreen));
             return;
         }
         if (reload.on()) {

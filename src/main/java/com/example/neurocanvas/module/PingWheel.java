@@ -68,18 +68,32 @@ public final class PingWheel extends Module {
 
     // ---- picking the spot -------------------------------------------------------------------
 
-    /** The block or entity under the crosshair, up to 256 blocks away; null when there is nothing there. */
+    /**
+     * The block or entity under the crosshair, up to 256 blocks away; null when there is nothing there. While FreeCam flies the
+     * camera around, the spot is taken from the camera's position and view instead of your character's.
+     */
     public static Target capture(MinecraftClient mc) {
         if (mc.player == null || mc.world == null) {
             return null;
         }
         double reach = 256.0;
-        Vec3d from = mc.player.getEyePos();
-        Vec3d look = mc.player.getRotationVec(1f);
+        FreeCam free = NeuroCanvasClient.modules().get(FreeCam.class);
+        Vec3d from;
+        Vec3d look;
+        if (free.active()) {
+            from = new Vec3d(free.x(), free.y(), free.z());
+            double yaw = Math.toRadians(free.yaw());
+            double pitch = Math.toRadians(free.pitch());
+            look = new Vec3d(-Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
+        } else {
+            from = mc.player.getEyePos();
+            look = mc.player.getRotationVec(1f);
+        }
         Vec3d to = from.add(look.multiply(reach));
-        HitResult block = mc.player.raycast(reach, 1f, false);
+        net.minecraft.util.hit.BlockHitResult block = mc.world.raycast(new net.minecraft.world.RaycastContext(from, to,
+                net.minecraft.world.RaycastContext.ShapeType.OUTLINE, net.minecraft.world.RaycastContext.FluidHandling.NONE, mc.player));
         double blockDist = block.getType() == HitResult.Type.MISS ? Double.MAX_VALUE : block.getPos().squaredDistanceTo(from);
-        Box box = mc.player.getBoundingBox().stretch(look.multiply(reach)).expand(1.0);
+        Box box = new Box(from, to).expand(1.0);
         EntityHitResult entity = ProjectileUtil.raycast(mc.player, from, to, box, e -> !e.isSpectator() && e.canHit(), reach * reach);
         if (entity != null && entity.getPos().squaredDistanceTo(from) < blockDist) {
             Entity e = entity.getEntity();

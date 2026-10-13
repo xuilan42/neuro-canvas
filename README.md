@@ -45,6 +45,7 @@ Notes on a few modules:
 - **Shimmer** tints armour pieces and held items: *Mode* Rainbow, Gradient (two colours) or Pulse, *Speed*, *Strength*, *Flow between pieces* (the colour runs from the helmet to the boots), *Who* (only you or everyone), and a switch for every armour piece and for held items. It only changes colours you see; other players do not.
 - **NorthernLights** is drawn by its own shader: several wavy curtains of thin vertical rays that brighten at the bottom edge and fade upwards (green to blue-violet by default), with soft ends, slow drifting and a smooth fade in at dusk with *Only at night*. *Ray sharpness*, *Curtain height*, distance, width and the two colours are adjustable.
 - **CustomSky** also shapes the horizon: *Horizon color* and *Horizon gradient* make the sky, the horizon and the fog fade into each other without a seam, and the orange sunrise/sunset fan is hidden unless *Sunset glow* is on.
+- **Particles** have a **Sprite editor** button: paint your own particle on a small canvas (8, 16 or 32 px), name it, save, and it is chosen in *Custom sprite* (files are `neurocanvas/particles/<name>.png`). The particles then use your picture instead of a shape, tinted by the colour settings (paint it white or grey to let the colours show), with *Glow blending* and everything else working as before.
 - **Particles** are ambient particles around you: they appear at random spots inside *Spawn radius*, drift wherever they like (*Speed*, *Wander*, *Gravity*),
   bounce off blocks (*Bounciness*), and fade out when they get past *Fade-out radius* or too old (*Lifetime*). Shapes are drawn by a shader: glow (firefly), star, sparkle,
   dot, ring, diamond, heart, snowflake, or a mix. Colours: *Gradient* over their life, *Random mix* of the two colours, *Rainbow* or *Single*; plus *Twinkle* and *Glow blending*.
@@ -120,6 +121,7 @@ off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, 
 
 - Other Neuro Canvas users on the same server see your pings and countdowns (and you see theirs): the messages go through the project's registry server, the same connection NameTags uses,
   so **NameTags must be on**. Only the spot you ping and your name are sent, never your position. Switches: *Share with other users*, *Show other users' pings*.
+- In **FreeCam** the wheel aims from the free camera, so you can fly up and mark a spot far away from your character.
 - Each user can have 3 pings at a time; they fade after *Lifetime*. The server limits how fast pings can be sent.
 
 ## Cosmetics: Capes, Wings, Hats, Outfits, Pets, Emotes, Graffiti and the Market
@@ -132,7 +134,7 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
   **wings** sit on your back, a **hat** follows your head, an **outfit** sits on your body, a **pet** follows you on the ground. Animations named `idle` (and `walk`) play by themselves.
 - **Emotes** are full avatars with an animation (`animation` in `cosmetic.json`): pick up to four (*Emote 1* to *Emote 4*) and play them from the PingWheel's **Emotes** wheel; your body is replaced while one plays.
 - **Graffiti:** the PingWheel's **Graffiti** action sprays it, or set the module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Lifetime*).
-- **Market:** a catalog of cosmetics kept on the project's server. Open the module, choose a kind in *Show* if you like, and press **Get & wear** next to an item: it is downloaded into your wardrobe, the matching module is switched on and the item is put on.
+- **Market:** a catalog of cosmetics kept on the project's server, shown as cards: the top of a card shows how the item looks (a model turning around, or the picture of a graffiti), the bottom its name, its author and a **Get** button. Choose a kind in *Show* if you like. **Get** downloads the item into your wardrobe, switches the matching module on and puts the item on.
   Items you already have show **Wear**. Everything that is downloaded is checked first (the kind, the folder and file names, the extensions `.bbmodel`, `.png`, `.json`, and the sizes), so a catalog item cannot write anything else or anywhere else.
 - **Editor:** every cosmetic module except Emotes has an **Editor** button. It opens a pixel canvas whose size and layout depend on the kind: a graffiti picture (16, 32, 48 or 64 px), the back of a cape, one wing (the other is its mirror),
   the unfolded crown of a hat (the pink corner colours the brim), the unfolded jacket of an outfit, or the unfolded cube of a pet; a coloured guide shows which part of the canvas is the front, back, sides, top and bottom.

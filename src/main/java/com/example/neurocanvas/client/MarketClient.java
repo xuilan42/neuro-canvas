@@ -90,34 +90,57 @@ public final class MarketClient {
         });
     }
 
+    /** Downloads the files of an item (no disk is touched) and checks them: names, extensions and sizes. */
+    public static Map<String, byte[]> fetch(Entry entry) throws IOException, InterruptedException {
+        if (!knownType(entry.type()) || !NAME.matcher(entry.name()).matches()) {
+            throw new IOException("bad item name");
+        }
+        JsonObject o = get("/v1/market/" + entry.type() + "/" + URLEncoder.encode(entry.name(), StandardCharsets.UTF_8).replace("+", "%20"));
+        JsonObject files = o.getAsJsonObject("files");
+        if (files == null || files.size() == 0 || files.size() > MAX_FILES) {
+            throw new IOException("the item has no files");
+        }
+        Map<String, byte[]> data = new java.util.LinkedHashMap<>();
+        long total = 0;
+        for (Map.Entry<String, JsonElement> f : files.entrySet()) {
+            String name = f.getKey();
+            String lower = name.toLowerCase();
+            if (!FILE.matcher(name).matches() || !(lower.endsWith(".bbmodel") || lower.endsWith(".png") || lower.endsWith(".json"))) {
+                throw new IOException("unexpected file \"" + name + "\"");
+            }
+            byte[] bytes = Base64.getDecoder().decode(f.getValue().getAsString());
+            total += bytes.length;
+            if (bytes.length > MAX_FILE || total > MAX_TOTAL) {
+                throw new IOException("the item is too large");
+            }
+            data.put(name, bytes);
+        }
+        return data;
+    }
+
+    /** The files of an item, fetched in the background (for previews). */
+    public static CompletableFuture<Map<String, byte[]>> fetchAsync(Entry entry) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                return fetch(entry);
+            } catch (IOException | RuntimeException e) {
+                throw new CompletionException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
+            }
+        });
+    }
+
     /** Downloads one item into wardrobe/&lt;type&gt;/&lt;name&gt;/. Nothing is left behind when anything about it looks wrong. */
     public static CompletableFuture<Void> install(Entry entry, Path wardrobe) {
         return CompletableFuture.runAsync(() -> {
             Path target = wardrobe.resolve(entry.type()).resolve(entry.name()).normalize();
             try {
-                if (!knownType(entry.type()) || !NAME.matcher(entry.name()).matches() || !target.startsWith(wardrobe.normalize())) {
+                if (!target.startsWith(wardrobe.normalize())) {
                     throw new IOException("bad item name");
                 }
-                JsonObject o = get("/v1/market/" + entry.type() + "/" + URLEncoder.encode(entry.name(), StandardCharsets.UTF_8).replace("+", "%20"));
-                JsonObject files = o.getAsJsonObject("files");
-                if (files == null || files.size() == 0 || files.size() > MAX_FILES) {
-                    throw new IOException("the item has no files");
-                }
-                Map<String, byte[]> data = new java.util.LinkedHashMap<>();
-                long total = 0;
-                for (Map.Entry<String, JsonElement> f : files.entrySet()) {
-                    String name = f.getKey();
-                    String lower = name.toLowerCase();
-                    if (!FILE.matcher(name).matches() || !(lower.endsWith(".bbmodel") || lower.endsWith(".png") || lower.endsWith(".json"))) {
-                        throw new IOException("unexpected file \"" + name + "\"");
-                    }
-                    byte[] bytes = Base64.getDecoder().decode(f.getValue().getAsString());
-                    total += bytes.length;
-                    if (bytes.length > MAX_FILE || total > MAX_TOTAL) {
-                        throw new IOException("the item is too large");
-                    }
-                    data.put(name, bytes);
-                }
+                Map<String, byte[]> data = fetch(entry);
                 Files.createDirectories(target);
                 try {
                     for (Map.Entry<String, byte[]> f : data.entrySet()) {

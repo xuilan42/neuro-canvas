@@ -637,9 +637,10 @@ public final class ClickGui extends Screen {
 
     // ---- Market panel -------------------------------------------------------------------------
 
-    private record MRow(int kind, int y, int h, String text, Setting setting, com.example.neurocanvas.client.MarketClient.Entry entry) { }
+    private record MRow(int kind, int y, int h, String text, Setting setting, com.example.neurocanvas.client.MarketClient.Entry entry, int col) { }
 
-    private static final int M_SETTING = 0, M_NOTE = 1, M_ENTRY = 2;
+    private static final int M_SETTING = 0, M_NOTE = 1, M_CARD = 2;
+    private static final int PREVIEW_H = 104;
     private int marketContent;
 
     private boolean marketPanel() {
@@ -653,25 +654,34 @@ public final class ClickGui extends Screen {
         int top = rowsTop() - (int) settingsScroll;
         int y = top;
         for (Setting s : m.settings) {
-            rows.add(new MRow(M_SETTING, y, ROW_H, s.name, s, null));
+            rows.add(new MRow(M_SETTING, y, ROW_H, s.name, s, null, 0));
             y += ROW_H;
         }
         y += 4;
         if (!m.status().isEmpty()) {
-            rows.add(new MRow(M_NOTE, y, 22, m.status(), null, null));
+            rows.add(new MRow(M_NOTE, y, 22, m.status(), null, null, 0));
             y += 22;
         }
         if (m.entries() != null) {
             com.example.neurocanvas.avatar.CosmeticPack.Type only = m.filter();
+            int n = 0;
             for (com.example.neurocanvas.client.MarketClient.Entry e : m.entries()) {
-                if (only == null || only.folder.equals(e.type())) {
-                    rows.add(new MRow(M_ENTRY, y, 26, e.name(), null, e));
-                    y += 28;
+                if (only != null && !only.folder.equals(e.type())) {
+                    continue;
                 }
+                rows.add(new MRow(M_CARD, y + (n / 2) * (MARKET_CARD_H + 8), MARKET_CARD_H, e.name(), null, e, n % 2));
+                n++;
             }
+            y += ((n + 1) / 2) * (MARKET_CARD_H + 8);
         }
         marketContent = y - top;
         return rows;
+    }
+
+    private static final int MARKET_CARD_H = 142;
+
+    private int marketCardW() {
+        return (panelW() - 2 * PAD - 8) / 2;
     }
 
     private static String kindLabel(String folder) {
@@ -683,54 +693,94 @@ public final class ClickGui extends Screen {
         return folder;
     }
 
+    private int marketButtonW() {
+        return 58;
+    }
+
     private void renderMarket(DrawContext ctx, Theme th, int mx, int my) {
         com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
         int px = panelX() + PAD;
         int pw = panelW() - 2 * PAD;
         int viewY = rowsTop();
         int viewH = bodyTop() + bodyH() - viewY - 4;
+        int cw = marketCardW();
         ctx.enableScissor(panelX(), viewY, panelX() + panelW(), viewY + viewH);
         for (MRow r : marketRows()) {
-            switch (r.kind()) {
-                case M_SETTING -> renderSetting(ctx, th, r.setting(), r.y(), mx, my);
-                case M_NOTE -> Ui.text(ctx, textRenderer, textRenderer.trimToWidth(r.text(), pw), px, r.y() + 7, th.dim());
-                default -> {
-                    boolean hover = inside(mx, my, px, r.y(), pw, 26) && my >= viewY && my < viewY + viewH;
-                    Ui.surface(ctx, px, r.y(), pw, 26, 6, hover ? th.hover() : th.panel2());
-                    com.example.neurocanvas.client.MarketClient.Entry e = r.entry();
-                    String kind = kindLabel(e.type());
-                    Ui.textMid(ctx, textRenderer, kind, px + 10, r.y(), 26, th.accent());
-                    int nx = px + 14 + Ui.width(textRenderer, kind) + 6;
-                    Ui.textMid(ctx, textRenderer, textRenderer.trimToWidth(e.name(), pw - 150 - (nx - px)), nx, r.y(), 26, th.text());
-                    boolean busy = m.busy(e);
-                    boolean have = m.installed(e);
-                    String label = busy ? "..." : have ? "Wear" : "Get & wear";
-                    int bw = 78;
-                    int bx = px + pw - bw - 6;
-                    boolean bh = inside(mx, my, bx, r.y() + 3, bw, 20);
-                    Ui.roundRect(ctx, bx, r.y() + 3, bw, 20, 6, busy ? th.hover() : (bh ? th.accent2() : th.accent()));
-                    Ui.textCentered(ctx, textRenderer, label, bx + bw / 2, r.y() + 9, th.bg() | 0xFF000000);
-                    String by = e.author();
-                    Ui.text(ctx, textRenderer, by, bx - 8 - Ui.width(textRenderer, by), r.y() + 9, th.dim());
-                }
+            if (r.kind() == M_SETTING) {
+                renderSetting(ctx, th, r.setting(), r.y(), mx, my);
+                continue;
             }
+            if (r.kind() == M_NOTE) {
+                Ui.text(ctx, textRenderer, textRenderer.trimToWidth(r.text(), pw), px, r.y() + 7, th.dim());
+                continue;
+            }
+            int cx = px + r.col() * (cw + 8);
+            int cy = r.y();
+            if (cy + MARKET_CARD_H < viewY || cy > viewY + viewH) {
+                continue;
+            }
+            com.example.neurocanvas.client.MarketClient.Entry e = r.entry();
+            boolean hover = inside(mx, my, cx, cy, cw, MARKET_CARD_H) && my >= viewY && my < viewY + viewH;
+            Ui.surface(ctx, cx, cy, cw, MARKET_CARD_H, 8, hover ? th.hover() : th.panel2());
+
+            // the top part: how the item looks
+            int pvx = cx + 4, pvy = cy + 4, pvw = cw - 8, pvh = PREVIEW_H - 4;
+            Ui.roundRect(ctx, pvx, pvy, pvw, pvh, 6, Ui.mix(th.bg() | 0xFF000000, th.panel() | 0xFF000000, 0.5f));
+            drawPreview(ctx, th, m.preview(e), pvx, pvy, pvw, pvh);
+            String kind = kindLabel(e.type());
+            Ui.roundRect(ctx, pvx + 4, pvy + 4, Ui.width(textRenderer, kind) + 8, 12, 5, Ui.alpha(th.bg() & 0xFFFFFF, 0.8f));
+            Ui.text(ctx, textRenderer, kind, pvx + 8, pvy + 6, th.accent());
+
+            // the bottom part: name and the button
+            int by = cy + PREVIEW_H + 6;
+            int bw = marketButtonW();
+            Ui.text(ctx, textRenderer, textRenderer.trimToWidth(e.name(), cw - bw - 24), cx + 8, by + 3, th.text());
+            Ui.text(ctx, textRenderer, textRenderer.trimToWidth(e.author(), cw - bw - 24), cx + 8, by + 16, th.dim());
+            boolean busy = m.busy(e);
+            boolean have = m.installed(e);
+            String label = busy ? "..." : have ? "Wear" : "Get";
+            int bx = cx + cw - bw - 8;
+            boolean bh = inside(mx, my, bx, by + 2, bw, 24);
+            Ui.roundRect(ctx, bx, by + 2, bw, 24, 6, busy ? th.hover() : (bh ? th.accent2() : th.accent()));
+            Ui.textCentered(ctx, textRenderer, label, bx + bw / 2, by + 10, th.bg() | 0xFF000000);
         }
         ctx.disableScissor();
+    }
+
+    /** The picture of a card: a model turning around, a graffiti picture, or a note while it loads. */
+    private void drawPreview(DrawContext ctx, Theme th, com.example.neurocanvas.module.Market.Preview p, int x, int y, int w, int h) {
+        if (p.image != null) {
+            int side = Math.min(w, h) - 12;
+            int iw = p.imageW >= p.imageH ? side : side * p.imageW / p.imageH;
+            int ih = p.imageW >= p.imageH ? side * p.imageH / p.imageW : side;
+            ctx.drawTexture(p.image, x + (w - iw) / 2, y + (h - ih) / 2, iw, ih, 0f, 0f, p.imageW, p.imageH, p.imageW, p.imageH);
+            return;
+        }
+        if (p.model != null) {
+            ctx.enableScissor(x, y, x + w, y + h);
+            float s = Math.min(w, h) * 0.42f / p.radius;
+            float angle = (System.currentTimeMillis() % 8000) / 8000f * (float) (Math.PI * 2);
+            org.joml.Matrix4f m = new org.joml.Matrix4f(ctx.getMatrices().peek().getPositionMatrix());
+            m.translate(x + w / 2f, y + h / 2f, 100f).scale(s, -s, s).rotateX(0.35f).rotateY(angle)
+                    .translate(-p.center[0], -p.center[1], -p.center[2]);
+            p.model.resetPose();
+            p.model.draw(m, 1f, 0.7f);
+            ctx.disableScissor();
+            return;
+        }
+        Ui.textCentered(ctx, textRenderer, p.failed ? "no preview" : "...", x + w / 2, y + h / 2 - 4, th.dim());
     }
 
     private boolean marketClicked(double mx, double my, int button) {
         com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
         int px = panelX() + PAD;
-        int pw = panelW() - 2 * PAD;
+        int cw = marketCardW();
         if (my < rowsTop() || my >= bodyTop() + bodyH() - 4) {
             return false;
         }
         for (MRow r : marketRows()) {
-            if (my < r.y() || my >= r.y() + r.h()) {
-                continue;
-            }
             if (r.kind() == M_SETTING) {
-                if (inside(mx, my, ctrlX() - 4, r.y(), CTRL_W + 8, ROW_H)) {
+                if (my >= r.y() && my < r.y() + r.h() && inside(mx, my, ctrlX() - 4, r.y(), CTRL_W + 8, ROW_H)) {
                     Setting s = r.setting();
                     switch (s.kind) {
                         case BUTTON -> s.value = 1;
@@ -738,12 +788,17 @@ public final class ClickGui extends Screen {
                         default -> { }
                     }
                     Interface.click(1.1f);
+                    return true;
                 }
-            } else if (r.kind() == M_ENTRY && mx >= px + pw - 90) {
-                m.get(r.entry());
-                Interface.click(1.3f);
+            } else if (r.kind() == M_CARD) {
+                int cx = px + r.col() * (cw + 8);
+                int by = r.y() + PREVIEW_H + 6;
+                if (inside(mx, my, cx + cw - marketButtonW() - 8, by + 2, marketButtonW(), 24)) {
+                    m.get(r.entry());
+                    Interface.click(1.3f);
+                    return true;
+                }
             }
-            return true;
         }
         return false;
     }
@@ -1295,6 +1350,7 @@ public final class ClickGui extends Screen {
     @Override
     public void removed() {
         NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class).setMenuOpen(false);
+        NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Market.class).closePreviews();
         try {
             NeuroCanvasClient.modules().save();
         } catch (IOException e) {

@@ -22,6 +22,23 @@ import net.minecraft.text.Text;
  * of cosmetic; the name goes in the box in the top corner and the button next to it saves the picture as a new item and puts it on.
  */
 public final class CosmeticEditor extends Screen {
+    /** What the editor paints: the kind of canvas and where the finished picture goes. */
+    public interface Target {
+        String title();
+
+        /** Used in the name box: "Name of the cape". */
+        String noun();
+
+        CosmeticBuilder.Template template(int size);
+
+        /** The canvas sizes to choose from, or null when the size is fixed. */
+        int[] sizes();
+
+        boolean exists(String name);
+
+        void save(String name, BufferedImage image) throws IOException;
+    }
+
     private enum Tool { PENCIL, ERASER, FILL, PICK }
 
     private static final Pattern NAME = Pattern.compile("[\\p{L}\\p{N}][\\p{L}\\p{N} _.-]{0,29}");
@@ -29,8 +46,7 @@ public final class CosmeticEditor extends Screen {
         0xFF2E8B57, 0xFF4DD2FF, 0xFF3D7BDC, 0xFF2B3A6B, 0xFFB06BFF, 0xFFFF7AB6, 0xFF8B5A2B, 0xFFE8B88C};
     private static final int SV_W = 100, SV_H = 72, HUE_H = 10, LEFT_W = 128;
 
-    private final CosmeticModule module;
-    private final CosmeticPack.Type type;
+    private final Target target;
     private final Screen parent;
     private int graffitiSizeIndex = 1;
     private CosmeticBuilder.Template template;
@@ -55,16 +71,59 @@ public final class CosmeticEditor extends Screen {
     private int lastX = -1;
     private int lastY = -1;
 
-    public CosmeticEditor(CosmeticModule module, Screen parent) {
+    public CosmeticEditor(Target target, Screen parent) {
         super(Text.literal("Cosmetic editor"));
-        this.module = module;
-        this.type = module.type();
+        this.target = target;
         this.parent = parent;
         resetCanvas();
     }
 
+    /** The editor for one of the cosmetic modules: the finished picture becomes a new item of that module and is put on. */
+    public static CosmeticEditor forCosmetic(CosmeticModule module, Screen parent) {
+        CosmeticPack.Type type = module.type();
+        return new CosmeticEditor(new Target() {
+            @Override
+            public String title() {
+                return type.label;
+            }
+
+            @Override
+            public String noun() {
+                return type.label.toLowerCase();
+            }
+
+            @Override
+            public CosmeticBuilder.Template template(int size) {
+                return CosmeticBuilder.template(type, size);
+            }
+
+            @Override
+            public int[] sizes() {
+                return type == CosmeticPack.Type.GRAFFITI ? CosmeticBuilder.GRAFFITI_SIZES : null;
+            }
+
+            @Override
+            public boolean exists(String name) {
+                return Files.exists(module.folder().resolve(name));
+            }
+
+            @Override
+            public void save(String name, BufferedImage image) throws IOException {
+                Path folder = module.folder().resolve(name);
+                Map<String, byte[]> files = CosmeticBuilder.build(type, image);
+                Files.createDirectories(folder);
+                for (Map.Entry<String, byte[]> f : files.entrySet()) {
+                    Files.write(folder.resolve(f.getKey()), f.getValue());
+                }
+                module.rescan();
+                module.wear(name);
+            }
+        }, parent);
+    }
+
     private void resetCanvas() {
-        template = CosmeticBuilder.template(type, CosmeticBuilder.GRAFFITI_SIZES[graffitiSizeIndex]);
+        int[] sizes = target.sizes();
+        template = target.template(sizes == null ? 0 : sizes[graffitiSizeIndex % sizes.length]);
         cw = template.width();
         ch = template.height();
         pixels = new int[cw * ch];
@@ -237,8 +296,7 @@ public final class CosmeticEditor extends Screen {
             status = "Type a name first (letters, digits, space, _ - .)";
             return;
         }
-        Path folder = module.folder().resolve(n);
-        if (Files.exists(folder) && !n.equals(savedName)) {
+        if (target.exists(n) && !n.equals(savedName)) {
             status = "\"" + n + "\" already exists: pick another name";
             return;
         }
@@ -257,14 +315,8 @@ public final class CosmeticEditor extends Screen {
                     img.setRGB(x, y, pixels[y * cw + x]);
                 }
             }
-            Map<String, byte[]> files = CosmeticBuilder.build(type, img);
-            Files.createDirectories(folder);
-            for (Map.Entry<String, byte[]> f : files.entrySet()) {
-                Files.write(folder.resolve(f.getKey()), f.getValue());
-            }
+            target.save(n, img);
             savedName = n;
-            module.rescan();
-            module.wear(n);
             status = "Saved \"" + n + "\" and put it on";
         } catch (IOException | RuntimeException e) {
             status = "Could not save: " + e.getMessage();
@@ -283,15 +335,15 @@ public final class CosmeticEditor extends Screen {
     public void render(DrawContext ctx, int mx, int my, float delta) {
         Theme th = Interface.theme();
         ctx.fill(0, 0, width, height, Ui.alpha(th.bg() & 0xFFFFFF, 0.97f));
-        Ui.text(ctx, textRenderer, "Editor: " + type.label, 14, barY() + 6, th.accent());
-        Ui.text(ctx, textRenderer, template.width() + " x " + template.height(), 14 + Ui.width(textRenderer, "Editor: " + type.label) + 10, barY() + 6, th.dim());
+        Ui.text(ctx, textRenderer, "Editor: " + target.title(), 14, barY() + 6, th.accent());
+        Ui.text(ctx, textRenderer, template.width() + " x " + template.height(), 14 + Ui.width(textRenderer, "Editor: " + target.title()) + 10, barY() + 6, th.dim());
 
         // name and save, top right
         if (nameFocus) {
             Ui.roundRect(ctx, nameX() - 1, barY() - 1, nameW() + 2, 22, 6, th.accent());
         }
         Ui.roundRect(ctx, nameX(), barY(), nameW(), 20, 5, th.panel2());
-        String shown = name.isEmpty() ? "Name of the " + type.label.toLowerCase() : name + (nameFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
+        String shown = name.isEmpty() ? "Name of the " + target.noun() : name + (nameFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
         Ui.text(ctx, textRenderer, shown, nameX() + 7, barY() + 6, name.isEmpty() ? th.dim() : th.text());
         boolean saveHover = inside(mx, my, saveX(), barY(), saveW(), 20);
         Ui.roundRect(ctx, saveX(), barY(), saveW(), 20, 5, saveHover ? th.accent2() : th.accent());
@@ -315,7 +367,7 @@ public final class CosmeticEditor extends Screen {
         button(ctx, th, tx, oy + 44, 58, 18, "Guide", guide, inside(mx, my, tx, oy + 44, 58, 18));
         button(ctx, th, tx + 62, oy + 44, 58, 18, "Undo", false, inside(mx, my, tx + 62, oy + 44, 58, 18));
         button(ctx, th, tx, oy + 66, 58, 18, "Clear", false, inside(mx, my, tx, oy + 66, 58, 18));
-        if (type == CosmeticPack.Type.GRAFFITI) {
+        if (target.sizes() != null) {
             button(ctx, th, tx + 62, oy + 66, 58, 18, cw + " px", false, inside(mx, my, tx + 62, oy + 66, 58, 18));
         }
 
@@ -449,8 +501,8 @@ public final class CosmeticEditor extends Screen {
         } else if (inside(mx, my, tx, oy + 66, 58, 18)) {
             snapshot();
             Arrays.fill(pixels, 0);
-        } else if (type == CosmeticPack.Type.GRAFFITI && inside(mx, my, tx + 62, oy + 66, 58, 18)) {
-            graffitiSizeIndex = (graffitiSizeIndex + 1) % CosmeticBuilder.GRAFFITI_SIZES.length;
+        } else if (target.sizes() != null && inside(mx, my, tx + 62, oy + 66, 58, 18)) {
+            graffitiSizeIndex = (graffitiSizeIndex + 1) % target.sizes().length;
             resetCanvas();
         } else {
             int cy = colorY();

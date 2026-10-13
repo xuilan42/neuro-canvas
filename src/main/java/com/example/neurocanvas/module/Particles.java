@@ -2,6 +2,11 @@ package com.example.neurocanvas.module;
 
 import com.example.neurocanvas.fx.EffectDraw;
 import com.mojang.blaze3d.systems.RenderSystem;
+import java.awt.image.BufferedImage;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -16,7 +21,10 @@ import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.Identifier;
 import net.minecraft.text.Text;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -60,6 +68,8 @@ public final class Particles extends Module {
     private final Setting twinkle = add(Setting.number("Twinkle", 0, 1, 0.4));
     private final Setting spin = add(Setting.bool("Spin", true));
     private final Setting glow = add(Setting.bool("Glow blending", true));
+    private final Setting sprite = add(Setting.choice("Custom sprite", 0, "None"));
+    private final Setting spriteEditor = add(Setting.button("Sprite editor"));
 
     private final List<P> list = new ArrayList<>();
     private final Random random = new Random();
@@ -71,8 +81,178 @@ public final class Particles extends Module {
     private double spawnCarry;
     private Vec3d lastCenter;
 
-    public Particles() {
-        super("Particles", Category.VISUALS, "Glowing particles drifting around you: stars, fireflies, sparkles and more", false);
+    private final Path spriteFolder;
+    private Identifier spriteId;
+    private String spriteLoaded = "";
+    private boolean scanned;
+
+    public Particles(Path spriteFolder) {
+        super("Particles", Category.VISUALS, "Glowing particles drifting around you: stars, fireflies, sparkles and more (or your own painted sprite)", false);
+        this.spriteFolder = spriteFolder;
+    }
+
+    // ---- custom sprite ----------------------------------------------------------------------
+
+    /** Looks for painted sprites (neurocanvas/particles/*.png) and refreshes the list. */
+    public void rescan() {
+        String current = sprite.option();
+        List<String> names = new ArrayList<>();
+        names.add("None");
+        if (Files.isDirectory(spriteFolder)) {
+            try (java.util.stream.Stream<Path> files = Files.list(spriteFolder)) {
+                files.map(p -> p.getFileName().toString()).filter(n -> n.toLowerCase().endsWith(".png")).sorted(String.CASE_INSENSITIVE_ORDER)
+                        .forEach(n -> names.add(n.substring(0, n.length() - 4)));
+            } catch (IOException ignored) {
+                // No sprites found.
+            }
+        }
+        sprite.setOptions(names.toArray(new String[0]));
+        sprite.value = Math.max(0, names.indexOf(current));
+        spriteLoaded = "\u0000";
+    }
+
+    private void loadSprite(MinecraftClient mc, String name) {
+        if (spriteId != null) {
+            mc.getTextureManager().destroyTexture(spriteId);
+            spriteId = null;
+        }
+        spriteLoaded = name;
+        if (name.equals("None")) {
+            return;
+        }
+        try (InputStream in = Files.newInputStream(spriteFolder.resolve(name + ".png"))) {
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(NativeImage.read(in));
+            Identifier id = new Identifier("neurocanvas", "particle/" + java.util.UUID.randomUUID());
+            mc.getTextureManager().registerTexture(id, tex);
+            tex.setFilter(false, false);
+            spriteId = id;
+        } catch (IOException | RuntimeException e) {
+            if (mc.player != null) {
+                mc.player.sendMessage(Text.literal("[Particles] could not load the sprite \"" + name + "\": " + e.getMessage()), false);
+            }
+        }
+    }
+
+    private com.example.neurocanvas.gui.CosmeticEditor.Target editorTarget() {
+        return new com.example.neurocanvas.gui.CosmeticEditor.Target() {
+            @Override
+            public String title() {
+                return "Particle sprite";
+            }
+
+            @Override
+            public String noun() {
+                return "sprite";
+            }
+
+            @Override
+            public com.example.neurocanvas.avatar.CosmeticBuilder.Template template(int size) {
+                return new com.example.neurocanvas.avatar.CosmeticBuilder.Template(size, size, List.of(),
+                        "A particle sprite. Paint it white or grey and the colour settings tint it; transparent pixels stay clear.");
+            }
+
+            @Override
+            public int[] sizes() {
+                return new int[] {16, 8, 32};
+            }
+
+            @Override
+            public boolean exists(String name) {
+                return Files.exists(spriteFolder.resolve(name + ".png"));
+            }
+
+            @Override
+            public void save(String name, BufferedImage image) throws IOException {
+                Files.createDirectories(spriteFolder);
+                javax.imageio.ImageIO.write(image, "png", spriteFolder.resolve(name + ".png").toFile());
+                rescan();
+                java.util.List<String> options = java.util.Arrays.asList(sprite.options);
+                sprite.set(Math.max(0, options.indexOf(name)));
+                enabled = true;
+            }
+        };
+    }
+
+    @Override
+    public void tickAlways(MinecraftClient mc) {
+        if (!scanned) {
+            scanned = true;
+            rescan();
+        }
+        if (spriteEditor.on()) {
+            spriteEditor.set(0);
+            mc.setScreen(new com.example.neurocanvas.gui.CosmeticEditor(editorTarget(), mc.currentScreen));
+            return;
+        }
+        String want = sprite.option();
+        if (!want.equals(spriteLoaded)) {
+            loadSprite(mc, want);
+        }
+    }
+
+    /** The same particles, drawn with the painted sprite instead of a shape. */
+    private void drawSprite(RenderEnv env, Vec3d center, double fade) {
+        double t = env.t();
+        double yaw = Math.toRadians(env.camYaw());
+        double pitch = Math.toRadians(env.camPitch());
+        float cy = (float) Math.cos(yaw), sy = (float) Math.sin(yaw);
+        float cp = (float) Math.cos(pitch), sp = (float) Math.sin(pitch);
+        float fx = -sy * cp, fy = -sp, fz = cy * cp;
+        float rx = cy, rz = sy;
+        float ux = fy * sy, uy = fz * cy - fx * sy, uz = -fy * cy;
+        Vec3d cam = env.mc().gameRenderer.getCamera().getPos();
+        Matrix4f m = env.m();
+        RenderSystem.enableBlend();
+        if (glow.on()) {
+            RenderSystem.blendFunc(com.mojang.blaze3d.platform.GlStateManager.SrcFactor.SRC_ALPHA, com.mojang.blaze3d.platform.GlStateManager.DstFactor.ONE);
+        } else {
+            RenderSystem.defaultBlendFunc();
+        }
+        RenderSystem.enableDepthTest();
+        RenderSystem.depthMask(false);
+        RenderSystem.disableCull();
+        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
+        RenderSystem.setShaderTexture(0, spriteId);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        double fadeStart = fade * 0.72;
+        List<P> group = new ArrayList<>(list);
+        if (!glow.on()) {
+            group.sort(Comparator.comparingDouble((P p) -> -((p.x - cam.x) * (p.x - cam.x) + (p.y - cam.y) * (p.y - cam.y) + (p.z - cam.z) * (p.z - cam.z))));
+        }
+        b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+        for (P p : group) {
+            float ageFrac = p.age / p.life;
+            double dist = Math.sqrt((p.x - center.x) * (p.x - center.x) + (p.y - center.y) * (p.y - center.y) + (p.z - center.z) * (p.z - center.z));
+            float a = alpha.f();
+            a *= MathHelper.clamp(ageFrac / 0.15f, 0f, 1f) * MathHelper.clamp((1f - ageFrac) / 0.25f, 0f, 1f);
+            a *= (float) (1.0 - MathHelper.clamp((dist - fadeStart) / (fade - fadeStart), 0.0, 1.0));
+            double camDist = Math.sqrt((p.x - cam.x) * (p.x - cam.x) + (p.y - cam.y) * (p.y - cam.y) + (p.z - cam.z) * (p.z - cam.z));
+            a *= (float) MathHelper.clamp((camDist - 0.4) / 0.8, 0.0, 1.0);
+            if (twinkle.value > 0.001) {
+                a *= 1f - twinkle.f() * (0.5f + 0.5f * (float) Math.sin(t * p.rate + p.phase));
+            }
+            if (a <= 0.004f) {
+                continue;
+            }
+            float[] c = colorOf(p, ageFrac, t);
+            a *= c[3];
+            float cr = (float) Math.cos(p.rot), sr = (float) Math.sin(p.rot);
+            for (int k = 0; k < 4; k++) {
+                float cu = k == 0 || k == 3 ? -1f : 1f;
+                float cv = k < 2 ? -1f : 1f;
+                float ru = cu * cr - cv * sr;
+                float rv = cu * sr + cv * cr;
+                float px = (float) p.x + (rx * ru + ux * rv) * p.size;
+                float py = (float) p.y + (uy * rv) * p.size;
+                float pz = (float) p.z + (rz * ru + uz * rv) * p.size;
+                b.vertex(m, px, py, pz).texture(cu * 0.5f + 0.5f, 0.5f - cv * 0.5f).color(c[0], c[1], c[2], a).next();
+            }
+        }
+        tess.draw();
+        RenderSystem.defaultBlendFunc();
+        RenderSystem.depthMask(true);
+        RenderSystem.disableDepthTest();
     }
 
     private int pickShape() {
@@ -235,6 +415,10 @@ public final class Particles extends Module {
         lastCenter = center;
         step(world, player, center, dt);
         if (list.isEmpty()) {
+            return;
+        }
+        if (spriteId != null) {
+            drawSprite(env, center, fade);
             return;
         }
         {
