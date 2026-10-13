@@ -38,6 +38,8 @@ public abstract class CosmeticModule extends Module {
     protected final Setting animSpeed = add(Setting.number("Animation speed", 0.2, 3, 1));
     protected final Setting firstPerson;
     private final Setting editor;
+    private final Setting share;
+    private final Setting unshare;
     private final Setting reload = add(Setting.button("Reload"));
     private final Setting openFolder = add(Setting.button("Open folder"));
     protected final Worn main;
@@ -55,6 +57,8 @@ public abstract class CosmeticModule extends Module {
         settings.add(0, settings.remove(settings.size() - 1));
         firstPerson = wornOnBody ? add(Setting.bool("Show in first person", false)) : null;
         editor = com.example.neurocanvas.avatar.CosmeticBuilder.hasEditor(type) ? add(Setting.button("Editor")) : null;
+        share = add(Setting.button("Share"));
+        unshare = add(Setting.button("Unshare"));
         main = wear(item);
         writeExamples(root);
         rescan();
@@ -66,7 +70,7 @@ public abstract class CosmeticModule extends Module {
         }
         examplesWritten = true;
         try {
-            if (!Files.isDirectory(root)) {
+            if (!Files.isDirectory(root) || com.example.neurocanvas.avatar.ExampleAvatar.outdated(root.resolve("emotes/Example Wave"))) {
                 ExamplePack.write(root);
             }
         } catch (IOException ignored) {
@@ -78,6 +82,11 @@ public abstract class CosmeticModule extends Module {
         Worn w = new Worn(type, slot);
         worn.add(w);
         return w;
+    }
+
+    /** The name of the item worn in the first slot while the module is on, or null. */
+    public String wornName() {
+        return enabled && main.model != null ? main.setting.option() : null;
     }
 
     public CosmeticPack.Type type() {
@@ -129,6 +138,14 @@ public abstract class CosmeticModule extends Module {
             mc.setScreen(com.example.neurocanvas.gui.CosmeticEditor.forCosmetic(this, mc.currentScreen));
             return;
         }
+        if (share.on()) {
+            share.set(0);
+            shareSelected(mc);
+        }
+        if (unshare.on()) {
+            unshare.set(0);
+            unshareSelected();
+        }
         if (reload.on()) {
             reload.set(0);
             rescan();
@@ -151,6 +168,58 @@ public abstract class CosmeticModule extends Module {
 
     protected void tickCosmetic(MinecraftClient mc) { }
 
+    /** Uploads the item chosen in the first slot to the server and copies its code. */
+    public void shareSelected(MinecraftClient mc) {
+        String name = main.setting.option();
+        if (name.equals(Worn.NONE)) {
+            say("Pick an item to share first");
+            return;
+        }
+        com.example.neurocanvas.client.SharedStore.Item known = com.example.neurocanvas.client.SharedStore.find(type.folder, name);
+        if (known != null) {
+            mc.keyboard.setClipboard(known.code());
+            say("\"" + name + "\" is already shared: code " + known.code() + " (copied)");
+            return;
+        }
+        String author = mc.player == null ? "" : mc.player.getName().getString();
+        java.util.Map<String, byte[]> files;
+        try {
+            files = com.example.neurocanvas.client.CommunityClient.readFolder(folder().resolve(name));
+        } catch (IOException e) {
+            say("Cannot share \"" + name + "\": " + e.getMessage());
+            return;
+        }
+        say("Sharing \"" + name + "\"...");
+        com.example.neurocanvas.client.CommunityClient.upload(type.folder, name, author, files).whenComplete((shared, error) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    if (error != null) {
+                        say("Could not share \"" + name + "\": " + com.example.neurocanvas.client.MarketClient.reason(error));
+                        return;
+                    }
+                    com.example.neurocanvas.client.SharedStore.add(new com.example.neurocanvas.client.SharedStore.Item(type.folder, name, shared.code(), shared.token()));
+                    MinecraftClient.getInstance().keyboard.setClipboard(shared.code());
+                    say("\"" + name + "\" is shared: code " + shared.code() + " (copied). Others find it in the Market, Source: Community.");
+                }));
+    }
+
+    private void unshareSelected() {
+        String name = main.setting.option();
+        com.example.neurocanvas.client.SharedStore.Item known = com.example.neurocanvas.client.SharedStore.find(type.folder, name);
+        if (known == null) {
+            say("\"" + name + "\" is not shared");
+            return;
+        }
+        com.example.neurocanvas.client.CommunityClient.remove(known.code(), known.token()).whenComplete((v, error) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    if (error != null) {
+                        say("Could not remove \"" + name + "\": " + com.example.neurocanvas.client.MarketClient.reason(error));
+                        return;
+                    }
+                    com.example.neurocanvas.client.SharedStore.remove(known);
+                    say("\"" + name + "\" is no longer shared");
+                }));
+    }
+
     // ---- helpers for drawing ----------------------------------------------------------------
 
     protected final Body body(RenderEnv env) {
@@ -170,23 +239,11 @@ public abstract class CosmeticModule extends Module {
 
     protected final Matrix4f base(RenderEnv env, Vec3d at, float yaw, Worn w) {
         float itemScale = w.config.scale == null ? 1f : w.config.scale;
-        float scale = size.f() * itemScale / 16f;
-        Matrix4f m = new Matrix4f(env.m());
-        m.translate((float) at.x, (float) at.y, (float) at.z);
-        m.rotateY((float) Math.toRadians(-yaw + 180f));
-        m.scale(scale);
-        return m;
+        return com.example.neurocanvas.avatar.Attach.base(env.m(), at, yaw, size.f() * itemScale / 16f);
     }
 
     /** Poses a model with its idle animation, or its walk animation while {@code moving}. */
     protected final void pose(Worn w, boolean moving, long nowNano) {
-        w.model.resetPose();
-        BbModel.Anim a = moving ? w.model.find("walk") : null;
-        if (a == null) {
-            a = w.model.find("idle");
-        }
-        if (a != null) {
-            w.model.apply(a, BbInstance.time(a, 0L, nowNano, animSpeed.value));
-        }
+        com.example.neurocanvas.avatar.Attach.pose(w.model, moving, nowNano, animSpeed.value);
     }
 }

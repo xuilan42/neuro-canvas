@@ -16,6 +16,6 @@ public final class Outfits extends CosmeticModule {
             return;
         }
         pose(main, b.moving(), System.nanoTime());
-        main.model.draw(base(env, b.pos(), b.bodyYaw(), main), b.light(), shading.f());
+        com.example.neurocanvas.avatar.Attach.outfit(main.model, base(env, b.pos(), b.bodyYaw(), main), b.light(), shading.f());
     }
 }

@@ -4,7 +4,7 @@ import com.example.neurocanvas.avatar.CosmeticPack;
 import java.nio.file.Path;
 import net.minecraft.entity.Entity;
 import net.minecraft.client.MinecraftClient;
-import org.joml.Matrix4f;
+import com.example.neurocanvas.avatar.Attach;
 
 /** A cape that hangs from the shoulders and swings as you move. The game's own cape is hidden while one is worn. */
 public final class Capes extends CosmeticModule {
@@ -23,9 +23,6 @@ public final class Capes extends CosmeticModule {
             return;
         }
         pose(main, b.moving(), System.nanoTime());
-        Matrix4f m = base(env, b.pos(), b.bodyYaw(), main);
-        float swing = (float) (0.06 + Math.min(b.speed() * 0.14, 0.9) + 0.03 * Math.sin(env.t() * 2.2));
-        m.translate(0f, 24f, 2f).rotateX(-swing).translate(0f, -24f, -2f);
-        main.model.draw(m, b.light(), shading.f());
+        Attach.cape(main.model, base(env, b.pos(), b.bodyYaw(), main), b.speed(), env.t(), b.light(), shading.f());
     }
 }

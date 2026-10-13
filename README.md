@@ -140,7 +140,13 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
   the unfolded crown of a hat (the pink corner colours the brim), the unfolded jacket of an outfit, or the unfolded cube of a pet; a coloured guide shows which part of the canvas is the front, back, sides, top and bottom.
   Tools: pencil, eraser, fill, colour picker, brush size, mirror drawing, grid, undo (Ctrl+Z), a colour square, hue strip and a palette. Type a name in the box in the top corner and press **Save**: the picture becomes a new item
   (model included) in your wardrobe and is put on at once. A name that already exists is not overwritten.
-- For now only you see your items; showing them to other users is the next step.
+- **Share your own cosmetic:** every cosmetic module has **Share** and **Unshare** buttons. *Share* uploads the item chosen in the module to the project's server and copies its code; it then appears in everybody's Market under **Source: Community**
+  with your name as the author, and others get it with one **Get** press. *Unshare* takes it down (the secret that allows it is kept in `neurocanvas/shared.json`). Limits: 8 uploads per hour, 25 shared items per author, 1 MB per file and 2 MB per item,
+  only `.bbmodel`, `.png` and `.json` files; the server checks that models are valid JSON and pictures are PNGs. Do not share what you do not have the right to share.
+- **See who wears what:** with the **Showcase** module (Friends tab) your worn cape, wings, hat and outfit are announced to the other users on your server (only items that are shared or come from the Market; `Share everything I wear` uploads the rest),
+  and theirs are downloaded, checked and drawn on them. In the Friends tab a user's row shows "wears ..." with a **Get** button that downloads and puts on everything they wear. *Friends only* in the Friends module limits who sees your items.
+  Pets, emotes and graffiti are not drawn on other players yet.
+- The example avatars use the game's own **Steve** skin (no picture of it is stored in the models), so they look like the original Steve.
 
 ## Avatar (animated Blockbench avatars)
 

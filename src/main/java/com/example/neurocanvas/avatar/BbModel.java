@@ -69,6 +69,8 @@ public final class BbModel {
     public int resolutionW = 16;
     public int resolutionH = 16;
     public final List<byte[]> textures = new ArrayList<>();
+    /** Per texture: "minecraft:steve" or "minecraft:player" when the texture is the game's own skin instead of an embedded picture, else null. */
+    public final List<String> textureRefs = new ArrayList<>();
     public final List<int[]> textureUvSize = new ArrayList<>();
     public final List<Bone> roots = new ArrayList<>();
     public final Map<String, Bone> bonesByUuid = new LinkedHashMap<>();
@@ -93,6 +95,7 @@ public final class BbModel {
                     data = Base64.getDecoder().decode(src.substring(comma + 1).trim());
                 }
                 m.textures.add(data);
+                m.textureRefs.add(src.equals("minecraft:steve") || src.equals("minecraft:player") ? src : null);
                 int uw = t.has("uv_width") ? t.get("uv_width").getAsInt() : m.resolutionW;
                 int uh = t.has("uv_height") ? t.get("uv_height").getAsInt() : m.resolutionH;
                 m.textureUvSize.add(new int[] {Math.max(1, uw), Math.max(1, uh)});

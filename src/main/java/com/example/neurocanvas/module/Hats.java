@@ -2,8 +2,6 @@ package com.example.neurocanvas.module;
 
 import com.example.neurocanvas.avatar.CosmeticPack;
 import java.nio.file.Path;
-import net.minecraft.util.math.MathHelper;
-import org.joml.Matrix4f;
 
 /** A hat that follows the turn and the nod of your head. */
 public final class Hats extends CosmeticModule {
@@ -18,9 +16,6 @@ public final class Hats extends CosmeticModule {
             return;
         }
         pose(main, b.moving(), System.nanoTime());
-        Matrix4f m = base(env, b.pos(), b.bodyYaw(), main);
-        m.translate(0f, 24f, 0f).rotateY((float) Math.toRadians(-MathHelper.wrapDegrees(b.headYaw() - b.bodyYaw())))
-                .rotateX((float) Math.toRadians(-b.pitch())).translate(0f, -24f, 0f);
-        main.model.draw(m, b.light(), shading.f());
+        com.example.neurocanvas.avatar.Attach.hat(main.model, base(env, b.pos(), b.bodyYaw(), main), b.bodyYaw(), b.headYaw(), b.pitch(), b.light(), shading.f());
     }
 }

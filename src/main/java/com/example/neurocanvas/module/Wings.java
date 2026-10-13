@@ -16,6 +16,6 @@ public final class Wings extends CosmeticModule {
             return;
         }
         pose(main, b.moving(), System.nanoTime());
-        main.model.draw(base(env, b.pos(), b.bodyYaw(), main), b.light(), shading.f());
+        com.example.neurocanvas.avatar.Attach.wings(main.model, base(env, b.pos(), b.bodyYaw(), main), b.light(), shading.f());
     }
 }

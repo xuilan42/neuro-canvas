@@ -2,16 +2,10 @@ package com.example.neurocanvas.avatar;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import java.awt.Color;
-import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Base64;
-import javax.imageio.ImageIO;
 
 /** Writes a small example avatar (a blocky figure with idle, walk, attack and wave animations) so there is something to start from. */
 public final class ExampleAvatar {
@@ -87,36 +81,18 @@ public final class ExampleAvatar {
         return a;
     }
 
-    private static void paint(Graphics2D g, int u, int v, int w, int h, int d, Color base) {
-        int[][] r = {{u + d, v, w, d}, {u + d + w, v, w, d}, {u, v + d, d, h}, {u + d, v + d, w, h}, {u + d + w, v + d, d, h}, {u + 2 * d + w, v + d, w, h}};
-        for (int[] q : r) {
-            g.setColor(base);
-            g.fillRect(q[0], q[1], q[2], q[3]);
-            g.setColor(base.darker());
-            g.drawRect(q[0], q[1], q[2] - 1, q[3] - 1);
+    /** True for an example written by an older version, whose model carries its own painted texture. */
+    public static boolean outdated(Path folder) {
+        try {
+            Path model = folder.resolve("model.bbmodel");
+            return Files.exists(model) && Files.readString(model).contains("\"source\":\"data:image");
+        } catch (IOException e) {
+            return false;
         }
     }
 
     public static void write(Path folder) throws IOException {
         Files.createDirectories(folder);
-        BufferedImage img = new BufferedImage(64, 64, BufferedImage.TYPE_INT_ARGB);
-        Graphics2D g = img.createGraphics();
-        Color skin = new Color(0xE8B88C);
-        Color suit = new Color(0x3D7BDC);
-        Color pants = new Color(0x2B3A6B);
-        paint(g, 0, 0, 8, 8, 8, skin);
-        g.setColor(new Color(0x303030));
-        g.fillRect(8 + 1, 8 + 3, 2, 2);
-        g.fillRect(8 + 5, 8 + 3, 2, 2);
-        paint(g, 16, 16, 8, 12, 4, suit);
-        paint(g, 40, 16, 4, 12, 4, suit);
-        paint(g, 32, 48, 4, 12, 4, suit);
-        paint(g, 0, 16, 4, 12, 4, pants);
-        paint(g, 16, 48, 4, 12, 4, pants);
-        g.dispose();
-        ByteArrayOutputStream png = new ByteArrayOutputStream();
-        ImageIO.write(img, "png", png);
-
         JsonObject root = new JsonObject();
         JsonObject res = new JsonObject();
         res.addProperty("width", 64);
@@ -125,7 +101,8 @@ public final class ExampleAvatar {
         JsonArray textures = new JsonArray();
         JsonObject tex = new JsonObject();
         tex.addProperty("name", "texture.png");
-        tex.addProperty("source", "data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray()));
+        // The game's own Steve skin is used at run time; no picture is stored in the model.
+        tex.addProperty("source", "minecraft:steve");
         tex.addProperty("uv_width", 64);
         tex.addProperty("uv_height", 64);
         textures.add(tex);

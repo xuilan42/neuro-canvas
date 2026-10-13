@@ -24,6 +24,8 @@ import net.minecraft.util.Identifier;
 /** The catalog of cosmetics on the project's server: one button downloads an item and puts it on. The list is drawn by the menu. */
 public final class Market extends Module {
     private final Setting show;
+    private final Setting source = add(Setting.choice("Source", 0, "Official", "Community"));
+    private int loadedSource = -1;
     private final Setting refresh = add(Setting.button("Refresh"));
     private final Path wardrobe;
 
@@ -59,11 +61,12 @@ public final class Market extends Module {
         }
         show = add(Setting.choice("Show", 0, kinds));
         settings.add(0, settings.remove(settings.size() - 1));
+        settings.add(0, settings.remove(settings.size() - 2));
     }
 
     /** The preview of an item. It is loaded on first use; until then (or when it failed) the card shows a placeholder. */
     public Preview preview(MarketClient.Entry e) {
-        String key = e.type() + "/" + e.name();
+        String key = e.type() + "/" + e.name() + "/" + e.code();
         Preview p = previews.get(key);
         if (p != null) {
             return p;
@@ -167,12 +170,12 @@ public final class Market extends Module {
     }
 
     public boolean installed(MarketClient.Entry e) {
-        return Files.isDirectory(wardrobe.resolve(e.type()).resolve(e.name()));
+        return MarketClient.installedName(e, wardrobe) != null;
     }
 
     public boolean busy(MarketClient.Entry e) {
         synchronized (busy) {
-            return busy.contains(e.type() + "/" + e.name());
+            return busy.contains(e.type() + "/" + e.name() + "/" + e.code());
         }
     }
 
@@ -186,7 +189,8 @@ public final class Market extends Module {
     public void refresh() {
         loading = true;
         status = "Loading the catalog...";
-        MarketClient.list().whenComplete((list, error) -> MinecraftClient.getInstance().execute(() -> {
+        loadedSource = source.index();
+        MarketClient.list(source.index() == 1).whenComplete((list, error) -> MinecraftClient.getInstance().execute(() -> {
             loading = false;
             if (error != null) {
                 status = "Could not load the catalog: " + MarketClient.reason(error);
@@ -199,15 +203,15 @@ public final class Market extends Module {
 
     /** Downloads an item and wears it: its module is switched on and the item is chosen in it. */
     public void get(MarketClient.Entry e) {
-        String key = e.type() + "/" + e.name();
+        String key = e.type() + "/" + e.name() + "/" + e.code();
         synchronized (busy) {
             if (!busy.add(key)) {
                 return;
             }
         }
-        boolean have = installed(e);
-        status = (have ? "Putting on " : "Downloading ") + e.name() + "...";
-        (have ? java.util.concurrent.CompletableFuture.<Void>completedFuture(null) : MarketClient.install(e, wardrobe)).whenComplete((v, error) ->
+        String have = MarketClient.installedName(e, wardrobe);
+        status = (have != null ? "Putting on " : "Downloading ") + e.name() + "...";
+        (have != null ? java.util.concurrent.CompletableFuture.completedFuture(have) : MarketClient.install(e, wardrobe)).whenComplete((name, error) ->
                 MinecraftClient.getInstance().execute(() -> {
                     synchronized (busy) {
                         busy.remove(key);
@@ -216,10 +220,11 @@ public final class Market extends Module {
                         status = "Could not get " + e.name() + ": " + MarketClient.reason(error);
                         return;
                     }
+                    status = e.name() + " was downloaded but could not be put on";
                     for (Module m : NeuroCanvasClient.modules().all()) {
                         if (m instanceof CosmeticModule c && c.type().folder.equals(e.type())) {
                             c.rescan();
-                            status = c.wear(e.name()) ? e.name() + " is on (" + c.name + ")" : e.name() + " was downloaded but could not be found";
+                            status = c.wear(name) ? e.name() + " is on (" + c.name + ")" : status;
                         }
                     }
                 }));
@@ -227,6 +232,11 @@ public final class Market extends Module {
 
     @Override
     public void tickAlways(MinecraftClient mc) {
+        if (loadedSource >= 0 && loadedSource != source.index() && !loading) {
+            entries = null;
+            closePreviews();
+            refresh();
+        }
         if (refresh.on()) {
             refresh.set(0);
             refresh();

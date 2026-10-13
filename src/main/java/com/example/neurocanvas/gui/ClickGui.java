@@ -545,6 +545,21 @@ public final class ClickGui extends Screen {
                     }
                     int bx = px + pw - 26;
                     if (r.kind() == F_USER) {
+                        java.util.List<com.example.neurocanvas.module.Showcase.Item> worn = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Showcase.class).itemsOf(r.text());
+                        if (!worn.isEmpty()) {
+                            StringBuilder what = new StringBuilder();
+                            for (com.example.neurocanvas.module.Showcase.Item w : worn) {
+                                what.append(what.length() == 0 ? "" : ", ").append(w.name());
+                            }
+                            int getX = px + pw - 70;
+                            boolean gh = inside(mx, my, getX, r.y() + 2, 36, 18);
+                            Ui.roundRect(ctx, getX, r.y() + 2, 36, 18, 5, gh ? th.accent2() : th.accent());
+                            Ui.textCentered(ctx, textRenderer, "Get", getX + 18, r.y() + 7, th.bg() | 0xFF000000);
+                            int room = getX - after - 8;
+                            if (room > 30) {
+                                Ui.text(ctx, textRenderer, textRenderer.trimToWidth("wears " + what, room), after + (r.extra() ? 44 : 0), r.y() + 7, th.dim());
+                            }
+                        }
                         com.example.neurocanvas.gui.Icons.star(ctx, bx + 6, r.y() + 7, r.flag(), r.flag() ? 0xFFFFD23F : th.dim());
                     } else {
                         boolean xHover = inside(mx, my, bx, r.y(), 26, 22);
@@ -597,9 +612,13 @@ public final class ClickGui extends Screen {
                     return true;
                 }
                 case F_USER -> {
+                    com.example.neurocanvas.module.Showcase showcase = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Showcase.class);
                     if (mx >= px + pw - 30) {
                         f.toggle(r.text());
                         Interface.click(r.flag() ? 0.8f : 1.3f);
+                    } else if (mx >= px + pw - 70 && mx < px + pw - 34 && !showcase.itemsOf(r.text()).isEmpty()) {
+                        showcase.getAll(r.text());
+                        Interface.click(1.3f);
                     }
                     return true;
                 }

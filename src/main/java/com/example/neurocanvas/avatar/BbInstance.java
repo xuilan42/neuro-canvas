@@ -34,6 +34,7 @@ public final class BbInstance {
     public final BbModel model;
     private final Map<Integer, Identifier> textures = new HashMap<>();
     private final List<Identifier> registered = new ArrayList<>();
+    private final Map<Integer, String> refs = new HashMap<>();
     /** per uuid: position x y z, rotation x y z (degrees), scale x y z. */
     private final Map<String, float[]> pose = new HashMap<>();
 
@@ -41,6 +42,10 @@ public final class BbInstance {
         this.model = model;
         for (int i = 0; i < model.textures.size(); i++) {
             byte[] data = model.textures.get(i);
+            if (model.textureRefs.get(i) != null) {
+                refs.put(i, model.textureRefs.get(i));
+                continue;
+            }
             if (data.length == 0) {
                 continue;
             }
@@ -181,6 +186,15 @@ public final class BbInstance {
         }
     }
 
+    /** The game's own skin: Steve, or the skin of the player who plays. */
+    private static Identifier skin(String ref) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (ref.equals("minecraft:player") && mc.player != null) {
+            return mc.player.getSkinTexture();
+        }
+        return net.minecraft.client.util.DefaultSkinHelper.getTexture();
+    }
+
     /** Draws the model with its current pose. {@code base} places it in the world (one model unit is whatever it scales to). */
     public void draw(Matrix4f base, float light, float shading) {
         List<Quad> quads = new ArrayList<>();
@@ -200,7 +214,7 @@ public final class BbInstance {
             if (!done.add(first.tex)) {
                 continue;
             }
-            Identifier id = textures.get(first.tex);
+            Identifier id = refs.containsKey(first.tex) ? skin(refs.get(first.tex)) : textures.get(first.tex);
             if (id != null) {
                 RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
                 RenderSystem.setShaderTexture(0, id);

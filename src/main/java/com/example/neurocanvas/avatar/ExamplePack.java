@@ -170,11 +170,11 @@ public final class ExamplePack {
                 cube("head", new double[] {-2.5, 8, -6}, new double[] {2.5, 13, -1})), list(bone("body", new double[] {0, 4, 0}, "body", "head")), petAnims);
 
         // Emote: the example avatar, whose "wave" animation plays.
-        if (!Files.isDirectory(root.resolve("emotes/Example Wave"))) {
+        if (!Files.isDirectory(root.resolve("emotes/Example Wave")) || ExampleAvatar.outdated(root.resolve("emotes/Example Wave"))) {
             ExampleAvatar.write(root.resolve("emotes/Example Wave"));
             Files.writeString(root.resolve("emotes/Example Wave/cosmetic.json"), "{ \"animation\": \"wave\" }\n");
         }
-        if (!Files.isDirectory(root.resolve("emotes/Example Strike"))) {
+        if (!Files.isDirectory(root.resolve("emotes/Example Strike")) || ExampleAvatar.outdated(root.resolve("emotes/Example Strike"))) {
             ExampleAvatar.write(root.resolve("emotes/Example Strike"));
             Files.writeString(root.resolve("emotes/Example Strike/cosmetic.json"), "{ \"animation\": \"attack\" }\n");
         }

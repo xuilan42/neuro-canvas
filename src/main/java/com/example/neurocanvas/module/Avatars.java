@@ -114,7 +114,7 @@ public final class Avatars extends Module {
                     + "avatar.json: { \"model\": \"model.bbmodel\", \"scale\": 1.0, \"yaw\": 0, \"keys\": { \"G\": \"wave\" } }\n"
                     + "A key plays the animation with that name: once, or while held (hold), or as a toggle (loop).\n\n"
                     + "Press \"Reload avatar list\" in the Avatar module after adding a folder.\n");
-            if (!Files.isDirectory(root.resolve("Example"))) {
+            if (!Files.isDirectory(root.resolve("Example")) || ExampleAvatar.outdated(root.resolve("Example"))) {
                 ExampleAvatar.write(root.resolve("Example"));
             }
         } catch (IOException ignored) {

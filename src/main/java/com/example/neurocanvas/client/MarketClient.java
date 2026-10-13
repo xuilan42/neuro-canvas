@@ -29,12 +29,14 @@ import java.util.regex.Pattern;
  * touches the disk: the kind of cosmetic, the folder name, every file name and extension, and the sizes.
  */
 public final class MarketClient {
-    public record Entry(String type, String name, String author, long size) { }
+    /** {@code code} is set for items shared by users and null for the official ones. */
+    public record Entry(String type, String name, String author, long size, String code) { }
 
     private static final HttpClient HTTP = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(8)).build();
     private static final Pattern NAME = Pattern.compile("[\\p{L}\\p{N}][\\p{L}\\p{N} _.-]{0,39}");
     private static final Pattern FILE = Pattern.compile("[A-Za-z0-9_][A-Za-z0-9_.-]{0,59}");
+    private static final Pattern CODE = Pattern.compile("[A-HJ-NP-Z2-9]{8}");
     private static final long MAX_FILE = 2L * 1024 * 1024;
     private static final long MAX_TOTAL = 6L * 1024 * 1024;
     private static final int MAX_FILES = 8;
@@ -67,17 +69,18 @@ public final class MarketClient {
         return JsonParser.parseString(r.body()).getAsJsonObject();
     }
 
-    public static CompletableFuture<List<Entry>> list() {
+    public static CompletableFuture<List<Entry>> list(boolean community) {
         return CompletableFuture.supplyAsync(() -> {
             try {
-                JsonArray items = get("/v1/market").getAsJsonArray("items");
+                JsonArray items = get(community ? "/v1/community" : "/v1/market").getAsJsonArray("items");
                 List<Entry> out = new ArrayList<>();
                 for (JsonElement e : items) {
                     JsonObject o = e.getAsJsonObject();
                     String type = o.get("type").getAsString();
                     String name = o.get("name").getAsString();
                     if (knownType(type) && NAME.matcher(name).matches()) {
-                        out.add(new Entry(type, name, o.has("author") ? o.get("author").getAsString() : "", o.has("size") ? o.get("size").getAsLong() : 0));
+                        out.add(new Entry(type, name, o.has("author") ? o.get("author").getAsString() : "", o.has("size") ? o.get("size").getAsLong() : 0,
+                                community && o.has("code") ? o.get("code").getAsString() : null));
                     }
                 }
                 return out;
@@ -95,7 +98,8 @@ public final class MarketClient {
         if (!knownType(entry.type()) || !NAME.matcher(entry.name()).matches()) {
             throw new IOException("bad item name");
         }
-        JsonObject o = get("/v1/market/" + entry.type() + "/" + URLEncoder.encode(entry.name(), StandardCharsets.UTF_8).replace("+", "%20"));
+        JsonObject o = get(entry.code() != null ? "/v1/community/" + entry.code()
+                : "/v1/market/" + entry.type() + "/" + URLEncoder.encode(entry.name(), StandardCharsets.UTF_8).replace("+", "%20"));
         JsonObject files = o.getAsJsonObject("files");
         if (files == null || files.size() == 0 || files.size() > MAX_FILES) {
             throw new IOException("the item has no files");
@@ -132,12 +136,59 @@ public final class MarketClient {
         });
     }
 
-    /** Downloads one item into wardrobe/&lt;type&gt;/&lt;name&gt;/. Nothing is left behind when anything about it looks wrong. */
-    public static CompletableFuture<Void> install(Entry entry, Path wardrobe) {
-        return CompletableFuture.runAsync(() -> {
-            Path target = wardrobe.resolve(entry.type()).resolve(entry.name()).normalize();
+    /** The name an item has in your wardrobe, or null when it is not there yet. */
+    public static String installedName(Entry e, Path wardrobe) {
+        for (String candidate : candidates(e)) {
+            Path folder = wardrobe.resolve(e.type()).resolve(candidate);
+            if (Files.isDirectory(folder) && (e.code() == null || e.code().equals(sourceOf(folder)))) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private static String sourceOf(Path folder) {
+        try {
+            Path f = folder.resolve("source.txt");
+            return Files.exists(f) ? Files.readString(f).trim() : null;
+        } catch (IOException ex) {
+            return null;
+        }
+    }
+
+    /** The names an item may be saved under: its own, then with the author, then with its code, so nothing of yours is replaced. */
+    private static List<String> candidates(Entry e) {
+        List<String> out = new ArrayList<>();
+        out.add(e.name());
+        if (e.code() != null) {
+            String withAuthor = e.name() + " - " + e.author().replaceAll("[^A-Za-z0-9_]", "_");
+            out.add(withAuthor.length() > 40 ? withAuthor.substring(0, 40).trim() : withAuthor);
+            out.add((e.name().length() > 30 ? e.name().substring(0, 30).trim() : e.name()) + " - " + e.code());
+        }
+        return out;
+    }
+
+    /** Downloads one item into wardrobe/&lt;type&gt;/&lt;name&gt;/ and completes with that name. Nothing is left behind when anything about it looks wrong. */
+    public static CompletableFuture<String> install(Entry entry, Path wardrobe) {
+        return CompletableFuture.supplyAsync(() -> {
+            if (!knownType(entry.type()) || !NAME.matcher(entry.name()).matches()
+                    || (entry.code() != null && !CODE.matcher(entry.code()).matches())) {
+                throw new CompletionException(new IOException("bad item"));
+            }
+            String chosen = null;
+            for (String candidate : candidates(entry)) {
+                Path folder = wardrobe.resolve(entry.type()).resolve(candidate);
+                if (!Files.exists(folder) || (entry.code() != null && entry.code().equals(sourceOf(folder)))) {
+                    chosen = candidate;
+                    break;
+                }
+            }
+            if (chosen == null) {
+                throw new CompletionException(new IOException("you have items with all the names this one could get"));
+            }
+            Path target = wardrobe.resolve(entry.type()).resolve(chosen).normalize();
             try {
-                if (!target.startsWith(wardrobe.normalize())) {
+                if (!knownType(entry.type()) || !target.startsWith(wardrobe.normalize())) {
                     throw new IOException("bad item name");
                 }
                 Map<String, byte[]> data = fetch(entry);
@@ -146,12 +197,16 @@ public final class MarketClient {
                     for (Map.Entry<String, byte[]> f : data.entrySet()) {
                         Files.write(target.resolve(f.getKey()), f.getValue());
                     }
+                    if (entry.code() != null) {
+                        Files.writeString(target.resolve("source.txt"), entry.code());
+                    }
                 } catch (IOException e) {
                     try (var s = Files.walk(target)) {
                         s.sorted(java.util.Comparator.reverseOrder()).forEach(p -> p.toFile().delete());
                     }
                     throw e;
                 }
+                return chosen;
             } catch (IOException | RuntimeException e) {
                 throw new CompletionException(e);
             } catch (InterruptedException e) {
