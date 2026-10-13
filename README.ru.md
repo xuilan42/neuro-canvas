@@ -30,7 +30,7 @@
 | Категория | Модули |
 |---|---|
 | **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (своя 3D-модель), Avatar (анимированные аватары из Blockbench), Shimmer (броня и предметы в руке переливаются радугой или градиентом) |
+| **Cosmetics** | Model (своя 3D-модель), Wardrobe (плащи, крылья, шапки, одежда, питомцы, эмоции, граффити), Avatar (анимированные аватары из Blockbench), Shimmer (броня и предметы в руке переливаются радугой или градиентом) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (удержание **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, WeatherChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (ватермарк и список модулей), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -117,6 +117,19 @@
 - Другие пользователи Neuro Canvas на том же сервере видят ваши метки и отсчёты (и вы их): сообщения идут через сервер-реестр проекта, то же соединение, что у NameTags,
   поэтому **NameTags должен быть включён**. Отправляется только отмеченная точка и ваше имя, но не ваши координаты. Переключатели: *Share with other users*, *Show other users' pings*.
 - У каждого пользователя до 3 меток одновременно, они гаснут через *Lifetime*. Сервер ограничивает частоту отправки.
+
+## Wardrobe (плащи, крылья, шапки, одежда, питомцы, эмоции, граффити)
+
+Основа для вашей косметики. В модуле **Wardrobe** по одному слоту для **Cape**, **Wings**, **Hat**, **Outfit**, **Pet**, два слота **Emote** и **Graffiti**;
+выберите предмет в слоте, и он сразу надевается. Предметы это папки в `neurocanvas/wardrobe/<тип>/<имя>/` (типы: `capes`, `wings`, `hats`, `outfits`, `pets`, `emotes`, `graffiti`)
+с моделью Blockbench `.bbmodel` (для граффити `.png`) и необязательным `cosmetic.json` (`model`, `scale`, `animation`, `image`, `size`). При первом запуске создаётся маленький пример каждого вида;
+кнопка *Reload* находит новые папки. Формат описан в `README.txt` внутри папки.
+
+- Модели используют то же пространство, что и Avatar для вашего тела (16 единиц на блок, ноги на y 0, голова на y 24-32, перед на севере). **Плащ** висит на плечах и качается при движении (родной плащ игры при этом скрыт),
+  **крылья** на спине, **шапка** следует за головой, **одежда** на теле, **пет** идёт за вами по земле. Анимации `idle` (и `walk` у петов) играют сами.
+- **Эмоции** это полные аватары с анимацией (`animation` в `cosmetic.json`): *Wave* колеса меток включает Emote 1, *Dance* включает Emote 2; пока она играет, ваше тело заменяется.
+- **Граффити:** назначьте модулю Wardrobe **Keybind**; по нажатию картинка наносится на грань блока, на которую вы смотрите (до 24 штук, гаснут через *Graffiti lifetime*).
+- Пока предметы видите только вы; показ другим пользователям следующий шаг.
 
 ## Avatar (анимированные аватары из Blockbench)
 

@@ -16,6 +16,7 @@
     "ArmorFeatureRendererMixin",
     "ItemRendererMixin",
     "PlayerEntityRendererMixin",
+    "CapeFeatureRendererMixin",
     "GameRendererMixin",
     "HeldItemRendererMixin",
     "InGameHudMixin",

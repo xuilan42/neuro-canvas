@@ -177,7 +177,9 @@ public final class PingWheel extends Module {
 
     /** A gesture: plays the avatar animation with that name, if the avatar has one. */
     public void emote(String name) {
-        NeuroCanvasClient.modules().get(Avatars.class).emote(name);
+        if (!NeuroCanvasClient.modules().get(Wardrobe.class).emote(name)) {
+            NeuroCanvasClient.modules().get(Avatars.class).emote(name);
+        }
     }
 
     /** A message from another user, relayed by the registry. Runs on the game thread. */

@@ -18,7 +18,8 @@ public abstract class PlayerEntityRendererMixin {
             + "Lnet/minecraft/client/render/VertexConsumerProvider;I)V", at = @At("HEAD"), cancellable = true, require = 0)
     private void neurocanvas$hideBody(AbstractClientPlayerEntity player, float yaw, float tickDelta, MatrixStack matrices,
                                       VertexConsumerProvider vertexConsumers, int light, CallbackInfo ci) {
-        if (NeuroCanvasClient.modules() != null && NeuroCanvasClient.modules().get(Avatars.class).hidesBody(player)) {
+        if (NeuroCanvasClient.modules() != null && (NeuroCanvasClient.modules().get(Avatars.class).hidesBody(player)
+                || NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Wardrobe.class).hidesBody(player))) {
             ci.cancel();
         }
     }
