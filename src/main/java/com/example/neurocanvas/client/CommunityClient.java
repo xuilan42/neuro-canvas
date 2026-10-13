@@ -25,8 +25,8 @@ public final class CommunityClient {
 
     private static final HttpClient HTTP = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(8)).build();
-    public static final long MAX_FILE = 1024 * 1024;
-    public static final long MAX_TOTAL = 2L * 1024 * 1024;
+    public static final long MAX_FILE = 5L * 1024 * 1024;
+    public static final long MAX_TOTAL = 8L * 1024 * 1024;
     public static final int MAX_FILES = 8;
 
     private CommunityClient() { }
@@ -44,11 +44,11 @@ public final class CommunityClient {
                 }
                 byte[] bytes = Files.readAllBytes(p);
                 if (bytes.length > MAX_FILE) {
-                    throw new IOException(name + " is larger than 1 MB");
+                    throw new IOException(name + " is larger than 5 MB");
                 }
                 total += bytes.length;
                 if (total > MAX_TOTAL) {
-                    throw new IOException("the item is larger than 2 MB");
+                    throw new IOException("the item is larger than 8 MB");
                 }
                 files.put(name, bytes);
             }

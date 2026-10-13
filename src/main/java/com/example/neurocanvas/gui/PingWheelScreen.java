@@ -29,7 +29,7 @@ public final class PingWheelScreen extends Screen {
     private final PingWheel.Target target;
     private final int keyCode;
     private int hover = -1;
-    /** 0: the pings, 1: the emotes to pick from. */
+    /** 0: the pings, 1: the emotes to pick from, 2: the graffiti to pick from. */
     private int page;
     private float open;
     private long last = System.nanoTime();
@@ -56,15 +56,19 @@ public final class PingWheelScreen extends Screen {
 
     private void choose() {
         int pick = hover;
-        if (page == 1) {
+        if (page >= 1) {
             if (pick >= 0 && pick < 4) {
                 close();
-                wheel.emote(pick);
+                if (page == 1) {
+                    wheel.emote(pick);
+                } else {
+                    wheel.spray(pick);
+                }
             }
             return;
         }
-        if (pick == 11) {
-            page = 1;
+        if (pick == 11 || pick == 10) {
+            page = pick == 11 ? 1 : 2;
             hover = -1;
             open = 0f;
             return;
@@ -81,10 +85,10 @@ public final class PingWheelScreen extends Screen {
             }
             return;
         }
-        switch (pick) {
-            case 8 -> wheel.clearMine();
-            case 9 -> wheel.startCountdown();
-            default -> wheel.spray();
+        if (pick == 8) {
+            wheel.clearMine();
+        } else if (pick == 9) {
+            wheel.startCountdown();
         }
     }
 
@@ -105,7 +109,7 @@ public final class PingWheelScreen extends Screen {
         if (angle < 0) {
             angle += Math.PI * 2;
         }
-        if (page == 1) {
+        if (page >= 1) {
             hover = r >= INNER_IN && r <= OUTER_OUT + 30 ? (int) Math.floor((angle + Math.PI / 4) / (Math.PI / 2)) % 4 : -1;
         } else if (r >= OUTER_IN - 8 && r <= OUTER_OUT + 30) {
             hover = (int) Math.floor((angle + Math.PI / 8) / (Math.PI / 4)) % PingIcons.PINGS;
@@ -136,7 +140,10 @@ public final class PingWheelScreen extends Screen {
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
-        String[] names = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Emotes.class).names();
+        boolean graffiti = page == 2;
+        int icon = graffiti ? 10 : 11;
+        String[] names = graffiti ? NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Graffiti.class).names()
+                : NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Emotes.class).names();
         double gap = 0.04;
         for (int i = 0; i < 4; i++) {
             double a0 = -Math.PI / 4 + i * Math.PI / 2 + gap;
@@ -144,7 +151,7 @@ public final class PingWheelScreen extends Screen {
             boolean h = hover == i;
             boolean filled = !names[i].isEmpty();
             int base = (0xFF << 24) | (th.panel() & 0xFFFFFF);
-            int fill = h && filled ? Ui.mix(base, 0xFF000000 | PingIcons.COLORS[11], 0.55f) : Ui.alpha(th.panel() & 0xFFFFFF, 0.9f * ease);
+            int fill = h && filled ? Ui.mix(base, 0xFF000000 | PingIcons.COLORS[icon], 0.55f) : Ui.alpha(th.panel() & 0xFFFFFF, 0.9f * ease);
             sector(m, cx, cy, INNER_IN * k, (OUTER_OUT + (h ? 8 : 0)) * k, a0, a1, fill);
         }
         for (int i = 0; i < 4; i++) {
@@ -153,13 +160,13 @@ public final class PingWheelScreen extends Screen {
             int tx = (int) (cx + Math.cos(ang) * rad);
             int ty = (int) (cy + Math.sin(ang) * rad);
             boolean filled = !names[i].isEmpty();
-            PingIcons.draw(ctx, 11, tx - PingIcons.SIZE * 3 / 2, ty - PingIcons.SIZE * 3 / 2 - 8, 3, Ui.alpha(filled ? PingIcons.COLORS[11] : th.dim(), ease));
+            PingIcons.draw(ctx, icon, tx - PingIcons.SIZE * 3 / 2, ty - PingIcons.SIZE * 3 / 2 - 8, 3, Ui.alpha(filled ? PingIcons.COLORS[icon] : th.dim(), ease));
             String text = filled ? textRenderer.trimToWidth(names[i], 96) : "(empty)";
             Ui.textCentered(ctx, textRenderer, text, tx, ty + 14, filled ? th.text() : th.dim());
         }
-        Ui.textCentered(ctx, textRenderer, "Pick an emote (Esc to close)", (int) cx, (int) (cy + OUTER_OUT + 22), th.dim());
+        Ui.textCentered(ctx, textRenderer, graffiti ? "Pick a graffiti (Esc to close)" : "Pick an emote (Esc to close)", (int) cx, (int) (cy + OUTER_OUT + 22), th.dim());
         if (java.util.Arrays.stream(names).allMatch(String::isEmpty)) {
-            Ui.textCentered(ctx, textRenderer, "Pick emotes in the Emotes module first", (int) cx, (int) (cy + OUTER_OUT + 36), th.dim());
+            Ui.textCentered(ctx, textRenderer, graffiti ? "Pick graffiti in the Graffiti module first" : "Pick emotes in the Emotes module first", (int) cx, (int) (cy + OUTER_OUT + 36), th.dim());
         }
     }
 
@@ -178,7 +185,7 @@ public final class PingWheelScreen extends Screen {
         float cy = height / 2f;
         float k = 0.8f + 0.2f * ease;
         Matrix4f m = ctx.getMatrices().peek().getPositionMatrix();
-        if (page == 1) {
+        if (page >= 1) {
             renderEmotes(ctx, th, m, cx, cy, k, ease);
             return;
         }

@@ -110,7 +110,15 @@ public abstract class CosmeticModule extends Module {
         if (!main.has(name)) {
             return false;
         }
-        main.setting.set(java.util.Arrays.asList(main.setting.options).indexOf(name));
+        // An item goes into the first free slot, or into the first slot when all are taken.
+        Worn target = main;
+        for (Worn w : worn) {
+            if (w.setting.option().equals(Worn.NONE)) {
+                target = w;
+                break;
+            }
+        }
+        target.setting.set(java.util.Arrays.asList(target.setting.options).indexOf(name));
         enabled = true;
         return true;
     }
@@ -168,13 +176,22 @@ public abstract class CosmeticModule extends Module {
 
     protected void tickCosmetic(MinecraftClient mc) { }
 
-    /** Uploads the item chosen in the first slot to the server and copies its code. */
+    /** Uploads every item chosen in this module's slots that is not shared yet, and copies the code of the last one. */
     public void shareSelected(MinecraftClient mc) {
-        String name = main.setting.option();
-        if (name.equals(Worn.NONE)) {
-            say("Pick an item to share first");
-            return;
+        boolean any = false;
+        for (Worn w : worn) {
+            String name = w.setting.option();
+            if (!name.equals(Worn.NONE)) {
+                any = true;
+                shareItem(mc, name);
+            }
         }
+        if (!any) {
+            say("Pick an item to share first");
+        }
+    }
+
+    private void shareItem(MinecraftClient mc, String name) {
         com.example.neurocanvas.client.SharedStore.Item known = com.example.neurocanvas.client.SharedStore.find(type.folder, name);
         if (known != null) {
             mc.keyboard.setClipboard(known.code());
@@ -203,21 +220,27 @@ public abstract class CosmeticModule extends Module {
     }
 
     private void unshareSelected() {
-        String name = main.setting.option();
-        com.example.neurocanvas.client.SharedStore.Item known = com.example.neurocanvas.client.SharedStore.find(type.folder, name);
-        if (known == null) {
-            say("\"" + name + "\" is not shared");
-            return;
+        boolean any = false;
+        for (Worn w : worn) {
+            String name = w.setting.option();
+            com.example.neurocanvas.client.SharedStore.Item known = name.equals(Worn.NONE) ? null : com.example.neurocanvas.client.SharedStore.find(type.folder, name);
+            if (known == null) {
+                continue;
+            }
+            any = true;
+            com.example.neurocanvas.client.CommunityClient.remove(known.code(), known.token()).whenComplete((v, error) ->
+                    MinecraftClient.getInstance().execute(() -> {
+                        if (error != null) {
+                            say("Could not remove \"" + name + "\": " + com.example.neurocanvas.client.MarketClient.reason(error));
+                            return;
+                        }
+                        com.example.neurocanvas.client.SharedStore.remove(known);
+                        say("\"" + name + "\" is no longer shared");
+                    }));
         }
-        com.example.neurocanvas.client.CommunityClient.remove(known.code(), known.token()).whenComplete((v, error) ->
-                MinecraftClient.getInstance().execute(() -> {
-                    if (error != null) {
-                        say("Could not remove \"" + name + "\": " + com.example.neurocanvas.client.MarketClient.reason(error));
-                        return;
-                    }
-                    com.example.neurocanvas.client.SharedStore.remove(known);
-                    say("\"" + name + "\" is no longer shared");
-                }));
+        if (!any) {
+            say("None of the picked items is shared");
+        }
     }
 
     // ---- helpers for drawing ----------------------------------------------------------------

@@ -199,9 +199,9 @@ public final class PingWheel extends Module {
         }
     }
 
-    /** Sprays the chosen graffiti on the wall in front of you. */
-    public void spray() {
-        NeuroCanvasClient.modules().get(Graffiti.class).spray(MinecraftClient.getInstance());
+    /** Sprays the graffiti of a slot on the wall in front of you. */
+    public void spray(int slot) {
+        NeuroCanvasClient.modules().get(Graffiti.class).spray(MinecraftClient.getInstance(), slot);
     }
 
     /** A message from another user, relayed by the registry. Runs on the game thread. */

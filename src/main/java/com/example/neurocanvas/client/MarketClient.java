@@ -37,8 +37,8 @@ public final class MarketClient {
     private static final Pattern NAME = Pattern.compile("[\\p{L}\\p{N}][\\p{L}\\p{N} _.-]{0,39}");
     private static final Pattern FILE = Pattern.compile("[A-Za-z0-9_][A-Za-z0-9_.-]{0,59}");
     private static final Pattern CODE = Pattern.compile("[A-HJ-NP-Z2-9]{8}");
-    private static final long MAX_FILE = 2L * 1024 * 1024;
-    private static final long MAX_TOTAL = 6L * 1024 * 1024;
+    private static final long MAX_FILE = 5L * 1024 * 1024;
+    private static final long MAX_TOTAL = 8L * 1024 * 1024;
     private static final int MAX_FILES = 8;
 
     private MarketClient() { }
