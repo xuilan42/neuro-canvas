@@ -143,7 +143,15 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new PingWheel());
         modules.register(new com.example.neurocanvas.module.WeatherChanger());
         modules.register(new com.example.neurocanvas.module.Avatars(dir.resolve("avatars")));
-        modules.register(new com.example.neurocanvas.module.Wardrobe(dir.resolve("wardrobe")));
+        Path wardrobe = dir.resolve("wardrobe");
+        modules.register(new com.example.neurocanvas.module.Capes(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Wings(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Hats(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Outfits(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Pets(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Emotes(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Graffiti(wardrobe));
+        modules.register(new com.example.neurocanvas.module.Market(wardrobe));
         modules.register(new VolumetricFog());
         modules.register(new CropInfo());
         modules.register(new FreeLook());

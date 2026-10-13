@@ -30,7 +30,7 @@ Java 17 or newer is required.
 | Category | Modules |
 |---|---|
 | **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (your own 3D model), Wardrobe (capes, wings, hats, outfits, pets, emotes, graffiti), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
+| **Cosmetics** | Model (your own 3D model), Capes, Wings, Hats, Outfits, Pets, Emotes, Graffiti, Market (one-click catalog), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
 | **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
 | **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, WeatherChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
@@ -120,17 +120,18 @@ off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, 
   so **NameTags must be on**. Only the spot you ping and your name are sent, never your position. Switches: *Share with other users*, *Show other users' pings*.
 - Each user can have 3 pings at a time; they fade after *Lifetime*. The server limits how fast pings can be sent.
 
-## Wardrobe (capes, wings, hats, outfits, pets, emotes, graffiti)
+## Cosmetics: Capes, Wings, Hats, Outfits, Pets, Emotes, Graffiti and the Market
 
-The base for your own cosmetics. The **Wardrobe** module has one slot for a **Cape**, **Wings**, a **Hat**, an **Outfit**, a **Pet**, two **Emotes** and a **Graffiti**;
-pick an item in a slot and it is worn at once. Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `wings`, `hats`, `outfits`, `pets`, `emotes`, `graffiti`)
-with a Blockbench `.bbmodel` (for graffiti a `.png`) and an optional `cosmetic.json` (`model`, `scale`, `animation`, `image`, `size`). One small example of every kind is created the first time;
-*Reload* finds new folders. A `README.txt` in the folder describes the format.
+Each kind of cosmetic is its own module in the **Cosmetics** tab, with a list of its items and the shared settings (*Size*, *Shading*, *Animation speed*, *Show in first person*, *Reload*, *Open folder*).
+Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `wings`, `hats`, `outfits`, `pets`, `emotes`, `graffiti`) with a Blockbench `.bbmodel` (for graffiti a `.png`) and an optional
+`cosmetic.json` (`model`, `scale`, `animation`, `image`, `size`). One small example of every kind is created the first time; *Reload* finds new folders; a `README.txt` in the folder describes the format.
 
 - Models share the space of an Avatar made for your own body (16 units per block, feet at y 0, head at y 24 to 32, front is north). A **cape** hangs from the shoulders and swings as you move (the game's own cape is hidden while one is worn),
-  **wings** sit on your back, a **hat** follows your head, an **outfit** sits on your body, a **pet** follows you on the ground. Animations named `idle` (and `walk` for pets) play by themselves.
-- **Emotes** are full avatars with an animation (`animation` in `cosmetic.json`): the PingWheel *Wave* plays Emote 1 and *Dance* plays Emote 2; your body is replaced while it plays.
-- **Graffiti:** set the Wardrobe module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Graffiti lifetime*).
+  **wings** sit on your back, a **hat** follows your head, an **outfit** sits on your body, a **pet** follows you on the ground. Animations named `idle` (and `walk`) play by themselves.
+- **Emotes** are full avatars with an animation (`animation` in `cosmetic.json`): the PingWheel *Wave* plays the first slot ("Wave emote") and *Dance* the second ("Dance emote"); your body is replaced while it plays.
+- **Graffiti:** set the module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Lifetime*).
+- **Market:** a catalog of cosmetics kept on the project's server. Open the module, choose a kind in *Show* if you like, and press **Get & wear** next to an item: it is downloaded into your wardrobe, the matching module is switched on and the item is put on.
+  Items you already have show **Wear**. Everything that is downloaded is checked first (the kind, the folder and file names, the extensions `.bbmodel`, `.png`, `.json`, and the sizes), so a catalog item cannot write anything else or anywhere else.
 - For now only you see your items; showing them to other users is the next step.
 
 ## Avatar (animated Blockbench avatars)

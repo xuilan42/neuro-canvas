@@ -378,6 +378,10 @@ public final class ClickGui extends Screen {
             renderFriends(ctx, th, mx, my);
             return;
         }
+        if (marketPanel()) {
+            renderMarket(ctx, th, mx, my);
+            return;
+        }
 
         int viewY = rowsTop();
         int viewH = bodyTop() + bodyH() - viewY - 4;
@@ -620,6 +624,119 @@ public final class ClickGui extends Screen {
             friendInput = "";
             Interface.click(1.3f);
         }
+    }
+
+    // ---- Market panel -------------------------------------------------------------------------
+
+    private record MRow(int kind, int y, int h, String text, Setting setting, com.example.neurocanvas.client.MarketClient.Entry entry) { }
+
+    private static final int M_SETTING = 0, M_NOTE = 1, M_ENTRY = 2;
+    private int marketContent;
+
+    private boolean marketPanel() {
+        return selected instanceof com.example.neurocanvas.module.Market && query.isEmpty();
+    }
+
+    private List<MRow> marketRows() {
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
+        m.ensureLoaded();
+        List<MRow> rows = new ArrayList<>();
+        int top = rowsTop() - (int) settingsScroll;
+        int y = top;
+        for (Setting s : m.settings) {
+            rows.add(new MRow(M_SETTING, y, ROW_H, s.name, s, null));
+            y += ROW_H;
+        }
+        y += 4;
+        if (!m.status().isEmpty()) {
+            rows.add(new MRow(M_NOTE, y, 22, m.status(), null, null));
+            y += 22;
+        }
+        if (m.entries() != null) {
+            com.example.neurocanvas.avatar.CosmeticPack.Type only = m.filter();
+            for (com.example.neurocanvas.client.MarketClient.Entry e : m.entries()) {
+                if (only == null || only.folder.equals(e.type())) {
+                    rows.add(new MRow(M_ENTRY, y, 26, e.name(), null, e));
+                    y += 28;
+                }
+            }
+        }
+        marketContent = y - top;
+        return rows;
+    }
+
+    private static String kindLabel(String folder) {
+        for (com.example.neurocanvas.avatar.CosmeticPack.Type t : com.example.neurocanvas.avatar.CosmeticPack.Type.values()) {
+            if (t.folder.equals(folder)) {
+                return t.label;
+            }
+        }
+        return folder;
+    }
+
+    private void renderMarket(DrawContext ctx, Theme th, int mx, int my) {
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
+        int px = panelX() + PAD;
+        int pw = panelW() - 2 * PAD;
+        int viewY = rowsTop();
+        int viewH = bodyTop() + bodyH() - viewY - 4;
+        ctx.enableScissor(panelX(), viewY, panelX() + panelW(), viewY + viewH);
+        for (MRow r : marketRows()) {
+            switch (r.kind()) {
+                case M_SETTING -> renderSetting(ctx, th, r.setting(), r.y(), mx, my);
+                case M_NOTE -> Ui.text(ctx, textRenderer, textRenderer.trimToWidth(r.text(), pw), px, r.y() + 7, th.dim());
+                default -> {
+                    boolean hover = inside(mx, my, px, r.y(), pw, 26) && my >= viewY && my < viewY + viewH;
+                    Ui.surface(ctx, px, r.y(), pw, 26, 6, hover ? th.hover() : th.panel2());
+                    com.example.neurocanvas.client.MarketClient.Entry e = r.entry();
+                    String kind = kindLabel(e.type());
+                    Ui.textMid(ctx, textRenderer, kind, px + 10, r.y(), 26, th.accent());
+                    int nx = px + 14 + Ui.width(textRenderer, kind) + 6;
+                    Ui.textMid(ctx, textRenderer, textRenderer.trimToWidth(e.name(), pw - 150 - (nx - px)), nx, r.y(), 26, th.text());
+                    boolean busy = m.busy(e);
+                    boolean have = m.installed(e);
+                    String label = busy ? "..." : have ? "Wear" : "Get & wear";
+                    int bw = 78;
+                    int bx = px + pw - bw - 6;
+                    boolean bh = inside(mx, my, bx, r.y() + 3, bw, 20);
+                    Ui.roundRect(ctx, bx, r.y() + 3, bw, 20, 6, busy ? th.hover() : (bh ? th.accent2() : th.accent()));
+                    Ui.textCentered(ctx, textRenderer, label, bx + bw / 2, r.y() + 9, th.bg() | 0xFF000000);
+                    String by = e.author();
+                    Ui.text(ctx, textRenderer, by, bx - 8 - Ui.width(textRenderer, by), r.y() + 9, th.dim());
+                }
+            }
+        }
+        ctx.disableScissor();
+    }
+
+    private boolean marketClicked(double mx, double my, int button) {
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
+        int px = panelX() + PAD;
+        int pw = panelW() - 2 * PAD;
+        if (my < rowsTop() || my >= bodyTop() + bodyH() - 4) {
+            return false;
+        }
+        for (MRow r : marketRows()) {
+            if (my < r.y() || my >= r.y() + r.h()) {
+                continue;
+            }
+            if (r.kind() == M_SETTING) {
+                if (inside(mx, my, ctrlX() - 4, r.y(), CTRL_W + 8, ROW_H)) {
+                    Setting s = r.setting();
+                    switch (s.kind) {
+                        case BUTTON -> s.value = 1;
+                        case CHOICE -> s.cycle(button == 1 ? -1 : 1);
+                        default -> { }
+                    }
+                    Interface.click(1.1f);
+                }
+            } else if (r.kind() == M_ENTRY && mx >= px + pw - 90) {
+                m.get(r.entry());
+                Interface.click(1.3f);
+            }
+            return true;
+        }
+        return false;
     }
 
     // ---- colour picker popup -------------------------------------------------------------
@@ -1002,9 +1119,12 @@ public final class ClickGui extends Screen {
         if (friendsPanel() && mx >= panelX() && friendsClicked(mx, my, button)) {
             return true;
         }
+        if (marketPanel() && mx >= panelX() && marketClicked(mx, my, button)) {
+            return true;
+        }
         int viewTop = rowsTop();
         int viewBottom = bodyTop() + bodyH() - 4;
-        if (!friendsPanel() && my >= viewTop && my < viewBottom) {
+        if (!friendsPanel() && !marketPanel() && my >= viewTop && my < viewBottom) {
             if (inside(mx, my, ctrlX() - 4, rowY(0), CTRL_W + 8, ROW_H)) {
                 bindingFor = selected;
                 return true;
@@ -1074,7 +1194,7 @@ public final class ClickGui extends Screen {
             int content = (configView() ? presets.size() : visible().size()) * (CARD_H + GAP);
             listScroll = clamp(listScroll - amount * 18, 0, Math.max(0, content - bodyH()));
         } else {
-            int content = friendsPanel() ? friendsContent : (selected.settings.size() + 2) * ROW_H;
+            int content = friendsPanel() ? friendsContent : marketPanel() ? marketContent : (selected.settings.size() + 2) * ROW_H;
             int view = bodyTop() + bodyH() - rowsTop() - 4;
             settingsScroll = clamp(settingsScroll - amount * 18, 0, Math.max(0, content - view));
         }
