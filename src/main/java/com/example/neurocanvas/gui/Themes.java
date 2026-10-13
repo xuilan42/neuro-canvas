@@ -60,8 +60,8 @@ public final class Themes {
         for (Theme t : Theme.ALL) {
             BUILTIN.add(new ThemeDef(t.name(), t, ThemeStyle.CLASSIC, null, true));
         }
-        BUILTIN.add(def("Glass", 0x6612161F, 0x33FFFFFF, 0x44FFFFFF, 0x59FFFFFF, 0xFF7CC4FF, 0xFFB38CFF, 0xFFFFFFFF, 0xC8FFFFFF,
-                new ThemeStyle(1.3f, 1f, 0x66FFFFFF, 0.25f, true, 1.0f, Overlay.NONE, 0f, SwitchStyle.PILL, null), null));
+        BUILTIN.add(def("Glass", 0xB0120B2B, 0x1AFFFFFF, 0x24FFFFFF, 0x38FFFFFF, 0xFFA855F7, 0xFF5B8CFF, 0xFFFFFFFF, 0xFFB4AECF,
+                new ThemeStyle(1.3f, 1f, 0x30FFFFFF, 0.55f, true, 1.0f, Overlay.GLASS, 0f, SwitchStyle.PILL, null), null));
         BUILTIN.add(def("Terminal", 0xF2050A05, 0xFF0A140A, 0xFF0F1F0F, 0xFF173317, 0xFF33FF66, 0xFF00CC44, 0xFFB8FFC8, 0xFF4A9A5E,
                 new ThemeStyle(0f, 1f, 0xFF1F5A2C, 0.15f, false, 0f, Overlay.SCANLINES, 0.55f, SwitchStyle.BRACKET, "jetbrainsmono"), null));
         BUILTIN.add(def("Retro", 0xFF2B2B2B, 0xFF3C3C3C, 0xFF555555, 0xFF6B6B6B, 0xFF55FF55, 0xFFFFAA00, 0xFFFFFFFF, 0xFFB0B0B0,

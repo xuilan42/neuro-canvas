@@ -10,38 +10,53 @@ import com.example.neurocanvas.module.Setting;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
 
 /**
- * Window with category tabs on top, the module list on the left and the settings of the
- * selected module on the right. Layout is computed from the screen size on every frame and click.
+ * The menu window: a header with the logo, the search and the close button, a vertical list of sections on the left, and on
+ * the right the modules of the section as cards. A card shows the module's name, description and switch; a click on it
+ * unfolds the settings in place. Friends and Market open as a full page with a back button, and NeuroAura and Configs keep
+ * their own two-column pages. The layout is computed from the screen size on every frame and click.
  */
 public final class ClickGui extends Screen {
-    private static final int W = 580;
-    private static final int H = 340;
-    private static final int HEADER = 40;
-    private static final int PAD = 12;
+    private int W = 720;
+    private int H = 420;
+    private static final int HEADER = 56;
+    private static final int PAD = 14;
+    private static final int SIDE_W = 144;
     private static final int LIST_W = 176;
     private static final int CARD_H = 26;
     private static final int GAP = 4;
     private static final int ROW_H = 26;
     private static final int CTRL_W = 200;
     private static final int PANEL_HEAD = 46;
+    private static final int HEAD_H = 46;
+    private static final int SEC_H = 46;
+    private static final int CARD_GAP = 8;
+    private static final int KEY_H = 28;
+    private static final int CCW = 170;
     private static final int RSHIFT = 344;
+    private static final int WIN_R = 12;
 
     private static final AiPanel AI = new AiPanel();
 
-    // Remembered between openings, so the menu comes back to the tab and module you were on.
+    // Remembered between openings, so the menu comes back to the section and the unfolded cards you were on.
     private static Category tab;
-    private static Module selected;
-    private Setting dragging;
+    private static Module fullView;
+    private static final Set<Module> expanded = new LinkedHashSet<>();
     private static double listScroll;
     private static double settingsScroll;
+
+    private Setting dragging;
+    private int dragX0;
+    private int dragW;
     private float open;
     private String query = "";
     private boolean searchFocus;
@@ -49,12 +64,10 @@ public final class ClickGui extends Screen {
     private long lastNano = System.nanoTime();
     private final Map<Module, Float> switchAnim = new HashMap<>();
     private final Map<Module, Float> hoverAnim = new HashMap<>();
+    private final Map<Module, Float> openAnim = new HashMap<>();
     private Category animTab;
-    private Module animSelected;
     private float listIn = 1f;
-    private float panelIn = 1f;
-    private float underlineX = Float.NaN;
-    private float underlineW;
+    private float selY = Float.NaN;
 
     public ClickGui() {
         super(Text.literal("NeuroCanvas"));
@@ -62,10 +75,13 @@ public final class ClickGui extends Screen {
 
     @Override
     protected void init() {
+        fit();
         NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class).setMenuOpen(true);
         if (tab == null) {
             tab = categories().get(0);
-            selected = modulesIn(tab).get(0);
+        }
+        if (expanded.isEmpty()) {
+            expandFirst();
         }
         if (tab == Category.CONFIG) {
             refreshPresets();
@@ -73,6 +89,24 @@ public final class ClickGui extends Screen {
         if (!Interface.animations()) {
             open = 1;
         }
+    }
+
+    private void fit() {
+        W = Math.max(480, Math.min(720, width - 24));
+        H = Math.max(300, Math.min(420, height - 24));
+    }
+
+    private void expandFirst() {
+        for (Module m : modulesIn(tab)) {
+            if (!special(m)) {
+                expanded.add(m);
+                return;
+            }
+        }
+    }
+
+    private static boolean special(Module m) {
+        return m instanceof com.example.neurocanvas.module.Friends || m instanceof com.example.neurocanvas.module.Market;
     }
 
     private List<Category> categories() {
@@ -95,23 +129,6 @@ public final class ClickGui extends Screen {
         return out;
     }
 
-    private int wx() { return (width - W) / 2; }
-    private int wy() { return (height - H) / 2; }
-    private int bodyTop() { return wy() + HEADER + 6; }
-    private int bodyH() { return H - HEADER - 16; }
-    private int listX() { return wx() + PAD; }
-    private int panelX() { return wx() + PAD + LIST_W + 10; }
-    private int panelW() { return W - 2 * PAD - LIST_W - 10; }
-    private int cardY(int i) { return bodyTop() + i * (CARD_H + GAP) - (int) listScroll; }
-    private int rowsTop() { return bodyTop() + PANEL_HEAD; }
-    private int rowY(int i) { return rowsTop() + i * ROW_H - (int) settingsScroll; }
-    private int ctrlX() { return panelX() + panelW() - PAD - CTRL_W; }
-
-    private static final int SEARCH_W = 96;
-
-    private int sbX() { return wx() + W - PAD - SEARCH_W; }
-    private int sbY() { return wy() + 9; }
-
     private List<Module> visible() {
         if (query.isEmpty()) {
             return modulesIn(tab);
@@ -129,36 +146,127 @@ public final class ClickGui extends Screen {
         return key < 0 ? "None" : InputUtil.fromKeyCode(key, 0).getLocalizedText().getString();
     }
 
-    /** The rows above the settings: the key and its mode, which modules that are always on do not have. */
-    private int bindRows() {
-        return selected.alwaysOn ? 0 : 2;
+    private static String subtitle(Category c) {
+        return switch (c) {
+            case VISUALS -> "Enhance your visual experience";
+            case COSMETICS -> "Dress up your character";
+            case COMBAT -> "See and understand every fight";
+            case WORLD -> "Shape the world around you";
+            case HUD -> "Information on your screen";
+            case FRIENDS -> "Play together with friends";
+            case MISC -> "The menu itself and extras";
+            case AI -> "Describe a look and let the AI set it up";
+            case CONFIG -> "Save, load and share all your settings";
+        };
     }
 
-    private void renderBindRows(DrawContext ctx, Theme th) {
-        int cx = ctrlX();
-        int y = rowY(0);
-        Ui.textMid(ctx, textRenderer, "Keybind", panelX() + PAD, y, ROW_H, th.text());
-        Ui.surface(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
-        boolean listening = bindingFor == selected;
-        Ui.textCentered(ctx, textRenderer, listening ? "Press a key..." : keyName(selected.key),
-                cx + CTRL_W / 2, y + (ROW_H - 8) / 2, listening ? th.accent() : th.text());
-        y = rowY(1);
-        Ui.textMid(ctx, textRenderer, "Bind mode", panelX() + PAD, y, ROW_H, th.text());
-        Ui.surface(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
-        Ui.textCentered(ctx, textRenderer, selected.hold ? "Hold" : "Toggle", cx + CTRL_W / 2, y + (ROW_H - 8) / 2, th.text());
+    private static String version() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("neurocanvas")
+                .map(c -> "v" + c.getMetadata().getVersion().getFriendlyString()).orElse("");
     }
 
-    private int tabWidth(Category c) {
-        return c == tab ? Icons.SIZE + 5 + Ui.width(textRenderer, c.label) : Icons.SIZE;
+    // ---- geometry ------------------------------------------------------------------------------
+
+    private int wx() { return (width - W) / 2; }
+    private int wy() { return (height - H) / 2; }
+    private int bodyTop() { return wy() + HEADER; }
+    private int bodyH() { return H - HEADER - PAD; }
+    private int mainX() { return wx() + SIDE_W + 4; }
+    private int mainW() { return W - SIDE_W - 4 - PAD; }
+
+    private boolean split() { return aiView() || configView(); }
+    private boolean fullPage() { return fullView != null && query.isEmpty() && !split(); }
+
+    private int listX() { return mainX(); }
+    private int panelX() { return split() ? mainX() + LIST_W + 10 : mainX(); }
+    private int panelW() { return split() ? mainW() - LIST_W - 10 : mainW(); }
+    private int cardY(int i) { return bodyTop() + i * (CARD_H + GAP) - (int) listScroll; }
+    private int rowsTop() { return bodyTop() + PANEL_HEAD; }
+    private int rowY(int i) { return rowsTop() + i * ROW_H - (int) settingsScroll; }
+    private int ctrlX() { return panelX() + panelW() - PAD - CTRL_W; }
+    private int trackW() { return CTRL_W - 40; }
+
+    private int sbX() { return wx() + SIDE_W + 20; }
+    private int sbY() { return wy() + 16; }
+    private int sbW() { return Math.max(120, Math.min(250, W - SIDE_W - 130)); }
+    private static final int SB_H = 24;
+    private int closeX() { return wx() + W - PAD - 22; }
+    private int closeY() { return wy() + 16; }
+
+    private int sideX() { return wx() + 10; }
+    private int sideW() { return SIDE_W - 14; }
+    private int userY() { return wy() + H - PAD - 42; }
+    private int sideItemH(int n) { return Math.max(20, Math.min(30, (userY() - 8 - bodyTop()) / Math.max(1, n) - 2)); }
+    private int sideItemY(int i, int ih) { return bodyTop() + 2 + i * (ih + 2); }
+
+    private int vy0() { return bodyTop() + SEC_H; }
+    private int vy1() { return bodyTop() + bodyH() - 6; }
+    private int cx0() { return mainX() + 10; }
+    private int cx1() { return mainX() + mainW() - 14; }
+
+    private int backX() { return panelX() + PAD; }
+    private int backY() { return bodyTop() + 12; }
+
+    // ---- card layout -----------------------------------------------------------------------------
+
+    private record Item(int kind, Module m, Setting s, int y, int h) { }
+
+    private static final int I_HEAD = 0, I_ROW = 1, I_KEY = 2, I_MODE = 3;
+    private int cardsContent;
+
+    private static int rowH(Setting s) {
+        return s.kind == Setting.Kind.NUMBER ? 36 : 28;
     }
 
-    private int tabX(int index, List<Category> cats) {
-        int x = wx() + 112;
-        for (int i = 0; i < index; i++) {
-            x += tabWidth(cats.get(i)) + 18;
+    private static float ease(float a) {
+        return 1f - (float) Math.pow(1f - a, 3);
+    }
+
+    private int expandedExtra(Module m) {
+        int h = 6 + 8;
+        if (!m.alwaysOn) {
+            h += 2 * KEY_H;
         }
-        return x;
+        for (Setting s : m.settings) {
+            h += rowH(s);
+        }
+        return h;
     }
+
+    private float openOf(Module m) {
+        return special(m) ? 0f : openAnim.getOrDefault(m, expanded.contains(m) ? 1f : 0f);
+    }
+
+    private List<Item> layout() {
+        List<Item> out = new ArrayList<>();
+        int top = vy0() - (int) listScroll;
+        int y = top + 2;
+        for (Module m : visible()) {
+            float a = openOf(m);
+            int extra = Math.round(expandedExtra(m) * ease(a));
+            out.add(new Item(I_HEAD, m, null, y, HEAD_H + extra));
+            if (a > 0.001f) {
+                int ry = y + HEAD_H + 6;
+                if (!m.alwaysOn) {
+                    out.add(new Item(I_KEY, m, null, ry, KEY_H));
+                    ry += KEY_H;
+                    out.add(new Item(I_MODE, m, null, ry, KEY_H));
+                    ry += KEY_H;
+                }
+                for (Setting s : m.settings) {
+                    out.add(new Item(I_ROW, m, s, ry, rowH(s)));
+                    ry += rowH(s);
+                }
+            }
+            y += HEAD_H + extra + CARD_GAP;
+        }
+        cardsContent = y - top;
+        return out;
+    }
+
+    private int toggleX() { return cx1() - 12 - 32; }
+
+    // ---- rendering -------------------------------------------------------------------------------
 
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -171,12 +279,14 @@ public final class ClickGui extends Screen {
     }
 
     private void renderMenu(DrawContext ctx, int mouseX, int mouseY) {
+        fit();
         Theme th = Interface.theme();
         ThemeStyle style = Interface.style();
         boolean fx = Interface.shaderEffects();
-        boolean blurOn = fx && style.blur() > 0.01f;
+        boolean glassStyle = style.overlay() == ThemeStyle.Overlay.GLASS;
+        boolean blurOn = fx && (style.blur() > 0.01f || glassStyle);
         if (blurOn) {
-            GuiFx.captureBlur(client, ctx, style.blur());
+            GuiFx.captureBlur(client, ctx, Math.max(style.blur(), glassStyle ? 0.9f : 0f));
         }
         long now = System.nanoTime();
         float dt = Math.min((now - lastNano) / 1_000_000_000f, 0.1f);
@@ -186,14 +296,8 @@ public final class ClickGui extends Screen {
         if (animTab != tab) {
             animTab = tab;
             listIn = 0f;
-            panelIn = 0f;
-        }
-        if (animSelected != selected) {
-            animSelected = selected;
-            panelIn = 0f;
         }
         listIn = anim ? Math.min(1f, listIn + dt * 3.2f) : 1f;
-        panelIn = anim ? Math.min(1f, panelIn + dt * 5.5f) : 1f;
         float ease = 1f - (float) Math.pow(1f - open, 3);
 
         drawBackground(ctx, th, ease);
@@ -208,38 +312,40 @@ public final class ClickGui extends Screen {
         }
 
         if (style.shadow()) {
-            Ui.shadow(ctx, wx(), wy(), W, H, 10);
+            Ui.shadow(ctx, wx(), wy(), W, H, 12);
         }
-        if (blurOn && GuiFx.blurAvailable()) {
-            GuiFx.drawBlurred(ctx, wx(), wy(), W, H, 10, 1f);
+        boolean glass = glassStyle && blurOn && GuiFx.drawGlass(client, ctx, wx(), wy(), W, H, Ui.rad(WIN_R),
+                th.bg(), th.accent(), th.accent2(), Interface.glassOpacity());
+        if (!glass) {
+            if (blurOn && GuiFx.blurAvailable()) {
+                GuiFx.drawBlurred(ctx, wx(), wy(), W, H, WIN_R, 1f);
+            }
+            Ui.surface(ctx, wx(), wy(), W, H, WIN_R, th.bg());
         }
-        Ui.surface(ctx, wx(), wy(), W, H, 10, th.bg());
-        Ui.glow(ctx, wx(), wy(), W, H, 10, th.accent(), style.glow(), 14f);
-        boolean effects = fx && open >= 1f && style.overlay() != ThemeStyle.Overlay.NONE;
+        Ui.glow(ctx, wx(), wy(), W, H, WIN_R, th.accent(), style.glow(), 16f);
+        boolean effects = fx && open >= 1f && style.overlay() != ThemeStyle.Overlay.NONE && !glassStyle;
         if (effects && !style.overlayOnTop()) {
-            GuiFx.overlay(client, ctx, style.overlay().ordinal(), wx(), wy(), W, H, Ui.rad(10), th.accent(), th.accent2(), style.overlayStrength());
+            GuiFx.overlay(client, ctx, style.overlay().ordinal(), wx(), wy(), W, H, Ui.rad(WIN_R), th.accent(), th.accent2(), style.overlayStrength());
         }
 
         renderHeader(ctx, th, mouseX, mouseY);
+        renderSidebar(ctx, th, mouseX, mouseY, anim);
         if (aiView()) {
             AI.renderHistory(ctx, th, textRenderer, listX(), bodyTop(), LIST_W, bodyH(), mouseX, mouseY);
             AI.renderMain(ctx, th, textRenderer, panelX(), bodyTop(), panelW(), bodyH(), mouseX, mouseY);
         } else if (configView()) {
             renderConfigs(ctx, th, mouseX, mouseY);
+        } else if (fullPage()) {
+            renderFullPage(ctx, th, mouseX, mouseY);
         } else {
-            renderModuleList(ctx, th, mouseX, mouseY, dt, anim);
-            renderSettings(ctx, th, mouseX, mouseY);
-            if (panelIn < 1f) {
-                float fade = 1f - (1f - (float) Math.pow(1f - panelIn, 3));
-                Ui.roundRect(ctx, panelX(), bodyTop(), panelW(), bodyH(), 8, Ui.alpha(th.bg() & 0xFFFFFF, 0.9f * fade));
-            }
+            renderCards(ctx, th, mouseX, mouseY, dt, anim);
             if (pickerFor != null) {
                 drawPicker(ctx, th);
             }
         }
 
         if (effects && style.overlayOnTop()) {
-            GuiFx.overlay(client, ctx, style.overlay().ordinal(), wx(), wy(), W, H, Ui.rad(10), th.accent(), th.accent2(), style.overlayStrength());
+            GuiFx.overlay(client, ctx, style.overlay().ordinal(), wx(), wy(), W, H, Ui.rad(WIN_R), th.accent(), th.accent2(), style.overlayStrength());
         }
         ctx.getMatrices().pop();
         drawUpdateBanner(ctx, th, mouseX, mouseY);
@@ -265,7 +371,7 @@ public final class ClickGui extends Screen {
                             Ui.alpha(th.accent() & 0xFFFFFF, 0.035f * ease));
                 }
             }
-            default -> ctx.fill(0, 0, width, height, Ui.alpha(0x000000, 0.5f * ease));
+            default -> ctx.fill(0, 0, width, height, Ui.alpha(0x000000, 0.35f * ease));
         }
     }
 
@@ -289,161 +395,355 @@ public final class ClickGui extends Screen {
         Ui.textCentered(ctx, textRenderer, bannerText(), width / 2, by + 6, th.bg() | 0xFF000000);
     }
 
-    private void renderHeader(DrawContext ctx, Theme th, int mx, int my) {
-        Ui.text(ctx, textRenderer, "Neuro", wx() + PAD + 2, wy() + 16, th.text());
-        Ui.text(ctx, textRenderer, "Canvas", wx() + PAD + 2 + Ui.width(textRenderer, "Neuro") + 1, wy() + 16, th.accent());
-        List<Category> cats = categories();
-        for (int i = 0; i < cats.size(); i++) {
-            Category c = cats.get(i);
-            int x = tabX(i, cats);
-            int w = tabWidth(c);
-            boolean hover = inside(mx, my, x - 8, wy() + 6, w + 16, HEADER - 12);
-            int color = c == tab ? th.text() : (hover ? th.text() : th.dim());
-            Icons.draw(ctx, c, x, wy() + 15, c == tab ? th.accent() : color);
-            if (c == tab) {
-                Ui.text(ctx, textRenderer, c.label, x + Icons.SIZE + 5, wy() + 16, color);
-            } else if (hover) {
-                Ui.text(ctx, textRenderer, c.label, x + w / 2 - Ui.width(textRenderer, c.label) / 2, wy() + HEADER - 4, th.dim());
-            }
-            if (c == tab) {
-                if (Float.isNaN(underlineX) || !Interface.animations()) {
-                    underlineX = x - 2;
-                    underlineW = w + 4;
-                }
-                underlineX += (x - 2 - underlineX) * 0.28f;
-                underlineW += (w + 4 - underlineW) * 0.28f;
-                Ui.roundRect(ctx, Math.round(underlineX), wy() + HEADER - 8, Math.round(underlineW), 2, 1, th.accent());
-            }
-        }
-        if (searchFocus) {
-            Ui.roundRect(ctx, sbX() - 1, sbY() - 1, SEARCH_W + 2, 24, 7, th.accent());
-        }
-        Ui.surface(ctx, sbX(), sbY(), SEARCH_W, 22, 6, th.panel2());
-        String shown = query.isEmpty() ? "Search" : query + (searchFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
-        Ui.text(ctx, textRenderer, shown, sbX() + 8, sbY() + 7, query.isEmpty() ? th.dim() : th.text());
-        ctx.fill(wx() + PAD, wy() + HEADER, wx() + W - PAD, wy() + HEADER + 1, th.panel2());
+    /** Text at a fractional size; the menu font has no small or large cut, so it is scaled. */
+    private void textScaled(DrawContext ctx, String s, float x, float y, float k, int color) {
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(x, y, 0);
+        ctx.getMatrices().scale(k, k, 1f);
+        Ui.text(ctx, textRenderer, s, 0, 0, color);
+        ctx.getMatrices().pop();
     }
 
-    private void renderModuleList(DrawContext ctx, Theme th, int mx, int my, float dt, boolean anim) {
-        List<Module> list = visible();
-        int viewY = bodyTop();
-        ctx.enableScissor(listX(), viewY, listX() + LIST_W, viewY + bodyH());
-        for (int i = 0; i < list.size(); i++) {
-            Module m = list.get(i);
-            int y = cardY(i);
-            boolean hover = inside(mx, my, listX(), y, LIST_W, CARD_H) && my >= viewY && my < viewY + bodyH();
-            boolean sel = m == selected;
-            float h = hoverAnim.getOrDefault(m, 0f);
-            float ht = hover ? 1f : 0f;
-            h = anim ? h + Math.signum(ht - h) * Math.min(Math.abs(ht - h), dt * 9f) : ht;
-            hoverAnim.put(m, h);
+    private void iconScaled(DrawContext ctx, Category c, int x, int y, int k, int color) {
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(x, y, 0);
+        ctx.getMatrices().scale(k, k, 1f);
+        Icons.draw(ctx, c, 0, 0, color);
+        ctx.getMatrices().pop();
+    }
 
-            float local = Math.max(0f, Math.min(1f, (listIn - i * 0.045f) / 0.55f));
-            float eased = 1f - (float) Math.pow(1f - local, 3);
-            ctx.getMatrices().push();
-            ctx.getMatrices().translate((1f - eased) * -16f, 0, 0);
-            int base = sel ? th.panel2() : Ui.mix(th.panel(), th.hover(), h);
-            Ui.surface(ctx, listX(), y, LIST_W, CARD_H, 6, local < 1f ? Ui.mix(th.bg() | 0xFF000000, base | 0xFF000000, eased) : base);
-            if (sel) {
-                Ui.roundRect(ctx, listX(), y + 6, 3, CARD_H - 12, 1, th.accent());
-            } else if (h > 0.02f) {
-                int bar = Math.round((CARD_H - 12) * h);
-                Ui.roundRect(ctx, listX(), y + (CARD_H - bar) / 2, 3, Math.max(1, bar), 1, Ui.alpha(th.accent() & 0xFFFFFF, h));
+    /** The text cut with ".." so that it fits the width in the menu font. */
+    private String clip(String s, int maxW) {
+        if (Ui.width(textRenderer, s) <= maxW) {
+            return s;
+        }
+        String t = s;
+        while (t.length() > 1 && Ui.width(textRenderer, t + "..") > maxW) {
+            t = t.substring(0, t.length() - 1);
+        }
+        return t + "..";
+    }
+
+    private void renderHeader(DrawContext ctx, Theme th, int mx, int my) {
+        int lx = wx() + PAD + 2;
+        int ly = wy() + 14;
+        Ui.roundRect(ctx, lx - 4, ly - 4, 28, 28, 14, Ui.alpha(th.accent() & 0xFFFFFF, 0.16f));
+        iconScaled(ctx, Category.AI, lx + 1, ly + 1, 2, th.accent());
+        textScaled(ctx, "NEURO", lx + 32, ly + 1, 1.15f, th.text());
+        textScaled(ctx, "CANVAS", lx + 32 + Ui.width(textRenderer, "NEURO") * 1.15f + 4, ly + 1, 1.15f, th.accent());
+        textScaled(ctx, "BOOST YOUR GAMEPLAY", lx + 32, ly + 15, 0.62f, th.dim());
+
+        int sx = sbX();
+        int sy = sbY();
+        int sw = sbW();
+        if (searchFocus) {
+            Ui.roundRect(ctx, sx - 1, sy - 1, sw + 2, SB_H + 2, 12, Ui.alpha(th.accent() & 0xFFFFFF, 0.9f));
+        }
+        Ui.surface(ctx, sx, sy, sw, SB_H, 12, Ui.mix(th.panel2(), th.bg() | 0xFF000000, 0.15f));
+        int dim = th.dim();
+        Ui.ring(ctx, sx + 12, sy + SB_H / 2f - 1, 3.6f, 1.2f, dim);
+        for (int i = 0; i < 3; i++) {
+            ctx.fill(sx + 15 + i, sy + SB_H / 2 + 2 + i, sx + 16 + i, sy + SB_H / 2 + 3 + i, dim);
+        }
+        String shown = query.isEmpty() ? "Search modules..." : query + (searchFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
+        Ui.text(ctx, textRenderer, clip(shown, sw - 34), sx + 26, sy + (SB_H - 8) / 2, query.isEmpty() ? th.dim() : th.text());
+
+        int cx = closeX();
+        int cy = closeY();
+        boolean hover = inside(mx, my, cx - 2, cy - 2, 26, 26);
+        if (hover) {
+            Ui.roundRect(ctx, cx - 2, cy - 2, 26, 26, 8, Ui.alpha(0xFF5C6C, 0.28f));
+        }
+        int color = hover ? 0xFFFFFFFF : th.dim();
+        for (int i = 0; i < 8; i++) {
+            ctx.fill(cx + 7 + i, cy + 7 + i, cx + 8 + i, cy + 8 + i, color);
+            ctx.fill(cx + 14 - i, cy + 7 + i, cx + 15 - i, cy + 8 + i, color);
+        }
+    }
+
+    private void renderSidebar(DrawContext ctx, Theme th, int mx, int my, boolean anim) {
+        List<Category> cats = categories();
+        int ih = sideItemH(cats.size());
+        int x = sideX();
+        int w = sideW();
+        int idx = query.isEmpty() ? cats.indexOf(tab) : -1;
+        if (idx >= 0) {
+            float target = sideItemY(idx, ih);
+            if (Float.isNaN(selY) || !anim) {
+                selY = target;
             }
-            int textColor = m.enabled ? th.text() : Ui.mix(th.dim(), th.text(), h);
-            Ui.textMid(ctx, textRenderer, m.name, listX() + 12 + Math.round(h * 2f), y, CARD_H, textColor);
+            selY += (target - selY) * 0.3f;
+            int y = Math.round(selY);
+            Ui.roundRect(ctx, x, y, w, ih, 9, Ui.alpha(th.accent() & 0xFFFFFF, 0.30f));
+            Ui.roundRect(ctx, x + 1, y + 1, w - 2, ih / 2, 8, Ui.alpha(0xFFFFFF, 0.05f));
+            Ui.glow(ctx, x, y, w, ih, 9, th.accent(), 0.35f, 8f);
+            Ui.gradientH(ctx, x + 10, y + ih - 2, w - 20, 2, th.accent(), th.accent2());
+        }
+        for (int i = 0; i < cats.size(); i++) {
+            Category c = cats.get(i);
+            int y = sideItemY(i, ih);
+            boolean hover = inside(mx, my, x, y, w, ih);
+            boolean active = i == idx;
+            int color = active || hover ? th.text() : th.dim();
+            if (hover && !active) {
+                Ui.roundRect(ctx, x, y, w, ih, 9, Ui.alpha(0xFFFFFF, 0.05f));
+            }
+            Icons.draw(ctx, c, x + 12, y + (ih - Icons.SIZE) / 2, active ? th.accent() : color);
+            Ui.text(ctx, textRenderer, c.label, x + 12 + Icons.SIZE + 9, y + (ih - 8) / 2, color);
+        }
 
-            float target = m.enabled ? 1f : 0f;
-            float a = switchAnim.getOrDefault(m, target);
-            a = anim ? a + Math.signum(target - a) * Math.min(Math.abs(target - a), dt * 8f) : target;
-            switchAnim.put(m, a);
-            if (m.risky && Interface.safeMode()) {
-                Ui.text(ctx, textRenderer, "safe mode", listX() + LIST_W - 8 - Ui.width(textRenderer, "safe mode"), y + (CARD_H - 8) / 2, th.dim());
-            } else if (!m.alwaysOn) {
-                drawSwitch(ctx, th, listX() + LIST_W - 38, y + (CARD_H - 14) / 2, a);
+        int uy = userY();
+        Ui.surface(ctx, x, uy, w, 42, 10, th.panel());
+        String name = client.getSession() == null ? "Player" : client.getSession().getUsername();
+        int fx = x + 9;
+        int fy = uy + 9;
+        Ui.roundRect(ctx, fx - 1, fy - 1, 26, 26, 8, Ui.alpha(th.accent() & 0xFFFFFF, 0.5f));
+        if (client.player != null) {
+            net.minecraft.util.Identifier skin = client.player.getSkinTexture();
+            ctx.drawTexture(skin, fx, fy, 24, 24, 8f, 8f, 8, 8, 64, 64);
+            ctx.drawTexture(skin, fx, fy, 24, 24, 40f, 8f, 8, 8, 64, 64);
+        } else {
+            Ui.textCentered(ctx, textRenderer, name.substring(0, 1).toUpperCase(), fx + 12, fy + 8, th.text());
+        }
+        Ui.roundRect(ctx, fx + 19, fy + 19, 7, 7, 3, 0xFF5CE08A);
+        Ui.text(ctx, textRenderer, clip(name, w - 48), x + 40, uy + 11, th.text());
+        Ui.text(ctx, textRenderer, version(), x + 40, uy + 23, th.accent());
+    }
+
+    private void drawSection(DrawContext ctx, Theme th, int count) {
+        int x = mainX() + 16;
+        int y = bodyTop() + 10;
+        if (query.isEmpty()) {
+            iconScaled(ctx, tab, x, y + 2, 2, th.accent());
+            textScaled(ctx, tab.label, x + 28, y, 1.25f, th.text());
+            Ui.text(ctx, textRenderer, subtitle(tab), x + 28, y + 17, th.dim());
+        } else {
+            textScaled(ctx, "Search results", x, y, 1.25f, th.text());
+            Ui.text(ctx, textRenderer, "Modules matching \"" + query + "\"", x, y + 17, th.dim());
+        }
+        String n = count + (count == 1 ? " module" : " modules");
+        Ui.text(ctx, textRenderer, n, mainX() + mainW() - 18 - Ui.width(textRenderer, n), y + 4, th.dim());
+    }
+
+    private void renderCards(DrawContext ctx, Theme th, int mx, int my, float dt, boolean anim) {
+        Ui.surface(ctx, mainX(), bodyTop(), mainW(), bodyH(), 12, th.panel());
+        List<Module> vis = visible();
+        drawSection(ctx, th, vis.size());
+        int viewH = vy1() - vy0();
+        listScroll = clamp(listScroll, 0, Math.max(0, cardsContent - viewH));
+        for (Module m : vis) {
+            float target = expanded.contains(m) && !special(m) ? 1f : 0f;
+            float a = openAnim.getOrDefault(m, target);
+            openAnim.put(m, anim ? a + Math.signum(target - a) * Math.min(Math.abs(target - a), dt * 6f) : target);
+            float on = m.enabled ? 1f : 0f;
+            float s = switchAnim.getOrDefault(m, on);
+            switchAnim.put(m, anim ? s + Math.signum(on - s) * Math.min(Math.abs(on - s), dt * 8f) : on);
+        }
+        List<Item> items = layout();
+        ctx.enableScissor(mainX(), vy0(), mainX() + mainW(), vy1());
+        int index = -1;
+        int cardBottom = 0;
+        float shift = 0f;
+        for (Item it : items) {
+            if (it.kind() == I_HEAD) {
+                index++;
+                float local = Math.max(0f, Math.min(1f, (listIn - index * 0.04f) / 0.55f));
+                shift = (1f - ease(local)) * -14f;
+                cardBottom = it.y() + it.h();
+            }
+            if (it.y() > vy1() || it.y() + it.h() < vy0()) {
+                continue;
+            }
+            ctx.getMatrices().push();
+            ctx.getMatrices().translate(shift, 0, 0);
+            if (it.kind() == I_HEAD) {
+                drawCardHead(ctx, th, it, mx, my, dt, anim);
+            } else if (it.y() + it.h() > cardBottom) {
+                if (it.y() < cardBottom) {
+                    ctx.enableScissor(cx0(), Math.max(vy0(), it.y()), cx1(), Math.min(vy1(), cardBottom));
+                    drawRow(ctx, th, it, mx, my);
+                    ctx.disableScissor();
+                }
+            } else {
+                drawRow(ctx, th, it, mx, my);
             }
             ctx.getMatrices().pop();
         }
         ctx.disableScissor();
+        if (cardsContent > viewH) {
+            int trackH = viewH;
+            int barH = Math.max(18, trackH * viewH / cardsContent);
+            int barY = vy0() + (int) ((trackH - barH) * (listScroll / Math.max(1.0, cardsContent - viewH)));
+            Ui.roundRect(ctx, mainX() + mainW() - 8, barY, 3, barH, 1, Ui.alpha(th.accent() & 0xFFFFFF, 0.55f));
+        }
+    }
+
+    private void drawCardHead(DrawContext ctx, Theme th, Item it, int mx, int my, float dt, boolean anim) {
+        Module m = it.m();
+        int x = cx0();
+        int w = cx1() - cx0();
+        int y = it.y();
+        boolean hover = inside(mx, my, x, y, w, HEAD_H) && my >= vy0() && my < vy1();
+        float ht = hover ? 1f : 0f;
+        float h = hoverAnim.getOrDefault(m, 0f);
+        h = anim ? h + Math.signum(ht - h) * Math.min(Math.abs(ht - h), dt * 9f) : ht;
+        hoverAnim.put(m, h);
+        boolean on = m.enabled && !m.alwaysOn;
+        Ui.surface(ctx, x, y, w, it.h(), 10, Ui.mix(th.panel2(), th.hover(), h * 0.55f));
+        if (on) {
+            Ui.roundRect(ctx, x, y + 11, 3, HEAD_H - 22, 1, th.accent());
+        }
+
+        int bx = x + 14;
+        int by = y + (HEAD_H - 28) / 2;
+        Ui.roundRect(ctx, bx, by, 28, 28, 8, Ui.alpha(th.accent() & 0xFFFFFF, on ? 0.28f : 0.14f));
+        Ui.textCentered(ctx, textRenderer, m.name.substring(0, 1).toUpperCase(), bx + 14, by + 10, on ? th.accent() : th.dim());
+
+        int right = x + w - 12;
+        boolean blocked = m.risky && Interface.safeMode();
+        int controlsW = 0;
+        if (blocked) {
+            controlsW = Ui.width(textRenderer, "safe mode");
+            Ui.text(ctx, textRenderer, "safe mode", right - controlsW, y + (HEAD_H - 8) / 2, th.dim());
+        } else if (!m.alwaysOn) {
+            controlsW = 32;
+            drawSwitch(ctx, th, right - 32, y + (HEAD_H - 16) / 2, switchAnim.getOrDefault(m, on ? 1f : 0f));
+        }
+        int chevX = right - controlsW - 22;
+        int chevY = y + HEAD_H / 2 - 3;
+        int chev = h > 0.1f ? th.text() : th.dim();
+        if (special(m)) {
+            Ui.triangle(ctx, chevX + 2, chevY - 1, chevX + 2, chevY + 7, chevX + 7, chevY + 3, chev);
+        } else if (openOf(m) > 0.5f) {
+            Ui.triangle(ctx, chevX, chevY, chevX + 8, chevY, chevX + 4, chevY + 5, chev);
+        } else {
+            Ui.triangle(ctx, chevX + 2, chevY - 1, chevX + 2, chevY + 7, chevX + 7, chevY + 3, chev);
+        }
+
+        int tx = bx + 28 + 12;
+        int tw = chevX - 10 - tx;
+        Ui.text(ctx, textRenderer, clip(m.name, tw), tx, y + 10, th.text());
+        Ui.text(ctx, textRenderer, clip(m.description, tw), tx, y + 24, th.dim());
     }
 
     private void drawSwitch(DrawContext ctx, Theme th, int x, int y, float a) {
         if (Interface.style().switchStyle() == ThemeStyle.SwitchStyle.BRACKET) {
             String text = a > 0.5f ? "[x]" : "[ ]";
-            Ui.text(ctx, textRenderer, text, x + 28 - Ui.width(textRenderer, text), y + 3, a > 0.5f ? th.accent() : th.dim());
+            Ui.text(ctx, textRenderer, text, x + 32 - Ui.width(textRenderer, text), y + 4, a > 0.5f ? th.accent() : th.dim());
             return;
         }
-        Ui.roundRect(ctx, x, y, 28, 14, 7, Ui.mix(th.hover(), th.accent(), a));
-        Ui.roundRect(ctx, x + 2 + Math.round(a * 14), y + 2, 10, 10, 5, a > 0.5f ? th.bg() | 0xFF000000 : th.dim());
+        if (a > 0.02f) {
+            Ui.glow(ctx, x, y, 32, 16, 8, th.accent(), a * 0.6f, 7f);
+        }
+        Ui.roundRect(ctx, x, y, 32, 16, 8, Ui.mix(th.hover(), th.accent(), a));
+        Ui.roundRect(ctx, x + 2 + Math.round(a * 16), y + 2, 12, 12, 6, a > 0.5f ? 0xFFFFFFFF : th.dim());
     }
 
-    private void renderSettings(DrawContext ctx, Theme th, int mx, int my) {
-        int px = panelX();
-        int pw = panelW();
-        Ui.surface(ctx, px, bodyTop(), pw, bodyH(), 8, th.panel());
-        Ui.text(ctx, textRenderer, selected.name, px + PAD, bodyTop() + 9, th.text());
-        Ui.text(ctx, textRenderer, selected.description, px + PAD, bodyTop() + 24, th.dim());
-        if (friendsPanel()) {
-            renderFriends(ctx, th, mx, my);
+    private void drawRow(DrawContext ctx, Theme th, Item it, int mx, int my) {
+        int x0 = cx0() + 14;
+        int x1 = cx1() - 14;
+        int y = it.y();
+        if (it.kind() == I_KEY || it.kind() == I_MODE) {
+            boolean key = it.kind() == I_KEY;
+            Ui.text(ctx, textRenderer, key ? "Keybind" : "Bind mode", x0, y + (KEY_H - 8) / 2, th.text());
+            boolean listening = key && bindingFor == it.m();
+            Ui.roundRect(ctx, x1 - CCW, y + 4, CCW, KEY_H - 8, 7, listening ? Ui.alpha(th.accent() & 0xFFFFFF, 0.35f) : th.hover());
+            String v = key ? (listening ? "Press a key..." : keyName(it.m().key)) : (it.m().hold ? "Hold" : "Toggle");
+            Ui.textCentered(ctx, textRenderer, v, x1 - CCW / 2, y + (KEY_H - 8) / 2, listening ? th.accent() : th.text());
             return;
         }
-        if (marketPanel()) {
-            renderMarket(ctx, th, mx, my);
-            return;
-        }
-
-        int viewY = rowsTop();
-        int viewH = bodyTop() + bodyH() - viewY - 4;
-        ctx.enableScissor(px, viewY, px + pw, viewY + viewH);
-        if (!selected.alwaysOn) {
-            renderBindRows(ctx, th);
-        }
-        List<Setting> settings = selected.settings;
-        for (int i = 0; i < settings.size(); i++) {
-            renderSetting(ctx, th, settings.get(i), rowY(i + bindRows()), mx, my);
-        }
-        ctx.disableScissor();
+        drawSetting(ctx, th, it.s(), x0, x1, y, mx, my);
     }
 
+    private void drawSetting(DrawContext ctx, Theme th, Setting s, int x0, int x1, int y, int mx, int my) {
+        int h = rowH(s);
+        switch (s.kind) {
+            case BUTTON -> {
+                boolean hover = inside(mx, my, x0, y + 3, x1 - x0, h - 6);
+                Ui.roundRect(ctx, x0, y + 3, x1 - x0, h - 6, 8, hover ? Ui.alpha(th.accent() & 0xFFFFFF, 0.55f) : Ui.alpha(th.accent() & 0xFFFFFF, 0.32f));
+                Ui.textCentered(ctx, textRenderer, clip(s.name, x1 - x0 - 12), (x0 + x1) / 2, y + (h - 8) / 2, th.text());
+            }
+            case BOOL -> {
+                Ui.text(ctx, textRenderer, clip(s.name, x1 - x0 - 44), x0, y + (h - 8) / 2, th.text());
+                drawSwitch(ctx, th, x1 - 32, y + (h - 16) / 2, s.on() ? 1f : 0f);
+            }
+            case CHOICE -> {
+                Ui.text(ctx, textRenderer, clip(s.name, x1 - x0 - CCW - 10), x0, y + (h - 8) / 2, th.text());
+                Ui.roundRect(ctx, x1 - CCW, y + 4, CCW, h - 8, 7, th.hover());
+                Ui.textCentered(ctx, textRenderer, clip(s.option(), CCW - 36), x1 - CCW / 2, y + (h - 8) / 2, th.text());
+                Ui.text(ctx, textRenderer, "<", x1 - CCW + 9, y + (h - 8) / 2, th.dim());
+                Ui.text(ctx, textRenderer, ">", x1 - 9 - Ui.width(textRenderer, ">"), y + (h - 8) / 2, th.dim());
+            }
+            case COLOR -> {
+                int argb = s.argb();
+                Ui.text(ctx, textRenderer, clip(s.name, x1 - x0 - 130), x0, y + (h - 8) / 2, th.text());
+                String hex = String.format("#%06X", argb & 0xFFFFFF);
+                Ui.text(ctx, textRenderer, hex, x1 - 58 - Ui.width(textRenderer, hex), y + (h - 8) / 2, th.dim());
+                Ui.roundRect(ctx, x1 - 50, y + 5, 50, h - 10, 6, th.text());
+                Ui.roundRect(ctx, x1 - 49, y + 6, 48, h - 12, 5, argb | 0xFF000000);
+                int a = argb >>> 24;
+                if (a < 255) {
+                    Ui.roundRect(ctx, x1 - 47, y + h - 11, 44, 3, 1, Ui.alpha(0x000000, 0.45f));
+                    Ui.roundRect(ctx, x1 - 47, y + h - 11, Math.max(2, 44 * a / 255), 3, 1, 0xFFFFFFFF);
+                }
+            }
+            case NUMBER -> {
+                Ui.text(ctx, textRenderer, clip(s.name, x1 - x0), x0, y + 3, th.text());
+                int tw = x1 - 44 - x0;
+                int ty = y + 22;
+                float f = (float) ((s.value - s.min) / (s.max - s.min));
+                Ui.roundRect(ctx, x0, ty, tw, 4, 2, th.hover());
+                int fill = Math.max(0, Math.round(f * tw));
+                if (fill > 0) {
+                    Ui.roundRect(ctx, x0, ty, Math.max(4, fill), 4, 2, th.accent());
+                    Ui.glow(ctx, x0, ty, Math.max(4, fill), 4, 2, th.accent(), 0.25f, 4f);
+                }
+                int kx = x0 + Math.round(f * (tw - 10));
+                Ui.roundRect(ctx, kx - 1, ty - 4, 12, 12, 6, Ui.alpha(th.accent() & 0xFFFFFF, 0.3f));
+                Ui.roundRect(ctx, kx, ty - 3, 10, 10, 5, 0xFFFFFFFF);
+                String v = s.max - s.min >= 10 ? String.format("%.0f", s.value) : String.format("%.2f", s.value);
+                Ui.text(ctx, textRenderer, v, x1 - Ui.width(textRenderer, v), ty - 2, th.dim());
+            }
+        }
+    }
+
+    /** The old two-column row, still used by the Friends and Market pages. */
     private void renderSetting(DrawContext ctx, Theme th, Setting s, int y, int mx, int my) {
         if (s.kind == Setting.Kind.BUTTON) {
             boolean hover = inside(mx, my, ctrlX(), y + 2, CTRL_W, ROW_H - 4);
-            Ui.surface(ctx, ctrlX(), y + 2, CTRL_W, ROW_H - 4, 6, hover ? th.accent2() : th.accent());
-            Ui.textCentered(ctx, textRenderer, s.name, ctrlX() + CTRL_W / 2, y + (ROW_H - 8) / 2, th.bg() | 0xFF000000);
+            Ui.surface(ctx, ctrlX(), y + 2, CTRL_W, ROW_H - 4, 7, hover ? Ui.alpha(th.accent() & 0xFFFFFF, 0.55f) : Ui.alpha(th.accent() & 0xFFFFFF, 0.32f));
+            Ui.textCentered(ctx, textRenderer, s.name, ctrlX() + CTRL_W / 2, y + (ROW_H - 8) / 2, th.text());
             return;
         }
         Ui.textMid(ctx, textRenderer, s.name, panelX() + PAD, y, ROW_H, th.text());
         int cx = ctrlX();
         switch (s.kind) {
-            case BOOL -> drawSwitch(ctx, th, cx + CTRL_W - 28, y + (ROW_H - 14) / 2, s.on() ? 1f : 0f);
+            case BOOL -> drawSwitch(ctx, th, cx + CTRL_W - 32, y + (ROW_H - 16) / 2, s.on() ? 1f : 0f);
             case CHOICE -> {
-                Ui.surface(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 6, th.panel2());
+                Ui.roundRect(ctx, cx, y + 3, CTRL_W, ROW_H - 6, 7, th.hover());
                 Ui.textCentered(ctx, textRenderer, s.option(), cx + CTRL_W / 2, y + (ROW_H - 8) / 2, th.text());
                 Ui.text(ctx, textRenderer, "<", cx + 8, y + (ROW_H - 8) / 2, th.dim());
                 Ui.text(ctx, textRenderer, ">", cx + CTRL_W - 8 - Ui.width(textRenderer, ">"), y + (ROW_H - 8) / 2, th.dim());
             }
-            case COLOR -> {
-                int argb = s.argb();
-                String hex = String.format("#%06X", argb & 0xFFFFFF);
-                Ui.text(ctx, textRenderer, hex, cx + CTRL_W - 64 - Ui.width(textRenderer, hex), y + (ROW_H - 8) / 2, th.dim());
-                Ui.roundRect(ctx, cx + CTRL_W - 56, y + 4, 56, ROW_H - 8, 6, th.text());
-                Ui.roundRect(ctx, cx + CTRL_W - 55, y + 5, 54, ROW_H - 10, 5, argb | 0xFF000000);
-                int a = argb >>> 24;
-                if (a < 255) {
-                    Ui.roundRect(ctx, cx + CTRL_W - 55, y + ROW_H - 9, 54, 4, 2, Ui.alpha(0x000000, 0.4f));
-                    Ui.roundRect(ctx, cx + CTRL_W - 55, y + ROW_H - 9, Math.max(2, 54 * a / 255), 4, 2, th.text());
-                }
-            }
-            case NUMBER -> {
-                int tw = trackW();
-                int ty = y + ROW_H / 2 - 3;
-                float f = (float) ((s.value - s.min) / (s.max - s.min));
-                Ui.roundRect(ctx, cx, ty, tw, 6, 3, th.panel2());
-                Ui.gradientH(ctx, cx + 1, ty + 1, Math.max(0, Math.round(f * (tw - 2))), 4, th.accent2(), th.accent());
-                Ui.roundRect(ctx, cx + Math.round(f * (tw - 8)), ty - 2, 8, 10, 4, th.text());
-                String v = s.max - s.min >= 10 ? String.format("%.0f", s.value) : String.format("%.2f", s.value);
-                Ui.text(ctx, textRenderer, v, cx + CTRL_W - Ui.width(textRenderer, v), y + (ROW_H - 8) / 2, th.dim());
-            }
+            default -> { }
+        }
+    }
+
+    private void renderFullPage(DrawContext ctx, Theme th, int mx, int my) {
+        int px = panelX();
+        int pw = panelW();
+        Ui.surface(ctx, px, bodyTop(), pw, bodyH(), 12, th.panel());
+        boolean hb = inside(mx, my, backX(), backY(), 58, 20);
+        Ui.roundRect(ctx, backX(), backY(), 58, 20, 8, hb ? th.hover() : th.panel2());
+        Ui.triangle(ctx, backX() + 13, backY() + 10, backX() + 18, backY() + 6, backX() + 18, backY() + 14, th.dim());
+        Ui.text(ctx, textRenderer, "Back", backX() + 24, backY() + 6, th.text());
+        int tx = backX() + 70;
+        Ui.text(ctx, textRenderer, fullView.name, tx, bodyTop() + 10, th.text());
+        Ui.text(ctx, textRenderer, clip(fullView.description, pw - 70 - 2 * PAD), tx, bodyTop() + 24, th.dim());
+        if (friendsPanel()) {
+            renderFriends(ctx, th, mx, my);
+        } else {
+            renderMarket(ctx, th, mx, my);
         }
     }
 
@@ -459,11 +759,11 @@ public final class ClickGui extends Screen {
     private int friendsContent;
 
     private boolean friendsPanel() {
-        return selected instanceof com.example.neurocanvas.module.Friends && query.isEmpty();
+        return fullView instanceof com.example.neurocanvas.module.Friends && query.isEmpty();
     }
 
     private List<FRow> friendRows() {
-        com.example.neurocanvas.module.Friends f = (com.example.neurocanvas.module.Friends) selected;
+        com.example.neurocanvas.module.Friends f = (com.example.neurocanvas.module.Friends) fullView;
         com.example.neurocanvas.module.NameTags tags = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class);
         List<FRow> rows = new ArrayList<>();
         int top = rowsTop() - (int) settingsScroll;
@@ -611,7 +911,7 @@ public final class ClickGui extends Screen {
     }
 
     private boolean friendsClicked(double mx, double my, int button) {
-        com.example.neurocanvas.module.Friends f = (com.example.neurocanvas.module.Friends) selected;
+        com.example.neurocanvas.module.Friends f = (com.example.neurocanvas.module.Friends) fullView;
         int px = panelX() + PAD;
         int pw = panelW() - 2 * PAD;
         int viewTop = rowsTop();
@@ -705,11 +1005,11 @@ public final class ClickGui extends Screen {
     private int marketContent;
 
     private boolean marketPanel() {
-        return selected instanceof com.example.neurocanvas.module.Market && query.isEmpty();
+        return fullView instanceof com.example.neurocanvas.module.Market && query.isEmpty();
     }
 
     private List<MRow> marketRows() {
-        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
         m.ensureLoaded();
         List<MRow> rows = new ArrayList<>();
         int top = rowsTop() - (int) settingsScroll;
@@ -759,7 +1059,7 @@ public final class ClickGui extends Screen {
     }
 
     private void renderMarket(DrawContext ctx, Theme th, int mx, int my) {
-        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
         int px = panelX() + PAD;
         int pw = panelW() - 2 * PAD;
         int viewY = rowsTop();
@@ -872,7 +1172,7 @@ public final class ClickGui extends Screen {
     }
 
     private boolean marketClicked(double mx, double my, int button) {
-        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) selected;
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
         int px = panelX() + PAD;
         int cw = marketCardW();
         if (my < rowsTop() || my >= bodyTop() + bodyH() - 4) {
@@ -915,24 +1215,29 @@ public final class ClickGui extends Screen {
 
     // ---- colour picker popup -------------------------------------------------------------
 
-    private static final int POP_H = 142;
+    private static final int POP_W = 216;
+    private static final int POP_H = 164;
+    private static final int PICK_W = 200;
     private static final int SV_H = 76;
+    private static final int[] SWATCHES = {0xA855F7, 0x3B82F6, 0x22D3EE, 0xEC4899, 0x10B981, 0xFACC15, 0xFFFFFF};
 
     private Setting pickerFor;
-    private int pickerRow;
+    private int pickerY;
+    private int pickerRowH;
     private float pickH;
     private float pickS;
     private float pickV;
     private float pickA;
     private int pickDrag;
 
-    private void openPicker(Setting s, int row) {
+    private void openPicker(Setting s, int rowY, int rowH) {
         if (pickerFor == s) {
             pickerFor = null;
             return;
         }
         pickerFor = s;
-        pickerRow = row;
+        pickerY = rowY;
+        pickerRowH = rowH;
         int argb = s.argb();
         float[] hsv = java.awt.Color.RGBtoHSB((argb >> 16) & 0xFF, (argb >> 8) & 0xFF, argb & 0xFF, null);
         pickH = hsv[0];
@@ -941,66 +1246,81 @@ public final class ClickGui extends Screen {
         pickA = (argb >>> 24) / 255f;
     }
 
-    private int popX() { return ctrlX() - 8; }
-    private int popW() { return CTRL_W + 16; }
+    private int popX() { return Math.max(mainX() + 4, cx1() - POP_W); }
 
     private int popY() {
-        int below = rowY(pickerRow) + ROW_H + 2;
-        return below + POP_H > wy() + H - 6 ? rowY(pickerRow) - POP_H - 2 : below;
+        int below = pickerY + pickerRowH + 2;
+        return below + POP_H > wy() + H - 6 ? Math.max(wy() + 4, pickerY - POP_H - 2) : below;
     }
 
+    private int pickX() { return popX() + 8; }
     private int svY() { return popY() + 8; }
     private int hueY() { return svY() + SV_H + 8; }
     private int alphaY() { return hueY() + 18; }
+    private int swatchY() { return alphaY() + 32; }
 
     private void applyPicker(double mx, double my) {
-        int x = ctrlX();
+        int x = pickX();
         switch (pickDrag) {
             case 1 -> {
-                pickS = (float) clamp((mx - x) / CTRL_W, 0, 1);
+                pickS = (float) clamp((mx - x) / PICK_W, 0, 1);
                 pickV = 1f - (float) clamp((my - svY()) / SV_H, 0, 1);
             }
-            case 2 -> pickH = (float) clamp((mx - x) / CTRL_W, 0, 1);
-            case 3 -> pickA = (float) clamp((mx - x) / CTRL_W, 0, 1);
+            case 2 -> pickH = (float) clamp((mx - x) / PICK_W, 0, 1);
+            case 3 -> pickA = (float) clamp((mx - x) / PICK_W, 0, 1);
             default -> { }
         }
         int rgb = java.awt.Color.HSBtoRGB(pickH, pickS, pickV) & 0xFFFFFF;
         pickerFor.setArgb((Math.round(pickA * 255) << 24) | rgb);
     }
 
+    private void pickSwatch(int rgb) {
+        float[] hsv = java.awt.Color.RGBtoHSB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF, null);
+        pickH = hsv[0];
+        pickS = hsv[1];
+        pickV = hsv[2];
+        pickerFor.setArgb((Math.round(pickA * 255) << 24) | (rgb & 0xFFFFFF));
+    }
+
     private void drawPicker(DrawContext ctx, Theme th) {
         int px = popX();
         int py = popY();
-        int x = ctrlX();
-        Ui.shadow(ctx, px, py, popW(), POP_H, 8);
-        Ui.surface(ctx, px, py, popW(), POP_H, 8, th.panel2());
+        int x = pickX();
+        Ui.shadow(ctx, px, py, POP_W, POP_H, 10);
+        Ui.roundRect(ctx, px, py, POP_W, POP_H, 10, Ui.mix(th.bg() | 0xFF000000, th.panel2() | 0xFF000000, 0.35f));
+        Ui.surface(ctx, px, py, POP_W, POP_H, 10, th.panel2());
 
         int sy = svY();
-        for (int i = 0; i < CTRL_W; i++) {
-            int top = 0xFF000000 | (java.awt.Color.HSBtoRGB(pickH, i / (float) (CTRL_W - 1), 1f) & 0xFFFFFF);
+        for (int i = 0; i < PICK_W; i++) {
+            int top = 0xFF000000 | (java.awt.Color.HSBtoRGB(pickH, i / (float) (PICK_W - 1), 1f) & 0xFFFFFF);
             ctx.fillGradient(x + i, sy, x + i + 1, sy + SV_H, top, 0xFF000000);
         }
-        int mx = x + Math.round(pickS * (CTRL_W - 1));
+        int mx = x + Math.round(pickS * (PICK_W - 1));
         int my = sy + Math.round((1f - pickV) * (SV_H - 1));
         int rgb = java.awt.Color.HSBtoRGB(pickH, pickS, pickV) & 0xFFFFFF;
         Ui.roundRect(ctx, mx - 4, my - 4, 8, 8, 4, 0xFFFFFFFF);
         Ui.roundRect(ctx, mx - 3, my - 3, 6, 6, 3, 0xFF000000 | rgb);
 
         int hy = hueY();
-        Ui.rainbowH(ctx, x, hy, CTRL_W, 10);
-        Ui.roundRect(ctx, x + Math.round(pickH * (CTRL_W - 6)), hy - 1, 6, 12, 3, 0xFFFFFFFF);
+        Ui.rainbowH(ctx, x, hy, PICK_W, 10);
+        Ui.roundRect(ctx, x + Math.round(pickH * (PICK_W - 6)), hy - 1, 6, 12, 3, 0xFFFFFFFF);
 
         int ay = alphaY();
-        for (int i = 0; i < CTRL_W; i += 5) {
+        for (int i = 0; i < PICK_W; i += 5) {
             for (int j = 0; j < 10; j += 5) {
-                ctx.fill(x + i, ay + j, Math.min(x + i + 5, x + CTRL_W), ay + j + 5, ((i / 5 + j / 5) % 2 == 0) ? 0xFF8A8A8A : 0xFF5A5A5A);
+                ctx.fill(x + i, ay + j, Math.min(x + i + 5, x + PICK_W), ay + j + 5, ((i / 5 + j / 5) % 2 == 0) ? 0xFF8A8A8A : 0xFF5A5A5A);
             }
         }
-        Ui.gradientH(ctx, x, ay, CTRL_W, 10, rgb, 0xFF000000 | rgb);
-        Ui.roundRect(ctx, x + Math.round(pickA * (CTRL_W - 6)), ay - 1, 6, 12, 3, 0xFFFFFFFF);
+        Ui.gradientH(ctx, x, ay, PICK_W, 10, rgb, 0xFF000000 | rgb);
+        Ui.roundRect(ctx, x + Math.round(pickA * (PICK_W - 6)), ay - 1, 6, 12, 3, 0xFFFFFFFF);
 
         String info = String.format("#%06X   alpha %d%%", rgb, Math.round(pickA * 100));
         Ui.text(ctx, textRenderer, info, x, ay + 16, th.dim());
+        int sw = swatchY();
+        for (int i = 0; i < SWATCHES.length; i++) {
+            Ui.roundRect(ctx, x + i * 28, sw, 24, 14, 5, 0xFFFFFFFF);
+            Ui.roundRect(ctx, x + i * 28 + 1, sw + 1, 22, 12, 4, 0xFF000000 | SWATCHES[i]);
+        }
     }
 
     // ---- Configs tab ---------------------------------------------------------------------
@@ -1180,7 +1500,7 @@ public final class ClickGui extends Screen {
             boolean hover = inside(mx, my, b.x(), b.y(), b.w(), b.h());
             int bg = b.primary() ? (hover ? th.accent2() : th.accent()) : (hover ? th.hover() : th.panel2());
             Ui.roundRect(ctx, b.x(), b.y(), b.w(), b.h(), 6, bg);
-            Ui.textCentered(ctx, textRenderer, b.label(), b.x() + b.w() / 2, b.y() + 8,
+            Ui.textCentered(ctx, textRenderer, clip(b.label(), b.w() - 10), b.x() + b.w() / 2, b.y() + 8,
                     b.primary() ? (th.bg() | 0xFF000000) : th.text());
         }
         if (!status.isEmpty()) {
@@ -1211,8 +1531,25 @@ public final class ClickGui extends Screen {
         return super.mouseClicked(mx, my, button);
     }
 
-    private int trackW() {
-        return CTRL_W - 40;
+
+    private void switchTab(Category c) {
+        query = "";
+        pickerFor = null;
+        searchFocus = false;
+        if (tab != c) {
+            Interface.click(1.0f);
+            tab = c;
+            fullView = null;
+            if (tab == Category.CONFIG) {
+                refreshPresets();
+            } else if (modulesIn(tab).stream().noneMatch(expanded::contains)) {
+                expandFirst();
+            }
+            listScroll = 0;
+            settingsScroll = 0;
+        } else if (fullView != null) {
+            fullView = null;
+        }
     }
 
     @Override
@@ -1222,13 +1559,19 @@ public final class ClickGui extends Screen {
             return true;
         }
         if (pickerFor != null) {
-            if (inside(mx, my, popX(), popY(), popW(), POP_H)) {
-                if (inside(mx, my, ctrlX(), svY(), CTRL_W, SV_H)) {
+            if (inside(mx, my, popX(), popY(), POP_W, POP_H)) {
+                if (inside(mx, my, pickX(), svY(), PICK_W, SV_H)) {
                     pickDrag = 1;
-                } else if (inside(mx, my, ctrlX(), hueY() - 2, CTRL_W, 14)) {
+                } else if (inside(mx, my, pickX(), hueY() - 2, PICK_W, 14)) {
                     pickDrag = 2;
-                } else if (inside(mx, my, ctrlX(), alphaY() - 2, CTRL_W, 14)) {
+                } else if (inside(mx, my, pickX(), alphaY() - 2, PICK_W, 14)) {
                     pickDrag = 3;
+                } else if (my >= swatchY() && my < swatchY() + 14) {
+                    int i = (int) ((mx - pickX()) / 28);
+                    if (i >= 0 && i < SWATCHES.length && (mx - pickX()) % 28 < 24) {
+                        pickSwatch(SWATCHES[i]);
+                        Interface.click(1.2f);
+                    }
                 }
                 if (pickDrag != 0) {
                     applyPicker(mx, my);
@@ -1237,7 +1580,12 @@ public final class ClickGui extends Screen {
             }
             pickerFor = null;
         }
-        searchFocus = inside(mx, my, sbX(), sbY(), SEARCH_W, 22);
+        if (inside(mx, my, closeX() - 2, closeY() - 2, 26, 26)) {
+            Interface.click(0.8f);
+            close();
+            return true;
+        }
+        searchFocus = inside(mx, my, sbX(), sbY(), sbW(), SB_H);
         if (searchFocus) {
             return true;
         }
@@ -1246,22 +1594,10 @@ public final class ClickGui extends Screen {
         roomFocus = false;
         bindingFor = null;
         List<Category> cats = categories();
+        int ih = sideItemH(cats.size());
         for (int i = 0; i < cats.size(); i++) {
-            int x = tabX(i, cats);
-            if (inside(mx, my, x - 8, wy() + 6, tabWidth(cats.get(i)) + 16, HEADER - 12)) {
-                query = "";
-                pickerFor = null;
-                if (tab != cats.get(i)) {
-                    Interface.click(1.0f);
-                    tab = cats.get(i);
-                    if (tab == Category.CONFIG) {
-                        refreshPresets();
-                    } else {
-                        selected = modulesIn(tab).get(0);
-                    }
-                    listScroll = 0;
-                    settingsScroll = 0;
-                }
+            if (inside(mx, my, sideX(), sideItemY(i, ih), sideW(), ih)) {
+                switchTab(cats.get(i));
                 return true;
             }
         }
@@ -1272,67 +1608,110 @@ public final class ClickGui extends Screen {
         if (configView()) {
             return configClicked(mx, my, button);
         }
-        List<Module> list = visible();
-        if (inside(mx, my, listX(), bodyTop(), LIST_W, bodyH())) {
-            for (int i = 0; i < list.size(); i++) {
-                if (inside(mx, my, listX(), cardY(i), LIST_W, CARD_H)) {
-                    Module m = list.get(i);
-                    boolean onSwitch = mx >= listX() + LIST_W - 44;
-                    if (m.risky && Interface.safeMode() && (onSwitch || button == 1)) {
-                        Interface.click(0.6f);
-                    } else if (!m.alwaysOn && (onSwitch || button == 1)) {
-                        m.enabled = !m.enabled;
-                        Interface.click(m.enabled ? 1.3f : 0.8f);
-                    }
-                    if (m != selected) {
-                        selected = m;
-                        settingsScroll = 0;
-                    }
+        if (fullPage()) {
+            if (inside(mx, my, backX(), backY(), 58, 20)) {
+                fullView = null;
+                settingsScroll = 0;
+                Interface.click(0.9f);
+                return true;
+            }
+            if (friendsPanel() && friendsClicked(mx, my, button)) {
+                return true;
+            }
+            if (marketPanel() && marketClicked(mx, my, button)) {
+                return true;
+            }
+            return super.mouseClicked(mx, my, button);
+        }
+        if (my >= vy0() && my < vy1() && mx >= cx0() && mx < cx1() + 6) {
+            List<Item> items = layout();
+            for (Item it : items) {
+                if (it.kind() == I_HEAD || my < it.y() || my >= it.y() + it.h() || openOf(it.m()) < 0.999f) {
+                    continue;
+                }
+                return rowClicked(it, mx, my, button);
+            }
+            for (Item it : items) {
+                if (it.kind() == I_HEAD && my >= it.y() && my < it.y() + HEAD_H) {
+                    headClicked(it.m(), mx, button);
                     return true;
                 }
             }
         }
-
-        if (friendsPanel() && mx >= panelX() && friendsClicked(mx, my, button)) {
-            return true;
-        }
-        if (marketPanel() && mx >= panelX() && marketClicked(mx, my, button)) {
-            return true;
-        }
-        int viewTop = rowsTop();
-        int viewBottom = bodyTop() + bodyH() - 4;
-        if (!friendsPanel() && !marketPanel() && my >= viewTop && my < viewBottom) {
-            if (!selected.alwaysOn && inside(mx, my, ctrlX() - 4, rowY(0), CTRL_W + 8, ROW_H)) {
-                bindingFor = selected;
-                return true;
-            }
-            if (!selected.alwaysOn && inside(mx, my, ctrlX() - 4, rowY(1), CTRL_W + 8, ROW_H)) {
-                selected.hold = !selected.hold;
-                return true;
-            }
-            for (int i = 0; i < selected.settings.size(); i++) {
-                Setting s = selected.settings.get(i);
-                int y = rowY(i + bindRows());
-                if (!inside(mx, my, ctrlX() - 4, y, CTRL_W + 8, ROW_H)) {
-                    continue;
-                }
-                switch (s.kind) {
-                    case BOOL -> s.set(s.on() ? 0 : 1);
-                    case BUTTON -> {
-                        s.value = 1;
-                        Interface.click(1.1f);
-                    }
-                    case CHOICE -> s.cycle(button == 1 ? -1 : 1);
-                    case COLOR -> openPicker(s, i + bindRows());
-                    default -> {
-                        dragging = s;
-                        applyDrag(mx);
-                    }
-                }
-                return true;
-            }
-        }
         return super.mouseClicked(mx, my, button);
+    }
+
+    private void headClicked(Module m, double mx, int button) {
+        boolean blocked = m.risky && Interface.safeMode();
+        boolean onSwitch = mx >= toggleX() - 6;
+        if (blocked && (onSwitch || button == 1)) {
+            Interface.click(0.6f);
+            return;
+        }
+        if (!m.alwaysOn && (onSwitch || button == 1)) {
+            m.enabled = !m.enabled;
+            Interface.click(m.enabled ? 1.3f : 0.8f);
+            return;
+        }
+        if (button != 0) {
+            return;
+        }
+        Interface.click(1.0f);
+        if (special(m)) {
+            fullView = m;
+            settingsScroll = 0;
+        } else if (!expanded.remove(m)) {
+            expanded.add(m);
+        }
+    }
+
+    private boolean rowClicked(Item it, double mx, double my, int button) {
+        int x0 = cx0() + 14;
+        int x1 = cx1() - 14;
+        if (it.kind() == I_KEY) {
+            if (mx >= x1 - CCW - 4) {
+                bindingFor = it.m();
+            }
+            return true;
+        }
+        if (it.kind() == I_MODE) {
+            if (mx >= x1 - CCW - 4) {
+                it.m().hold = !it.m().hold;
+                Interface.click(1.1f);
+            }
+            return true;
+        }
+        Setting s = it.s();
+        switch (s.kind) {
+            case BOOL -> {
+                s.set(s.on() ? 0 : 1);
+                Interface.click(s.on() ? 1.3f : 0.8f);
+            }
+            case BUTTON -> {
+                s.value = 1;
+                Interface.click(1.1f);
+            }
+            case CHOICE -> {
+                if (mx >= x1 - CCW - 4) {
+                    s.cycle(button == 1 ? -1 : 1);
+                    Interface.click(1.1f);
+                }
+            }
+            case COLOR -> {
+                if (mx >= x1 - 140) {
+                    openPicker(s, it.y(), it.h());
+                }
+            }
+            default -> {
+                if (mx <= x1 - 40) {
+                    dragging = s;
+                    dragX0 = x0;
+                    dragW = x1 - 44 - x0;
+                    applyDrag(mx);
+                }
+            }
+        }
+        return true;
     }
 
     @Override
@@ -1366,7 +1745,7 @@ public final class ClickGui extends Screen {
     }
 
     private void applyDrag(double mx) {
-        double f = Math.max(0, Math.min(1, (mx - ctrlX() - 4) / (trackW() - 8)));
+        double f = Math.max(0, Math.min(1, (mx - dragX0 - 5) / Math.max(1, dragW - 10)));
         dragging.set(dragging.min + f * (dragging.max - dragging.min));
     }
 
@@ -1377,14 +1756,21 @@ public final class ClickGui extends Screen {
             AI.scroll(amount);
             return true;
         }
-        if (mx < panelX()) {
-            int content = (configView() ? presets.size() : visible().size()) * (CARD_H + GAP);
-            listScroll = clamp(listScroll - amount * 18, 0, Math.max(0, content - bodyH()));
-        } else {
-            int content = friendsPanel() ? friendsContent : marketPanel() ? marketContent : (selected.settings.size() + bindRows()) * ROW_H;
+        if (split()) {
+            if (mx < panelX()) {
+                int content = configView() ? presets.size() * (CARD_H + GAP) : 0;
+                listScroll = clamp(listScroll - amount * 18, 0, Math.max(0, content - bodyH()));
+            }
+            return true;
+        }
+        if (fullPage()) {
+            int content = friendsPanel() ? friendsContent : marketContent;
             int view = bodyTop() + bodyH() - rowsTop() - 4;
             settingsScroll = clamp(settingsScroll - amount * 18, 0, Math.max(0, content - view));
+            return true;
         }
+        layout();
+        listScroll = clamp(listScroll - amount * 24, 0, Math.max(0, cardsContent - (vy1() - vy0())));
         return true;
     }
 
@@ -1512,3 +1898,4 @@ public final class ClickGui extends Screen {
         return mx >= x && mx < x + w && my >= y && my < y + h;
     }
 }
+

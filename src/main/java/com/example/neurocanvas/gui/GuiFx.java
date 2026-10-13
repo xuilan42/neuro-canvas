@@ -19,6 +19,8 @@ import net.minecraft.client.render.VertexFormats;
 public final class GuiFx {
     private static ShaderProgram blur;
     private static ShaderProgram ui;
+    private static ShaderProgram glass;
+    private static boolean glassFailed;
     private static Framebuffer fbA;
     private static Framebuffer fbB;
     private static boolean blurFailed;
@@ -155,6 +157,62 @@ public final class GuiFx {
             com.example.neurocanvas.fx.Shaders.finish();
         } catch (Throwable e) {
             uiFailed = true;
+        }
+    }
+
+
+    /**
+     * Draws the frosted glass panel of the Glass theme over the rectangle (GUI coordinates, current matrix applied) using the
+     * blurred copy made by {@link #captureBlur}. Returns false when it cannot be drawn (no blur yet or the shader is missing),
+     * so the caller can paint a plain panel instead.
+     * @param opacity 0 clear glass .. 1 nearly solid
+     */
+    public static boolean drawGlass(MinecraftClient mc, DrawContext ctx, int x, int y, int w, int h, int radius,
+                                    int tint, int accent, int accent2, float opacity) {
+        if (glassFailed || !blurReady || fbB == null) {
+            return false;
+        }
+        try {
+            ctx.draw();
+            glass = com.example.neurocanvas.fx.Shaders.get("neuro_glass");
+            if (glass == null) {
+                glassFailed = true;
+                return false;
+            }
+            org.joml.Matrix4f m = ctx.getMatrices().peek().getPositionMatrix();
+            org.joml.Vector3f a = m.transformPosition(x, y, 0f, new org.joml.Vector3f());
+            org.joml.Vector3f b = m.transformPosition(x + w, y + h, 0f, new org.joml.Vector3f());
+            double scale = mc.getWindow().getScaleFactor();
+            int fbw = mc.getWindow().getFramebufferWidth();
+            int fbh = mc.getWindow().getFramebufferHeight();
+            float k = Math.abs(b.x - a.x) / Math.max(1f, w);
+            set1(glass, "Time", (System.nanoTime() / 1_000_000L % 1_000_000L) / 1000f);
+            set1(glass, "Opacity", opacity);
+            set1(glass, "Scale", (float) scale);
+            set1(glass, "Radius", (float) (radius * scale * k));
+            GlUniform rect = glass.getUniform("Rect");
+            if (rect != null) {
+                rect.set((float) (a.x * scale), (float) (fbh - b.y * scale), (float) ((b.x - a.x) * scale), (float) ((b.y - a.y) * scale));
+            }
+            GlUniform fb = glass.getUniform("FbSize");
+            if (fb != null) {
+                fb.set((float) fbw, (float) fbh);
+            }
+            rgb(glass, "Tint", tint);
+            rgb(glass, "Accent", accent);
+            rgb(glass, "Accent2", accent2);
+            RenderSystem.disableDepthTest();
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShaderTexture(0, fbB.getColorAttachment());
+            RenderSystem.setShader(() -> glass);
+            fullscreenQuad();
+            RenderSystem.enableDepthTest();
+            com.example.neurocanvas.fx.Shaders.finish();
+            return true;
+        } catch (Throwable e) {
+            glassFailed = true;
+            return false;
         }
     }
 

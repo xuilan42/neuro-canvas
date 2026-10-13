@@ -25,6 +25,7 @@ public final class Shaders {
     static {
         KNOWN.put("neuro_blur", VertexFormats.POSITION);
         KNOWN.put("neuro_ui", VertexFormats.POSITION);
+        KNOWN.put("neuro_glass", VertexFormats.POSITION);
         KNOWN.put("neuro_fog", VertexFormats.POSITION);
         KNOWN.put("neuro_particle", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_particle_add", VertexFormats.POSITION_TEXTURE_COLOR);

@@ -3,7 +3,7 @@ package com.example.neurocanvas.gui;
 /** The shape and texture of a theme, as opposed to its palette: corners, borders, glow, blur, overlay effect, switches, font. */
 public record ThemeStyle(float radius, float border, int borderColor, float glow, boolean shadow, float blur,
                     Overlay overlay, float overlayStrength, SwitchStyle switchStyle, String font) {
-    public enum Overlay { NONE, SCANLINES, GRID, AURORA }
+    public enum Overlay { NONE, SCANLINES, GRID, AURORA, GLASS }
 
     public enum SwitchStyle { PILL, BRACKET }
 

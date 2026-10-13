@@ -44,6 +44,7 @@ public final class Interface extends Module {
     private final Setting drawOver = add(Setting.bool("Draw effects over models", true));
     private final Setting shaderVis = add(Setting.bool("Shader visuals", true));
     private final Setting visGlow = add(Setting.number("Visual glow", 0, 1, 0.7));
+    private final Setting glassOpacity = add(Setting.number("Glass opacity", 0, 1, 0.6));
     private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
     private final Setting safeMode = add(Setting.bool("Safe mode", false));
     private final Setting sounds = add(Setting.bool("Sounds", true));
@@ -65,7 +66,7 @@ public final class Interface extends Module {
     private final Setting edBorder = add(Setting.number("Editor: border", 0, 4, 0));
     private final Setting edGlow = add(Setting.number("Editor: glow", 0, 1, 0.2));
     private final Setting edBlur = add(Setting.number("Editor: blur", 0, 2, 0));
-    private final Setting edOverlay = add(Setting.choice("Editor: effect", 0, "None", "Scanlines", "Grid", "Aurora"));
+    private final Setting edOverlay = add(Setting.choice("Editor: effect", 0, "None", "Scanlines", "Grid", "Aurora", "Glass"));
     private final Setting edOverlayStrength = add(Setting.number("Editor: effect strength", 0, 1, 0.5));
     private final Setting edSwitch = add(Setting.choice("Editor: switch style", 0, "Pill", "Brackets"));
     private final Setting saveTheme = add(Setting.button("Save editor theme"));
@@ -204,6 +205,8 @@ public final class Interface extends Module {
     public static boolean safeMode() { return instance != null && instance.safeMode.on(); }
     /** How bright the shader visuals are (1 is the normal look): particles, glow lines, rings, the aurora. */
     public static float brightness() { return instance == null ? 1f : instance.brightness.f(); }
+    /** How solid the glass theme is: 0 shows the blurred scene almost untouched, 1 is nearly opaque tinted glass. */
+    public static float glassOpacity() { return instance == null ? 0.6f : instance.glassOpacity.f(); }
     public static boolean shaderVisuals() { return instance == null || instance.shaderVis.on(); }
     public static float visualGlow() { return instance == null ? 0.7f : instance.visGlow.f(); }
     /** When on, world effects that the camera can see are not hidden by player and mob models. */
