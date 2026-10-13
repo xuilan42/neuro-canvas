@@ -103,6 +103,12 @@ public final class ModuleManager {
                 }
             }
         }
+        for (Module m : modules) {
+            if (m.alwaysOn) {
+                m.enabled = true;
+                m.key = -1;
+            }
+        }
         Map<String, Double> hud = config.get(HUD_KEY);
         if (hud != null) {
             HudLayout.apply(hud);

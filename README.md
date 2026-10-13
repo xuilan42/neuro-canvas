@@ -69,6 +69,8 @@ Notes on a few modules:
 ground and thins out with height, with an optional sun glow. It does not use the game's fog, so it also works with Sodium; it pauses underwater and with Iris shader packs, and
 turns itself off (keeping the normal fog) if the shader cannot be built. `/volfog status` and `/volfog retry` show and reset its state.
 
+Modules that are only settings (**Interface**, **Friends**, **Market**) have no on/off switch and no keybind: they are always on.
+
 ## Themes
 
 A theme is a palette plus a **style**: corner radius, borders, glow, background blur, an animated shader effect and the switch look.
@@ -114,7 +116,7 @@ other users (who accept you) see "· in menu" on your plate. Everything here nee
 Hold **V** by default (change it in the PingWheel module: the *Keybind* row, any key such as **G**): a wheel opens, move the cursor to a mark and let go of the key (or click). The mark appears on the block or entity you were
 aiming at, up to 256 blocks away: a ring and a beam in the world, plus an icon on the screen with the distance and the name (it sticks to the screen edge when it is
 off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, **Danger**, **Look**, **Loot**, **Enemy**, **Help**. Inner ring: **Clear my pings**,
-**Countdown** (a big 3-2-1-GO for everyone), **Wave** and **Dance** (play the animations `wave`/`emote_wave` and `dance`/`emote_dance` of your Avatar, if it has them).
+**Countdown** (a big 3-2-1-GO for everyone), **Graffiti** (sprays your chosen graffiti on the wall you look at) and **Emotes** (opens a second wheel with the emotes you picked in the Emotes module; click one to play it).
 
 - Other Neuro Canvas users on the same server see your pings and countdowns (and you see theirs): the messages go through the project's registry server, the same connection NameTags uses,
   so **NameTags must be on**. Only the spot you ping and your name are sent, never your position. Switches: *Share with other users*, *Show other users' pings*.
@@ -128,8 +130,8 @@ Items are folders in `neurocanvas/wardrobe/<type>/<name>/` (types: `capes`, `win
 
 - Models share the space of an Avatar made for your own body (16 units per block, feet at y 0, head at y 24 to 32, front is north). A **cape** hangs from the shoulders and swings as you move (the game's own cape is hidden while one is worn),
   **wings** sit on your back, a **hat** follows your head, an **outfit** sits on your body, a **pet** follows you on the ground. Animations named `idle` (and `walk`) play by themselves.
-- **Emotes** are full avatars with an animation (`animation` in `cosmetic.json`): the PingWheel *Wave* plays the first slot ("Wave emote") and *Dance* the second ("Dance emote"); your body is replaced while it plays.
-- **Graffiti:** set the module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Lifetime*).
+- **Emotes** are full avatars with an animation (`animation` in `cosmetic.json`): pick up to four (*Emote 1* to *Emote 4*) and play them from the PingWheel's **Emotes** wheel; your body is replaced while one plays.
+- **Graffiti:** the PingWheel's **Graffiti** action sprays it, or set the module's **Keybind** to a key; pressing it sprays the picture on the block face you look at (up to 24 at a time, they fade after *Lifetime*).
 - **Market:** a catalog of cosmetics kept on the project's server. Open the module, choose a kind in *Show* if you like, and press **Get & wear** next to an item: it is downloaded into your wardrobe, the matching module is switched on and the item is put on.
   Items you already have show **Wear**. Everything that is downloaded is checked first (the kind, the folder and file names, the extensions `.bbmodel`, `.png`, `.json`, and the sizes), so a catalog item cannot write anything else or anywhere else.
 - For now only you see your items; showing them to other users is the next step.

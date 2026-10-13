@@ -18,6 +18,8 @@ public abstract class Module {
     public boolean aiControllable = true;
     /** True when the module uses its key itself (for example to open a wheel) instead of switching the module on and off. */
     public boolean customKey;
+    /** True for modules that are just settings (no on/off switch, no key): they are always on. */
+    public boolean alwaysOn;
     public boolean keyDown;
     public final List<Setting> settings = new ArrayList<>();
 

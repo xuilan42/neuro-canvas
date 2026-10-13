@@ -129,6 +129,11 @@ public final class ClickGui extends Screen {
         return key < 0 ? "None" : InputUtil.fromKeyCode(key, 0).getLocalizedText().getString();
     }
 
+    /** The rows above the settings: the key and its mode, which modules that are always on do not have. */
+    private int bindRows() {
+        return selected.alwaysOn ? 0 : 2;
+    }
+
     private void renderBindRows(DrawContext ctx, Theme th) {
         int cx = ctrlX();
         int y = rowY(0);
@@ -352,7 +357,9 @@ public final class ClickGui extends Screen {
             float a = switchAnim.getOrDefault(m, target);
             a = anim ? a + Math.signum(target - a) * Math.min(Math.abs(target - a), dt * 8f) : target;
             switchAnim.put(m, a);
-            drawSwitch(ctx, th, listX() + LIST_W - 38, y + (CARD_H - 14) / 2, a);
+            if (!m.alwaysOn) {
+                drawSwitch(ctx, th, listX() + LIST_W - 38, y + (CARD_H - 14) / 2, a);
+            }
             ctx.getMatrices().pop();
         }
         ctx.disableScissor();
@@ -386,10 +393,12 @@ public final class ClickGui extends Screen {
         int viewY = rowsTop();
         int viewH = bodyTop() + bodyH() - viewY - 4;
         ctx.enableScissor(px, viewY, px + pw, viewY + viewH);
-        renderBindRows(ctx, th);
+        if (!selected.alwaysOn) {
+            renderBindRows(ctx, th);
+        }
         List<Setting> settings = selected.settings;
         for (int i = 0; i < settings.size(); i++) {
-            renderSetting(ctx, th, settings.get(i), rowY(i + 2), mx, my);
+            renderSetting(ctx, th, settings.get(i), rowY(i + bindRows()), mx, my);
         }
         ctx.disableScissor();
     }
@@ -1103,7 +1112,7 @@ public final class ClickGui extends Screen {
                 if (inside(mx, my, listX(), cardY(i), LIST_W, CARD_H)) {
                     Module m = list.get(i);
                     boolean onSwitch = mx >= listX() + LIST_W - 44;
-                    if (onSwitch || button == 1) {
+                    if (!m.alwaysOn && (onSwitch || button == 1)) {
                         m.enabled = !m.enabled;
                         Interface.click(m.enabled ? 1.3f : 0.8f);
                     }
@@ -1125,17 +1134,17 @@ public final class ClickGui extends Screen {
         int viewTop = rowsTop();
         int viewBottom = bodyTop() + bodyH() - 4;
         if (!friendsPanel() && !marketPanel() && my >= viewTop && my < viewBottom) {
-            if (inside(mx, my, ctrlX() - 4, rowY(0), CTRL_W + 8, ROW_H)) {
+            if (!selected.alwaysOn && inside(mx, my, ctrlX() - 4, rowY(0), CTRL_W + 8, ROW_H)) {
                 bindingFor = selected;
                 return true;
             }
-            if (inside(mx, my, ctrlX() - 4, rowY(1), CTRL_W + 8, ROW_H)) {
+            if (!selected.alwaysOn && inside(mx, my, ctrlX() - 4, rowY(1), CTRL_W + 8, ROW_H)) {
                 selected.hold = !selected.hold;
                 return true;
             }
             for (int i = 0; i < selected.settings.size(); i++) {
                 Setting s = selected.settings.get(i);
-                int y = rowY(i + 2);
+                int y = rowY(i + bindRows());
                 if (!inside(mx, my, ctrlX() - 4, y, CTRL_W + 8, ROW_H)) {
                     continue;
                 }
@@ -1146,7 +1155,7 @@ public final class ClickGui extends Screen {
                         Interface.click(1.1f);
                     }
                     case CHOICE -> s.cycle(button == 1 ? -1 : 1);
-                    case COLOR -> openPicker(s, i + 2);
+                    case COLOR -> openPicker(s, i + bindRows());
                     default -> {
                         dragging = s;
                         applyDrag(mx);
@@ -1194,7 +1203,7 @@ public final class ClickGui extends Screen {
             int content = (configView() ? presets.size() : visible().size()) * (CARD_H + GAP);
             listScroll = clamp(listScroll - amount * 18, 0, Math.max(0, content - bodyH()));
         } else {
-            int content = friendsPanel() ? friendsContent : marketPanel() ? marketContent : (selected.settings.size() + 2) * ROW_H;
+            int content = friendsPanel() ? friendsContent : marketPanel() ? marketContent : (selected.settings.size() + bindRows()) * ROW_H;
             int view = bodyTop() + bodyH() - rowsTop() - 4;
             settingsScroll = clamp(settingsScroll - amount * 18, 0, Math.max(0, content - view));
         }

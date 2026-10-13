@@ -13,25 +13,34 @@ import net.minecraft.entity.Entity;
  * slot and its Dance plays the second.
  */
 public final class Emotes extends CosmeticModule {
-    private final Worn dance;
+    private final Worn[] slots = new Worn[4];
     private Worn playing;
     private long started;
 
     public Emotes(Path root) {
-        super("Emotes", "Emotes from neurocanvas/wardrobe/emotes, played from the PingWheel (Wave: the first slot, Dance: the second)", CosmeticPack.Type.EMOTE, "Wave emote", root, true);
-        // The first slot is the wave; the second one is added after the shared settings.
-        Setting second = add(Setting.choice("Dance emote", 0, Worn.NONE));
-        dance = wear(second);
+        super("Emotes", "Emotes from neurocanvas/wardrobe/emotes: pick up to four, then play them from the PingWheel's Emotes", CosmeticPack.Type.EMOTE, "Emote 1", root, true);
+        slots[0] = main;
+        for (int i = 1; i < slots.length; i++) {
+            slots[i] = wear(add(Setting.choice("Emote " + (i + 1), 0, Worn.NONE)));
+        }
         rescan();
     }
 
-    /** Plays the wave (slot 1) or the dance (slot 2). False when that slot is empty. */
-    public boolean play(String name) {
-        Worn w = name.equals("dance") ? dance : main;
-        if (!enabled || w.model == null) {
+    /** The name of the item in each slot, or an empty text when the slot is empty. */
+    public String[] names() {
+        String[] out = new String[slots.length];
+        for (int i = 0; i < slots.length; i++) {
+            out[i] = slots[i].model != null ? slots[i].setting.option() : "";
+        }
+        return out;
+    }
+
+    /** Plays the emote of a slot (0 to 3). False when the module is off or that slot is empty. */
+    public boolean play(int slot) {
+        if (!enabled || slot < 0 || slot >= slots.length || slots[slot].model == null) {
             return false;
         }
-        playing = w;
+        playing = slots[slot];
         started = System.nanoTime();
         return true;
     }

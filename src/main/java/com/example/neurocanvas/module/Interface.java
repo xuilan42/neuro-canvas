@@ -82,6 +82,7 @@ public final class Interface extends Module {
 
     public Interface(Path themesDir, Path serversFile) {
         super("Interface", Category.MISC, "Theme, accent colour, auto themes, theme editor, font, animations and sounds", true);
+        alwaysOn = true;
         aiControllable = false;
         instance = this;
         Themes.init(themesDir, serversFile);

@@ -60,7 +60,7 @@ public final class PingWheel extends Module {
     private int lastCountStep = -1;
 
     public PingWheel() {
-        super("PingWheel", Category.FRIENDS, "Hold its key (V by default, change it in the Keybind row): a wheel of pings for you and other users", true);
+        super("PingWheel", Category.FRIENDS, "Hold its key (V by default, change it in the Keybind row): a wheel of pings, graffiti and emotes", true);
         aiControllable = false;
         customKey = true;
         key = 86;
@@ -175,11 +175,19 @@ public final class PingWheel extends Module {
         lastCountStep = -1;
     }
 
-    /** A gesture: plays the avatar animation with that name, if the avatar has one. */
-    public void emote(String name) {
-        if (!NeuroCanvasClient.modules().get(Emotes.class).play(name)) {
-            NeuroCanvasClient.modules().get(Avatars.class).emote(name);
+    /** Plays the emote in a slot of the Emotes module. */
+    public void emote(int slot) {
+        if (!NeuroCanvasClient.modules().get(Emotes.class).play(slot)) {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (mc.player != null) {
+                mc.player.sendMessage(net.minecraft.text.Text.literal("[PingWheel] that emote slot is empty: pick an emote in the Emotes module"), true);
+            }
         }
+    }
+
+    /** Sprays the chosen graffiti on the wall in front of you. */
+    public void spray() {
+        NeuroCanvasClient.modules().get(Graffiti.class).spray(MinecraftClient.getInstance());
     }
 
     /** A message from another user, relayed by the registry. Runs on the game thread. */

@@ -43,6 +43,7 @@ public final class Friends extends Module {
     public Friends(Path file) {
         super("Friends", Category.FRIENDS, "Who sees your pings and status, and your friends list", true);
         aiControllable = false;
+        alwaysOn = true;
         this.file = file;
         load();
     }

@@ -24,6 +24,7 @@ public final class Market extends Module {
     public Market(Path wardrobe) {
         super("Market", Category.COSMETICS, "Cosmetics on the project's server: one button downloads an item and puts it on", true);
         aiControllable = false;
+        alwaysOn = true;
         this.wardrobe = wardrobe;
         String[] kinds = new String[CosmeticPack.Type.values().length + 1];
         kinds[0] = "All";
