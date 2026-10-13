@@ -36,6 +36,9 @@ public final class Predictions extends Module {
 
     private record Trace(List<Vec3d> points, Vec3d landing, boolean entityHit, int ticks, int color) { }
 
+    private final Setting pathStyle = add(Setting.choice("Path style", 0, "Line", "Dashed", "Dots", "Arrows", "Glow trail", "Rainbow", "Double"));
+    private final Setting markerStyle = add(Setting.choice("Landing style", 0, "Cross", "Ring", "Target", "Diamond", "Pulse", "Pin"));
+    private final Setting flow = add(Setting.number("Animation speed", 0, 4, 1));
     private final Setting width = add(Setting.number("Line width", 1, 6, 2));
     private final Setting steps = add(Setting.number("Max steps", 40, 300, 150));
     private final Setting pathColor = add(Setting.color("Path color", 0.12));
@@ -186,18 +189,10 @@ public final class Predictions extends Module {
                     Depth.state(over);
                     lines = Lines.begin(env, width.f());
                 }
-                for (int i = 0; i + 1 < t.points().size(); i++) {
-                    Vec3d a = t.points().get(i);
-                    Vec3d b = t.points().get(i + 1);
-                    lines.line(a.x, a.y, a.z, b.x, b.y, b.z, t.color());
-                }
+                path(lines, t, env.t());
                 Vec3d l = t.landing();
                 if (l != null && marker.on()) {
-                    int c = t.entityHit() ? hitColor.argb() : landColor.argb();
-                    double r = 0.3;
-                    lines.line(l.x - r, l.y, l.z, l.x + r, l.y, l.z, c);
-                    lines.line(l.x, l.y - r, l.z, l.x, l.y + r, l.z, c);
-                    lines.line(l.x, l.y, l.z - r, l.x, l.y, l.z + r, c);
+                    landing(lines, l, t.entityHit() ? hitColor.argb() : landColor.argb(), env.t());
                 }
             }
             if (lines != null) {
@@ -212,6 +207,146 @@ public final class Predictions extends Module {
                     Billboard.draw(env, t.landing().add(0, 0.55, 0), String.format("%.1fs", t.ticks() * 0.05),
                             t.entityHit() ? hitColor.argb() : landColor.argb(), 1f);
                 }
+            }
+        }
+    }
+
+    private static int withAlpha(int argb, double k) {
+        return ((int) Math.max(0, Math.min(255, (argb >>> 24) * k)) << 24) | (argb & 0xFFFFFF);
+    }
+
+    private static int hue(double h, int alpha) {
+        return (alpha << 24) | (java.awt.Color.HSBtoRGB((float) (((h % 1.0) + 1.0) % 1.0), 0.8f, 1f) & 0xFFFFFF);
+    }
+
+    /** Draws the flight path in the chosen style. Points are ordered from the start to the landing. */
+    private void path(Lines lines, Trace t, double time) {
+        List<Vec3d> pts = t.points();
+        int n = pts.size();
+        int col = t.color();
+        int alpha = col >>> 24;
+        double run = time * flow.value;
+        int style = pathStyle.index();
+        // Cumulative length, so dashes and arrows are evenly spaced whatever the step size.
+        double[] len = new double[n];
+        for (int i = 1; i < n; i++) {
+            len[i] = len[i - 1] + pts.get(i).distanceTo(pts.get(i - 1));
+        }
+        for (int i = 0; i + 1 < n; i++) {
+            Vec3d a = pts.get(i);
+            Vec3d b = pts.get(i + 1);
+            double f = n < 2 ? 0 : i / (double) (n - 1);
+            switch (style) {
+                case 1 -> {
+                    if (((int) Math.floor((len[i] - run * 0.8) / 0.6)) % 2 == 0) {
+                        lines.line(a.x, a.y, a.z, b.x, b.y, b.z, col);
+                    }
+                }
+                case 2 -> {
+                    double phase = ((len[i] - run * 0.8) / 0.5) % 1.0;
+                    if (phase < 0) {
+                        phase += 1.0;
+                    }
+                    double r = 0.045 * (1 + 0.6 * Math.max(0, 1 - phase * 3));
+                    lines.line(a.x - r, a.y, a.z, a.x + r, a.y, a.z, col);
+                    lines.line(a.x, a.y - r, a.z, a.x, a.y + r, a.z, col);
+                    lines.line(a.x, a.y, a.z - r, a.x, a.y, a.z + r, col);
+                }
+                case 3 -> {
+                    lines.line(a.x, a.y, a.z, b.x, b.y, b.z, withAlpha(col, 0.35));
+                    double phase = ((len[i] - run * 0.9) / 0.9) % 1.0;
+                    if (phase < 0) {
+                        phase += 1.0;
+                    }
+                    if (phase < ((len[i + 1] - len[i]) / 0.9 + 1e-6)) {
+                        Vec3d d = b.subtract(a);
+                        double dl = d.length();
+                        if (dl > 1e-6) {
+                            Vec3d dir = d.multiply(1 / dl);
+                            Vec3d side = Math.abs(dir.y) > 0.9 ? new Vec3d(1, 0, 0) : new Vec3d(-dir.z, 0, dir.x).normalize();
+                            Vec3d up = dir.crossProduct(side);
+                            Vec3d tip = b.add(dir.multiply(0.18));
+                            Vec3d back = b.subtract(dir.multiply(0.12));
+                            for (Vec3d w : new Vec3d[] {side, side.negate(), up, up.negate()}) {
+                                Vec3d wing = back.add(w.multiply(0.12));
+                                lines.line(tip.x, tip.y, tip.z, wing.x, wing.y, wing.z, col);
+                            }
+                        }
+                    }
+                }
+                case 4 -> {
+                    double head = (run * 0.35) % 1.0;
+                    double behind = ((head - f) % 1.0 + 1.0) % 1.0;
+                    double glow = Math.max(0, 1.0 - behind * 2.2);
+                    lines.line(a.x, a.y, a.z, b.x, b.y, b.z, withAlpha(col, 0.15 + 0.85 * Math.max(glow, 1 - f * 0.8) * (0.4 + 0.6 * glow)));
+                }
+                case 5 -> lines.line(a.x, a.y, a.z, b.x, b.y, b.z, hue(f * 1.2 - run * 0.15, alpha));
+                case 6 -> {
+                    double off = 0.05 + 0.03 * Math.sin(run * 3 + len[i] * 4);
+                    Vec3d d = b.subtract(a);
+                    Vec3d side = new Vec3d(-d.z, 0, d.x);
+                    side = side.lengthSquared() < 1e-9 ? new Vec3d(off, 0, 0) : side.normalize().multiply(off);
+                    lines.line(a.x + side.x, a.y, a.z + side.z, b.x + side.x, b.y, b.z + side.z, col);
+                    lines.line(a.x - side.x, a.y, a.z - side.z, b.x - side.x, b.y, b.z - side.z, withAlpha(col, 0.7));
+                }
+                default -> lines.line(a.x, a.y, a.z, b.x, b.y, b.z, col);
+            }
+        }
+    }
+
+    private void ringAt(Lines lines, Vec3d c, double r, int argb, int segs, double y) {
+        for (int i = 0; i < segs; i++) {
+            double a0 = i * Math.PI * 2 / segs, a1 = (i + 1) * Math.PI * 2 / segs;
+            lines.line(c.x + Math.cos(a0) * r, y, c.z + Math.sin(a0) * r, c.x + Math.cos(a1) * r, y, c.z + Math.sin(a1) * r, argb);
+        }
+    }
+
+    /** The mark where the projectile lands, in the chosen style. */
+    private void landing(Lines lines, Vec3d l, int color, double time) {
+        double run = time * flow.value;
+        double y = l.y + 0.02;
+        switch (markerStyle.index()) {
+            case 1 -> ringAt(lines, l, 0.4, color, 24, y);
+            case 2 -> {
+                ringAt(lines, l, 0.5, color, 24, y);
+                ringAt(lines, l, 0.25, withAlpha(color, 0.8), 18, y);
+                lines.line(l.x - 0.7, y, l.z, l.x - 0.35, y, l.z, color);
+                lines.line(l.x + 0.35, y, l.z, l.x + 0.7, y, l.z, color);
+                lines.line(l.x, y, l.z - 0.7, l.x, y, l.z - 0.35, color);
+                lines.line(l.x, y, l.z + 0.35, l.x, y, l.z + 0.7, color);
+            }
+            case 3 -> {
+                double r = 0.38;
+                double top = l.y + 0.45;
+                double bottom = l.y + 0.02;
+                double mid = (top + bottom) / 2;
+                double[][] ring = {{r, 0}, {0, r}, {-r, 0}, {0, -r}};
+                for (int i = 0; i < 4; i++) {
+                    double[] p = ring[i], q = ring[(i + 1) % 4];
+                    lines.line(l.x + p[0], mid, l.z + p[1], l.x + q[0], mid, l.z + q[1], color);
+                    lines.line(l.x, top, l.z, l.x + p[0], mid, l.z + p[1], color);
+                    lines.line(l.x, bottom, l.z, l.x + p[0], mid, l.z + p[1], color);
+                }
+            }
+            case 4 -> {
+                for (int i = 0; i < 3; i++) {
+                    double f = (run * 0.5 + i / 3.0) % 1.0;
+                    ringAt(lines, l, 0.12 + 0.6 * f, withAlpha(color, 1 - f), 24, y);
+                }
+            }
+            case 5 -> {
+                double bob = 0.06 * Math.sin(run * 3);
+                double tip = l.y + 0.05;
+                double head = l.y + 0.55 + bob;
+                lines.line(l.x, tip, l.z, l.x, head - 0.12, l.z, color);
+                ringAt(lines, l, 0.12, color, 12, head);
+                ringAt(lines, l, 0.2, withAlpha(color, 0.5), 12, y);
+            }
+            default -> {
+                double r = 0.3;
+                lines.line(l.x - r, l.y, l.z, l.x + r, l.y, l.z, color);
+                lines.line(l.x, l.y - r, l.z, l.x, l.y + r, l.z, color);
+                lines.line(l.x, l.y, l.z - r, l.x, l.y, l.z + r, color);
             }
         }
     }
