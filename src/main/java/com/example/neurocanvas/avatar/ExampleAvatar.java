@@ -85,7 +85,11 @@ public final class ExampleAvatar {
     public static boolean outdated(Path folder) {
         try {
             Path model = folder.resolve("model.bbmodel");
-            return Files.exists(model) && Files.readString(model).contains("\"source\":\"data:image");
+            if (!Files.exists(model)) {
+                return false;
+            }
+            String text = Files.readString(model);
+            return text.contains("\"source\":\"data:image") || text.contains("\"uuid\":\"c-rarm\",\"name\":\"right arm\",\"from\":[-8.0");
         } catch (IOException e) {
             return false;
         }
@@ -111,10 +115,10 @@ public final class ExampleAvatar {
         JsonArray elements = new JsonArray();
         elements.add(cube("c-head", "head", new double[] {-4, 24, -4}, new double[] {4, 32, 4}, new double[] {0, 24, 0}, 0, 0));
         elements.add(cube("c-body", "body", new double[] {-4, 12, -2}, new double[] {4, 24, 2}, new double[] {0, 12, 0}, 16, 16));
-        elements.add(cube("c-rarm", "right arm", new double[] {-8, 12, -2}, new double[] {-4, 24, 2}, new double[] {-6, 22, 0}, 40, 16));
-        elements.add(cube("c-larm", "left arm", new double[] {4, 12, -2}, new double[] {8, 24, 2}, new double[] {6, 22, 0}, 32, 48));
-        elements.add(cube("c-rleg", "right leg", new double[] {-4, 0, -2}, new double[] {0, 12, 2}, new double[] {-2, 12, 0}, 0, 16));
-        elements.add(cube("c-lleg", "left leg", new double[] {0, 0, -2}, new double[] {4, 12, 2}, new double[] {2, 12, 0}, 16, 48));
+        elements.add(cube("c-rarm", "right arm", new double[] {4, 12, -2}, new double[] {8, 24, 2}, new double[] {6, 22, 0}, 40, 16));
+        elements.add(cube("c-larm", "left arm", new double[] {-8, 12, -2}, new double[] {-4, 24, 2}, new double[] {-6, 22, 0}, 32, 48));
+        elements.add(cube("c-rleg", "right leg", new double[] {0, 0, -2}, new double[] {4, 12, 2}, new double[] {2, 12, 0}, 0, 16));
+        elements.add(cube("c-lleg", "left leg", new double[] {-4, 0, -2}, new double[] {0, 12, 2}, new double[] {-2, 12, 0}, 16, 48));
         root.add("elements", elements);
 
         JsonArray outliner = new JsonArray();
@@ -123,14 +127,14 @@ public final class ExampleAvatar {
         for (String[] b : new String[][] {{"b-head", "Head", "c-head"}, {"b-rarm", "RightArm", "c-rarm"}, {"b-larm", "LeftArm", "c-larm"}}) {
             JsonArray c = new JsonArray();
             c.add(b[2]);
-            double[] origin = b[0].equals("b-head") ? new double[] {0, 24, 0} : b[0].equals("b-rarm") ? new double[] {-6, 22, 0} : new double[] {6, 22, 0};
+            double[] origin = b[0].equals("b-head") ? new double[] {0, 24, 0} : b[0].equals("b-rarm") ? new double[] {6, 22, 0} : new double[] {-6, 22, 0};
             bodyChildren.add(bone(b[0], b[1], origin, c));
         }
         outliner.add(bone("b-body", "Body", new double[] {0, 12, 0}, bodyChildren));
         for (String[] b : new String[][] {{"b-rleg", "RightLeg", "c-rleg"}, {"b-lleg", "LeftLeg", "c-lleg"}}) {
             JsonArray c = new JsonArray();
             c.add(b[2]);
-            outliner.add(bone(b[0], b[1], b[0].equals("b-rleg") ? new double[] {-2, 12, 0} : new double[] {2, 12, 0}, c));
+            outliner.add(bone(b[0], b[1], b[0].equals("b-rleg") ? new double[] {2, 12, 0} : new double[] {-2, 12, 0}, c));
         }
         root.add("outliner", outliner);
 
@@ -151,7 +155,7 @@ public final class ExampleAvatar {
         attack.add("b-body", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.12, 0, -15, 0), key("rotation", 0.4, 0, 0, 0)));
         anims.add(anim("attack", "once", 0.4, attack));
         JsonObject wave = new JsonObject();
-        wave.add("b-larm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.25, 0, 0, 150), key("rotation", 0.5, 0, 0, 125), key("rotation", 0.75, 0, 0, 150), key("rotation", 1, 0, 0, 0)));
+        wave.add("b-larm", animator(key("rotation", 0, 0, 0, 0), key("rotation", 0.25, 0, 0, -150), key("rotation", 0.5, 0, 0, -125), key("rotation", 0.75, 0, 0, -150), key("rotation", 1, 0, 0, 0)));
         anims.add(anim("wave", "once", 1, wave));
         root.add("animations", anims);
 
