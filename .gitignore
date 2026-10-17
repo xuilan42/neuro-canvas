@@ -19,3 +19,8 @@ hs_err_pid*
 # Local dev config (may contain an API key)
 /neurocanvas/
 /ai.json
+
+# Server (accounts, site)
+/server/node_modules/
+/server/data/
+/server/.env
