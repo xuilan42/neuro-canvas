@@ -389,4 +389,16 @@ public final class Ui {
         tess.draw();
         RenderSystem.enableCull();
     }
+
+    /** The text shortened with ".." so that it is no wider than {@code maxW} in the menu font. */
+    public static String fit(TextRenderer tr, String s, int maxW) {
+        if (width(tr, s) <= maxW) {
+            return s;
+        }
+        String t = s;
+        while (t.length() > 1 && width(tr, t + "..") > maxW) {
+            t = t.substring(0, t.length() - 1);
+        }
+        return t + "..";
+    }
 }

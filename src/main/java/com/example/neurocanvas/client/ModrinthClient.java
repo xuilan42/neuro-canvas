@@ -47,7 +47,7 @@ public final class ModrinthClient {
         }
     }
 
-    public record Hit(String id, String title, String author, String description, long downloads) { }
+    public record Hit(String id, String title, String author, String description, long downloads, String iconUrl, int color) { }
 
     public record Download(String fileName, long size, String url, String sha512, String versionName) { }
 
@@ -94,7 +94,8 @@ public final class ModrinthClient {
                     JsonObject h = e.getAsJsonObject();
                     String id = str(h, "project_id");
                     if (ID.matcher(id).matches()) {
-                        out.add(new Hit(id, str(h, "title"), str(h, "author"), str(h, "description"), h.has("downloads") ? h.get("downloads").getAsLong() : 0));
+                        out.add(new Hit(id, str(h, "title"), str(h, "author"), str(h, "description"), h.has("downloads") ? h.get("downloads").getAsLong() : 0,
+                                str(h, "icon_url"), h.has("color") && h.get("color").isJsonPrimitive() ? h.get("color").getAsInt() : 0));
                     }
                 }
                 return out;
@@ -205,6 +206,34 @@ public final class ModrinthClient {
                         // A leftover .part file is harmless.
                     }
                 }
+            }
+        });
+    }
+
+    /** The bytes of a project icon: only from Modrinth's CDN and no more than 600 KB. */
+    public static CompletableFuture<byte[]> icon(String url) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                if (!url.startsWith("https://cdn.modrinth.com/")) {
+                    throw new IOException("bad icon address");
+                }
+                HttpRequest req = HttpRequest.newBuilder(URI.create(url)).timeout(Duration.ofSeconds(15)).header("User-Agent", USER_AGENT).GET().build();
+                HttpResponse<InputStream> r = HTTP.send(req, HttpResponse.BodyHandlers.ofInputStream());
+                if (r.statusCode() != 200 || !r.uri().getHost().endsWith("modrinth.com")) {
+                    throw new IOException("icon answered " + r.statusCode());
+                }
+                try (InputStream in = r.body()) {
+                    byte[] data = in.readNBytes(600_001);
+                    if (data.length > 600_000) {
+                        throw new IOException("icon is too large");
+                    }
+                    return data;
+                }
+            } catch (IOException | RuntimeException e) {
+                throw new CompletionException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
             }
         });
     }

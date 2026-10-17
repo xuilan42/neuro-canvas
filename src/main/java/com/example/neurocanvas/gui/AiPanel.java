@@ -52,6 +52,10 @@ public final class AiPanel {
         return NeuroCanvasClient.modules().get(NeuroAura.class);
     }
 
+    public boolean hasFocus() {
+        return focused() != null;
+    }
+
     private TextBox focused() {
         for (TextBox b : boxes) {
             if (b.focused) {
@@ -59,6 +63,11 @@ public final class AiPanel {
             }
         }
         return null;
+    }
+
+    /** Takes the focus away from every field (the menu calls this when something else is clicked). */
+    public void unfocus() {
+        unfocusAll();
     }
 
     private void unfocusAll() {
@@ -93,7 +102,6 @@ public final class AiPanel {
         if (f == null) {
             return false;
         }
-        boolean ctrl = (modifiers & 2) != 0;
         if (keyCode == 256) {
             f.focused = false;
         } else if (keyCode == 257 || keyCode == 335) {
@@ -102,12 +110,25 @@ public final class AiPanel {
             } else {
                 f.focused = false;
             }
-        } else if (keyCode == 259) {
-            f.backspace(ctrl);
-        } else if (keyCode == 86 && ctrl) {
-            f.paste();
+        } else {
+            f.key(keyCode, modifiers);
         }
         return true;
+    }
+
+    /** True while one of the fields is being dragged to select text. */
+    public boolean mouseDragged(net.minecraft.client.font.TextRenderer tr, double mx) {
+        for (TextBox b : boxes) {
+            if (b.dragging()) {
+                b.dragTo(tr, mx);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public void mouseReleased() {
+        boxes.forEach(TextBox::release);
     }
 
     public void scroll(double amount) {
@@ -119,7 +140,10 @@ public final class AiPanel {
         for (TextBox b : boxes) {
             if (b.contains(mx, my)) {
                 unfocusAll();
-                b.focused = true;
+                net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+                long window = mc.getWindow().getHandle();
+                boolean shift = net.minecraft.client.util.InputUtil.isKeyPressed(window, 340) || net.minecraft.client.util.InputUtil.isKeyPressed(window, 344);
+                b.click(mc.textRenderer, mx, shift);
                 return true;
             }
         }

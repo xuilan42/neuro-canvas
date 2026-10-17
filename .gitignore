@@ -21,6 +21,4 @@ hs_err_pid*
 /ai.json
 
 # Server (accounts, site)
-/server/node_modules/
-/server/data/
-/server/.env
+/server/

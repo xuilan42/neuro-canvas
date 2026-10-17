@@ -59,10 +59,16 @@ public final class ClickGui extends Screen {
     private int dragX0;
     private int dragW;
     private float open;
-    private String query = "";
-    private boolean searchFocus;
+    private final TextBox searchBox = new TextBox("Search modules...", 40, false);
+    private final TextBox nameBox = new TextBox("Preset name", 24, false).allow(c -> Character.isLetterOrDigit(c) || c == ' ' || c == '_' || c == '-', false);
+    private final TextBox friendBox = new TextBox("Add a friend by name", 16, false).allow(c -> c < 128 && (Character.isLetterOrDigit(c) || c == '_'), false);
+    private final TextBox roomBox = new TextBox("Room name (3-40 letters, digits, _ or -; the same for both)", 40, false)
+            .allow(c -> c < 128 && (Character.isLetterOrDigit(c) || c == '_' || c == '-'), true);
+    private final TextBox packBox = new TextBox("Search on Modrinth", 40, false);
+    private final TextBox[] boxes = {searchBox, nameBox, friendBox, roomBox, packBox};
     private Module bindingFor;
     private long lastNano = System.nanoTime();
+    private long openedAt = System.currentTimeMillis();
     private final Map<Module, Float> switchAnim = new HashMap<>();
     private final Map<Module, Float> hoverAnim = new HashMap<>();
     private final Map<Module, Float> openAnim = new HashMap<>();
@@ -155,12 +161,12 @@ public final class ClickGui extends Screen {
     }
 
     private List<Module> visible() {
-        if (query.isEmpty()) {
+        if (searchBox.isEmpty()) {
             return modulesIn(tab);
         }
         List<Module> out = new ArrayList<>();
         for (Module m : NeuroCanvasClient.modules().all()) {
-            if (m.name.toLowerCase().contains(query.toLowerCase())) {
+            if (m.name.toLowerCase().contains(searchBox.text().toLowerCase())) {
                 out.add(m);
             }
         }
@@ -200,7 +206,7 @@ public final class ClickGui extends Screen {
     private int mainW() { return W - SIDE_W - 4 - PAD; }
 
     private boolean split() { return aiView() || configView(); }
-    private boolean fullPage() { return fullView != null && query.isEmpty() && !split(); }
+    private boolean fullPage() { return fullView != null && searchBox.isEmpty() && !split(); }
 
     private int listX() { return mainX(); }
     private int panelX() { return split() ? mainX() + LIST_W + 10 : mainX(); }
@@ -461,7 +467,7 @@ public final class ClickGui extends Screen {
         int sx = sbX();
         int sy = sbY();
         int sw = sbW();
-        if (searchFocus) {
+        if (searchBox.focused) {
             Ui.roundRect(ctx, sx - 1, sy - 1, sw + 2, SB_H + 2, 12, Ui.alpha(th.accent() & 0xFFFFFF, 0.9f));
         }
         Ui.surface(ctx, sx, sy, sw, SB_H, 12, Ui.mix(th.panel2(), th.bg() | 0xFF000000, 0.15f));
@@ -470,8 +476,7 @@ public final class ClickGui extends Screen {
         for (int i = 0; i < 3; i++) {
             ctx.fill(sx + 15 + i, sy + SB_H / 2 + 2 + i, sx + 16 + i, sy + SB_H / 2 + 3 + i, dim);
         }
-        String shown = query.isEmpty() ? "Search modules..." : query + (searchFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
-        Ui.text(ctx, textRenderer, clip(shown, sw - 34), sx + 26, sy + (SB_H - 8) / 2, query.isEmpty() ? th.dim() : th.text());
+        searchBox.drawText(ctx, textRenderer, th, sx + 18, sy, sw - 26, SB_H);
 
         int cx = closeX();
         int cy = closeY();
@@ -491,7 +496,7 @@ public final class ClickGui extends Screen {
         int ih = sideItemH(cats.size());
         int x = sideX();
         int w = sideW();
-        int idx = query.isEmpty() ? cats.indexOf(tab) : -1;
+        int idx = searchBox.isEmpty() ? cats.indexOf(tab) : -1;
         if (idx >= 0) {
             float target = sideItemY(idx, ih);
             if (Float.isNaN(selY) || !anim) {
@@ -542,13 +547,13 @@ public final class ClickGui extends Screen {
     private void drawSection(DrawContext ctx, Theme th, int count) {
         int x = mainX() + 16;
         int y = bodyTop() + 10;
-        if (query.isEmpty()) {
+        if (searchBox.isEmpty()) {
             iconScaled(ctx, tab, x, y + 2, 2, th.accent());
             textScaled(ctx, tab.label, x + 28, y, 1.25f, th.text());
             Ui.text(ctx, textRenderer, subtitle(tab), x + 28, y + 17, th.dim());
         } else {
             textScaled(ctx, "Search results", x, y, 1.25f, th.text());
-            Ui.text(ctx, textRenderer, "Modules matching \"" + query + "\"", x, y + 17, th.dim());
+            Ui.text(ctx, textRenderer, "Modules matching \"" + searchBox.text() + "\"", x, y + 17, th.dim());
         }
         String n = count + (count == 1 ? " module" : " modules");
         Ui.text(ctx, textRenderer, n, mainX() + mainW() - 18 - Ui.width(textRenderer, n), y + 4, th.dim());
@@ -781,14 +786,10 @@ public final class ClickGui extends Screen {
     private record FRow(int kind, int y, int h, String text, Setting setting, boolean flag, boolean extra) { }
 
     private static final int F_SETTING = 0, F_HEADER = 1, F_USER = 2, F_FRIEND = 3, F_INPUT = 4, F_NOTE = 5, F_ROOM = 6;
-    private String roomInput = "";
-    private boolean roomFocus;
-    private String friendInput = "";
-    private boolean friendFocus;
     private int friendsContent;
 
     private boolean friendsPanel() {
-        return fullView instanceof com.example.neurocanvas.module.Friends && query.isEmpty();
+        return fullView instanceof com.example.neurocanvas.module.Friends && searchBox.isEmpty();
     }
 
     private List<FRow> friendRows() {
@@ -909,13 +910,8 @@ public final class ClickGui extends Screen {
                     int btnW = 60;
                     int boxW = pw - btnW - 8;
                     com.example.neurocanvas.module.NameTags roomTags = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class);
-                    if (roomFocus) {
-                        Ui.roundRect(ctx, px - 1, r.y() - 1, boxW + 2, 26, 7, th.accent());
-                    }
-                    Ui.roundRect(ctx, px, r.y(), boxW, 24, 6, th.panel2());
-                    String shownRoom = roomInput.isEmpty() ? "Room name (3-40 letters, digits, _ or -; the same for both)" : roomInput + (roomFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
-                    Ui.text(ctx, textRenderer, textRenderer.trimToWidth(shownRoom, boxW - 14), px + 8, r.y() + 8, roomInput.isEmpty() ? th.dim() : th.text());
-                    boolean leave = roomInput.isEmpty() && !roomTags.room().isEmpty();
+                    roomBox.draw(ctx, textRenderer, th, px, r.y(), boxW, 24);
+                    boolean leave = roomBox.isEmpty() && !roomTags.room().isEmpty();
                     boolean rh = inside(mx, my, px + boxW + 8, r.y(), btnW, 24);
                     Ui.roundRect(ctx, px + boxW + 8, r.y(), btnW, 24, 6, rh ? th.accent2() : th.accent());
                     Ui.textCentered(ctx, textRenderer, leave ? "Leave" : "Join", px + boxW + 8 + btnW / 2, r.y() + 8, th.bg() | 0xFF000000);
@@ -923,12 +919,7 @@ public final class ClickGui extends Screen {
                 case F_INPUT -> {
                     int addW = 60;
                     int boxW = pw - addW - 8;
-                    if (friendFocus) {
-                        Ui.roundRect(ctx, px - 1, r.y() - 1, boxW + 2, 26, 7, th.accent());
-                    }
-                    Ui.roundRect(ctx, px, r.y(), boxW, 24, 6, th.panel2());
-                    String shown = friendInput.isEmpty() ? "Add a friend by name" : friendInput + (friendFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
-                    Ui.text(ctx, textRenderer, shown, px + 8, r.y() + 8, friendInput.isEmpty() ? th.dim() : th.text());
+                    friendBox.draw(ctx, textRenderer, th, px, r.y(), boxW, 24);
                     boolean hover = inside(mx, my, px + boxW + 8, r.y(), addW, 24);
                     Ui.roundRect(ctx, px + boxW + 8, r.y(), addW, 24, 6, hover ? th.accent2() : th.accent());
                     Ui.textCentered(ctx, textRenderer, "Add", px + boxW + 8 + addW / 2, r.y() + 8, th.bg() | 0xFF000000);
@@ -988,15 +979,14 @@ public final class ClickGui extends Screen {
                     int boxW = pw - btnW - 8;
                     if (mx >= px + boxW + 8 && mx < px + boxW + 8 + btnW) {
                         com.example.neurocanvas.module.NameTags roomTags = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class);
-                        if (roomInput.isEmpty()) {
+                        if (roomBox.isEmpty()) {
                             roomTags.setRoom("");
-                        } else if (roomTags.setRoom(roomInput)) {
-                            roomInput = "";
+                        } else if (roomTags.setRoom(roomBox.text())) {
+                            roomBox.set("");
                         }
                         Interface.click(1.3f);
                     } else {
-                        roomFocus = true;
-                        friendFocus = false;
+                        clickBox(roomBox, mx);
                     }
                     return true;
                 }
@@ -1006,7 +996,7 @@ public final class ClickGui extends Screen {
                     if (mx >= px + boxW + 8 && mx < px + boxW + 8 + addW) {
                         addFriendFromInput(f);
                     } else {
-                        friendFocus = true;
+                        clickBox(friendBox, mx);
                     }
                     return true;
                 }
@@ -1019,8 +1009,8 @@ public final class ClickGui extends Screen {
     }
 
     private void addFriendFromInput(com.example.neurocanvas.module.Friends f) {
-        if (f.add(friendInput.trim())) {
-            friendInput = "";
+        if (f.add(friendBox.text().trim())) {
+            friendBox.set("");
             Interface.click(1.3f);
         }
     }
@@ -1037,13 +1027,11 @@ public final class ClickGui extends Screen {
     private static final int M_SETTING = 0, M_NOTE = 1, M_CARD = 2, M_TABS = 3, M_SEARCH = 4, M_PACK = 5, M_MORE = 6;
     private static final int TAB_H = 26;
     private static final int PACK_H = 66;
-    private String packInput = "";
-    private boolean packFocus;
     private static final int PREVIEW_H = 104;
     private int marketContent;
 
     private boolean marketPanel() {
-        return fullView instanceof com.example.neurocanvas.module.Market && query.isEmpty();
+        return fullView instanceof com.example.neurocanvas.module.Market && searchBox.isEmpty();
     }
 
     /** Where each tab of the market sits inside a row of width pw: {x, line, width}. They wrap onto the next line when they do not fit. */
@@ -1144,9 +1132,15 @@ public final class ClickGui extends Screen {
         com.example.neurocanvas.client.ModrinthClient.Hit h = r.hit();
         int bw = 74;
         int textW = pw - bw - 34;
-        Ui.roundRect(ctx, px + 10, y + 12, 40, 40, 10, Ui.alpha(th.accent() & 0xFFFFFF, 0.22f));
-        Ui.textCentered(ctx, textRenderer, h.title().isEmpty() ? "?" : h.title().substring(0, 1).toUpperCase(), px + 30, y + 28, th.accent());
-        int tx = px + 60;
+        net.minecraft.util.Identifier icon = m.icon(h);
+        if (icon != null) {
+            Ui.texturedRoundUv(ctx, px + 10, y + 12, 42, 42, 10, client.getTextureManager().getTexture(icon).getGlId(), 0f, 0f, 1f, 1f);
+        } else {
+            // The picture is still on its way: a soft block in the colour Modrinth gives the project.
+            int base = h.color() != 0 ? (h.color() & 0xFFFFFF) : (th.accent() & 0xFFFFFF);
+            Ui.roundRect(ctx, px + 10, y + 12, 42, 42, 10, Ui.alpha(base, 0.35f));
+        }
+        int tx = px + 62;
         Ui.text(ctx, textRenderer, clip(h.title(), textW - 50), tx, y + 9, th.text());
         Ui.text(ctx, textRenderer, clip("by " + h.author() + "  -  " + compact(h.downloads()) + " downloads", textW - 50), tx, y + 23, th.accent());
         java.util.List<String> lines = Ui.wrap(textRenderer, h.description(), textW - 50);
@@ -1185,12 +1179,11 @@ public final class ClickGui extends Screen {
         com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
         int btnW = 76;
         int boxW = pw - btnW - 8;
-        if (packFocus) {
+        if (packBox.focused) {
             Ui.roundRect(ctx, px - 1, r.y() - 1, boxW + 2, 32, 9, th.accent());
         }
         Ui.roundRect(ctx, px, r.y(), boxW, 30, 8, th.panel2());
-        String shown = packInput.isEmpty() ? "Search on Modrinth" : packInput + (packFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
-        Ui.text(ctx, textRenderer, clip(shown, boxW - 20), px + 10, r.y() + 11, packInput.isEmpty() ? th.dim() : th.text());
+        packBox.drawText(ctx, textRenderer, th, px + 2, r.y(), boxW - 4, 30);
         boolean hover = inside(mx, my, px + boxW + 8, r.y(), btnW, 30);
         Ui.roundRect(ctx, px + boxW + 8, r.y(), btnW, 30, 8, hover ? th.accent2() : th.accent());
         Ui.textCentered(ctx, textRenderer, m.packLoading() ? "..." : "Search", px + boxW + 8 + btnW / 2, r.y() + 11, th.bg() | 0xFF000000);
@@ -1361,8 +1354,8 @@ public final class ClickGui extends Screen {
                     if (inside(mx, my, px + rects[i][0], r.y() + rects[i][1] * TAB_H, rects[i][2], TAB_H - 4)) {
                         if (i != m.kind()) {
                             m.setKind(i);
-                            packInput = "";
-                            packFocus = false;
+                            packBox.set("");
+                            packBox.focused = false;
                             settingsScroll = 0;
                             Interface.click(1.0f);
                         }
@@ -1373,13 +1366,13 @@ public final class ClickGui extends Screen {
                 int btnW = 76;
                 int boxW = pw - btnW - 8;
                 if (inside(mx, my, px + boxW + 8, r.y(), btnW, 30)) {
-                    m.searchPacks(packInput);
-                    packFocus = false;
+                    m.searchPacks(packBox.text());
+                    packBox.focused = false;
                     Interface.click(1.2f);
                     return true;
                 }
                 if (inside(mx, my, px, r.y(), boxW, 30)) {
-                    packFocus = true;
+                    clickBox(packBox, mx);
                     return true;
                 }
             } else if (r.kind() == M_PACK) {
@@ -1547,16 +1540,14 @@ public final class ClickGui extends Screen {
 
     private final List<String> presets = new ArrayList<>();
     private String selectedPreset = "";
-    private String presetName = "";
-    private boolean nameFocus;
     private String status = "";
 
     private boolean aiView() {
-        return tab == Category.AI && query.isEmpty();
+        return tab == Category.AI && searchBox.isEmpty();
     }
 
     private boolean configView() {
-        return tab == Category.CONFIG && query.isEmpty();
+        return tab == Category.CONFIG && searchBox.isEmpty();
     }
 
     private void refreshPresets() {
@@ -1590,7 +1581,7 @@ public final class ClickGui extends Screen {
     }
 
     private void savePreset() {
-        String name = ModuleManager.cleanName(presetName.isBlank() ? selectedPreset : presetName);
+        String name = ModuleManager.cleanName(nameBox.text().isBlank() ? selectedPreset : nameBox.text());
         if (name.isEmpty()) {
             status = "Type a name first";
             return;
@@ -1598,7 +1589,7 @@ public final class ClickGui extends Screen {
         try {
             NeuroCanvasClient.modules().savePreset(name);
             selectedPreset = name;
-            presetName = name;
+            nameBox.set(name);
             refreshPresets();
             status = "Saved \"" + name + "\"";
         } catch (IOException e) {
@@ -1707,12 +1698,7 @@ public final class ClickGui extends Screen {
         Ui.text(ctx, textRenderer, "Save, load and share all your settings", panelX() + PAD, bodyTop() + 24, th.dim());
 
         Ui.textMid(ctx, textRenderer, "Name", panelX() + PAD, nameBoxY() - 2, 26, th.text());
-        if (nameFocus) {
-            Ui.roundRect(ctx, nameBoxX() - 1, nameBoxY() - 1, nameBoxW() + 2, 24, 7, th.accent());
-        }
-        Ui.roundRect(ctx, nameBoxX(), nameBoxY(), nameBoxW(), 22, 6, th.panel2());
-        String shown = presetName.isEmpty() ? "Preset name" : presetName + (nameFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
-        Ui.text(ctx, textRenderer, shown, nameBoxX() + 8, nameBoxY() + 7, presetName.isEmpty() ? th.dim() : th.text());
+        nameBox.draw(ctx, textRenderer, th, nameBoxX(), nameBoxY(), nameBoxW(), 22);
 
         for (Btn b : configButtons()) {
             boolean hover = inside(mx, my, b.x(), b.y(), b.w(), b.h());
@@ -1728,7 +1714,7 @@ public final class ClickGui extends Screen {
 
     private boolean configClicked(double mx, double my, int button) {
         if (inside(mx, my, nameBoxX(), nameBoxY(), nameBoxW(), 22)) {
-            nameFocus = true;
+            clickBox(nameBox, mx);
             return true;
         }
         for (Btn b : configButtons()) {
@@ -1741,7 +1727,7 @@ public final class ClickGui extends Screen {
             for (int i = 0; i < presets.size(); i++) {
                 if (inside(mx, my, listX(), cardY(i), LIST_W, CARD_H)) {
                     selectedPreset = presets.get(i);
-                    presetName = selectedPreset;
+                    nameBox.set(selectedPreset);
                     return true;
                 }
             }
@@ -1751,9 +1737,9 @@ public final class ClickGui extends Screen {
 
 
     private void switchTab(Category c) {
-        query = "";
+        searchBox.set("");
         pickerFor = null;
-        searchFocus = false;
+        searchBox.focused = false;
         if (tab != c) {
             Interface.click(1.0f);
             tab = c;
@@ -1801,15 +1787,15 @@ public final class ClickGui extends Screen {
             close();
             return true;
         }
-        searchFocus = inside(mx, my, sbX(), sbY(), sbW(), SB_H);
-        if (searchFocus) {
+        for (TextBox b : boxes) {
+            b.focused = false;
+        }
+        AI.unfocus();
+        bindingFor = null;
+        if (inside(mx, my, sbX(), sbY(), sbW(), SB_H)) {
+            clickBox(searchBox, mx);
             return true;
         }
-        nameFocus = false;
-        friendFocus = false;
-        roomFocus = false;
-        packFocus = false;
-        bindingFor = null;
         List<Category> cats = categories();
         int ih = sideItemH(cats.size());
         for (int i = 0; i < cats.size(); i++) {
@@ -1946,6 +1932,15 @@ public final class ClickGui extends Screen {
 
     @Override
     public boolean mouseDragged(double mx, double my, int button, double dx, double dy) {
+        for (TextBox b : boxes) {
+            if (b.dragging()) {
+                b.dragTo(textRenderer, mx);
+                return true;
+            }
+        }
+        if (aiView() && AI.mouseDragged(textRenderer, mx)) {
+            return true;
+        }
         if (pickDrag != 0) {
             applyPicker(mx, my);
             return true;
@@ -1959,6 +1954,10 @@ public final class ClickGui extends Screen {
 
     @Override
     public boolean mouseReleased(double mx, double my, int button) {
+        for (TextBox b : boxes) {
+            b.release();
+        }
+        AI.mouseReleased();
         dragging = null;
         pickDrag = 0;
         return super.mouseReleased(mx, my, button);
@@ -1994,38 +1993,53 @@ public final class ClickGui extends Screen {
         return true;
     }
 
+    private boolean mod(int modifiers, int bit) {
+        return (modifiers & bit) != 0;
+    }
+
+    /** Puts the caret in a field with a click (shift extends the selection) and takes the focus away from the others. */
+    private void clickBox(TextBox box, double mx) {
+        long window = client.getWindow().getHandle();
+        boolean shift = InputUtil.isKeyPressed(window, 340) || InputUtil.isKeyPressed(window, 344);
+        for (TextBox b : boxes) {
+            b.focused = false;
+        }
+        box.click(textRenderer, mx, shift);
+    }
+
+    private TextBox focusedBox() {
+        for (TextBox b : boxes) {
+            if (b.focused) {
+                return b;
+            }
+        }
+        return null;
+    }
+
+    private boolean aiFieldFocused() {
+        return aiView() && AI.hasFocus();
+    }
+
     @Override
     public boolean charTyped(char chr, int modifiers) {
         if (aiView() && AI.charTyped(chr)) {
             return true;
         }
-        if (packFocus) {
-            if (packInput.length() < 40 && chr >= 32) {
-                packInput += chr;
-            }
+        TextBox f = focusedBox();
+        // The key that opened the menu may still deliver its character; the first moments are ignored.
+        if (f == null && System.currentTimeMillis() - openedAt < 150) {
             return true;
         }
-        if (roomFocus) {
-            if (roomInput.length() < 40 && (Character.isLetterOrDigit(chr) && chr < 128 || chr == '_' || chr == '-')) {
-                roomInput += Character.toLowerCase(chr);
-            }
-            return true;
+        if (f == null && bindingFor == null && pickerFor == null && chr >= 32 && chr != 127) {
+            // Nothing is being edited: typing goes to the search, so you can just start writing.
+            f = searchBox;
+            f.focused = true;
         }
-        if (friendFocus) {
-            if (friendInput.length() < 16 && (Character.isLetterOrDigit(chr) && chr < 128 || chr == '_')) {
-                friendInput += chr;
+        if (f != null) {
+            f.type(chr);
+            if (f == searchBox) {
+                listScroll = 0;
             }
-            return true;
-        }
-        if (nameFocus) {
-            if (presetName.length() < 24 && (Character.isLetterOrDigit(chr) || chr == ' ' || chr == '_' || chr == '-')) {
-                presetName += chr;
-            }
-            return true;
-        }
-        if (searchFocus && chr >= 32 && query.length() < 24) {
-            query += chr;
-            listScroll = 0;
             return true;
         }
         return super.charTyped(chr, modifiers);
@@ -2042,66 +2056,44 @@ public final class ClickGui extends Screen {
             }
             return true;
         }
-        if (packFocus) {
-            if (keyCode == 259 && !packInput.isEmpty()) {
-                packInput = packInput.substring(0, packInput.length() - 1);
-            } else if (keyCode == 256) {
-                packFocus = false;
-            } else if (keyCode == 257 || keyCode == 335) {
-                ((com.example.neurocanvas.module.Market) fullView).searchPacks(packInput);
-                packFocus = false;
-            }
-            return true;
-        }
-        if (roomFocus) {
-            if (keyCode == 259 && !roomInput.isEmpty()) {
-                roomInput = roomInput.substring(0, roomInput.length() - 1);
-            } else if (keyCode == 256) {
-                roomFocus = false;
-            } else if (keyCode == 257 || keyCode == 335) {
-                NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class).setRoom(roomInput);
-                roomInput = "";
-                roomFocus = false;
-            }
-            return true;
-        }
-        if (friendFocus) {
-            if (keyCode == 259 && !friendInput.isEmpty()) {
-                friendInput = friendInput.substring(0, friendInput.length() - 1);
-            } else if (keyCode == 256) {
-                friendFocus = false;
-            } else if (keyCode == 257 || keyCode == 335) {
-                addFriendFromInput((com.example.neurocanvas.module.Friends) NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class));
-            }
-            return true;
-        }
-        if (nameFocus) {
-            if (keyCode == 259 && !presetName.isEmpty()) {
-                presetName = presetName.substring(0, presetName.length() - 1);
-            } else if (keyCode == 256) {
-                nameFocus = false;
-            } else if (keyCode == 257 || keyCode == 335) {
-                nameFocus = false;
-                savePreset();
-            }
-            return true;
-        }
         if (aiView() && AI.keyPressed(keyCode, modifiers)) {
             return true;
         }
-        if (keyCode == 70 && (modifiers & 2) != 0) {
-            searchFocus = true;
+        boolean enter = keyCode == 257 || keyCode == 335;
+        TextBox f = focusedBox();
+        if (f != null) {
+            if (keyCode == 256) {
+                if (f == searchBox) {
+                    searchBox.set("");
+                }
+                f.focused = false;
+            } else if (enter) {
+                f.focused = false;
+                if (f == packBox && fullView instanceof com.example.neurocanvas.module.Market m) {
+                    m.searchPacks(packBox.text());
+                } else if (f == roomBox) {
+                    NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class).setRoom(roomBox.text());
+                    roomBox.set("");
+                } else if (f == friendBox) {
+                    addFriendFromInput((com.example.neurocanvas.module.Friends) NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class));
+                    f.focused = true;
+                } else if (f == nameBox) {
+                    savePreset();
+                }
+            } else if (f.key(keyCode, modifiers) && f == searchBox) {
+                listScroll = 0;
+            }
             return true;
         }
-        if (searchFocus) {
-            if (keyCode == 259 && !query.isEmpty()) {
-                query = query.substring(0, query.length() - 1);
-            } else if (keyCode == 256) {
-                query = "";
-                searchFocus = false;
-            } else if (keyCode == 257 || keyCode == 335) {
-                searchFocus = false;
-            }
+        if (keyCode == 70 && mod(modifiers, 2)) {
+            searchBox.focused = true;
+            searchBox.selectAll();
+            return true;
+        }
+        if (keyCode == 86 && mod(modifiers, 2) && pickerFor == null) {
+            searchBox.focused = true;
+            searchBox.paste();
+            listScroll = 0;
             return true;
         }
         if (keyCode == RSHIFT) {

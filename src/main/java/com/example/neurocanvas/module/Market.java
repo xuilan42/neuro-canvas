@@ -215,6 +215,7 @@ public final class Market extends Module {
             close(p);
         }
         previews.clear();
+        closeIcons();
     }
 
     public String status() {
@@ -476,6 +477,58 @@ public final class Market extends Module {
         synchronized (busy) {
             return busy.contains(e.type() + "/" + e.name() + "/" + e.code());
         }
+    }
+
+    // ---- icons of the packs -------------------------------------------------------------------
+
+    private static final int ICON_SIZE = 64;
+    private static final int MAX_ICONS = 80;
+    private final Map<String, Identifier> icons = new LinkedHashMap<>();
+    private final Set<String> iconRequested = new HashSet<>();
+
+    /** The icon of a pack as a texture, or null while it loads (or when it has none). It is fetched in the background on first use. */
+    public Identifier icon(ModrinthClient.Hit h) {
+        Identifier id = icons.get(h.id());
+        if (id != null || h.iconUrl().isEmpty() || !iconRequested.add(h.id())) {
+            return id;
+        }
+        ModrinthClient.icon(h.iconUrl()).thenApplyAsync(bytes -> {
+            try {
+                return com.example.neurocanvas.client.IconDecoder.decode(bytes, ICON_SIZE);
+            } catch (IOException e) {
+                throw new java.util.concurrent.CompletionException(e);
+            }
+        }).whenComplete((px, error) -> MinecraftClient.getInstance().execute(() -> {
+            if (error != null || px == null || packKind() == null) {
+                return;
+            }
+            NativeImage img = new NativeImage(ICON_SIZE, ICON_SIZE, false);
+            for (int y = 0; y < ICON_SIZE; y++) {
+                for (int x = 0; x < ICON_SIZE; x++) {
+                    int argb = px[y * ICON_SIZE + x];
+                    img.setColor(x, y, (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >> 16) & 0xFF));
+                }
+            }
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(img);
+            tex.setFilter(true, false);
+            Identifier tid = new Identifier("neurocanvas", "market/icon/" + UUID.randomUUID());
+            MinecraftClient.getInstance().getTextureManager().registerTexture(tid, tex);
+            icons.put(h.id(), tid);
+            while (icons.size() > MAX_ICONS) {
+                String oldest = icons.keySet().iterator().next();
+                MinecraftClient.getInstance().getTextureManager().destroyTexture(icons.remove(oldest));
+                iconRequested.remove(oldest);
+            }
+        }));
+        return null;
+    }
+
+    private void closeIcons() {
+        for (Identifier id : icons.values()) {
+            MinecraftClient.getInstance().getTextureManager().destroyTexture(id);
+        }
+        icons.clear();
+        iconRequested.clear();
     }
 
     public boolean busy(ModrinthClient.Hit h) {
