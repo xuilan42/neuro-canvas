@@ -4,12 +4,14 @@ import com.example.neurocanvas.avatar.BbInstance;
 import com.example.neurocanvas.avatar.BbModel;
 import com.example.neurocanvas.avatar.CosmeticPack;
 import com.example.neurocanvas.client.MarketClient;
+import com.example.neurocanvas.client.ModrinthClient;
 import com.example.neurocanvas.client.NeuroCanvasClient;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,7 +25,9 @@ import net.minecraft.util.Identifier;
 
 /** The catalog of cosmetics on the project's server: one button downloads an item and puts it on. The list is drawn by the menu. */
 public final class Market extends Module {
-    private final Setting show;
+    /** The tabs along the top of the market: everything, the six kinds of cosmetics, then packs from Modrinth. */
+    public static final String[] TABS = {"All", "Capes", "Wings", "Hats", "Outfits", "Emotes", "Graffiti", "Shaders", "Resource packs"};
+    private static int kind;
     private final Setting source = add(Setting.choice("Source", 0, "Official", "Community"));
     private int loadedSource = -1;
     private final Setting refresh = add(Setting.button("Refresh"));
@@ -109,14 +113,6 @@ public final class Market extends Module {
         aiControllable = false;
         alwaysOn = true;
         this.wardrobe = wardrobe;
-        String[] kinds = new String[CosmeticPack.Type.values().length + 1];
-        kinds[0] = "All";
-        for (int i = 0; i < CosmeticPack.Type.values().length; i++) {
-            kinds[i + 1] = CosmeticPack.Type.values()[i].label;
-        }
-        show = add(Setting.choice("Show", 0, kinds));
-        settings.add(0, settings.remove(settings.size() - 1));
-        settings.add(0, settings.remove(settings.size() - 2));
     }
 
     /** The preview of an item. It is loaded on first use; until then (or when it failed) the card shows a placeholder. */
@@ -229,10 +225,247 @@ public final class Market extends Module {
         return entries;
     }
 
-    /** The kind selected in "Show", or null for all. */
+    public int kind() {
+        return kind;
+    }
+
+    public void setKind(int k) {
+        int next = Math.max(0, Math.min(k, TABS.length - 1));
+        if (next != kind) {
+            kind = next;
+            status = "";
+            hits = null;
+            packQuery = "";
+            closePreviews();
+        }
+    }
+
+    /** The kind of cosmetic selected in the tabs, or null for all (and for the pack tabs). */
     public CosmeticPack.Type filter() {
-        int i = show.index();
-        return i == 0 ? null : CosmeticPack.Type.values()[i - 1];
+        return kind >= 1 && kind <= CosmeticPack.Type.values().length ? CosmeticPack.Type.values()[kind - 1] : null;
+    }
+
+    /** The kind of pack the selected tab lists, or null when it lists cosmetics. */
+    public ModrinthClient.Kind packKind() {
+        return kind == 7 ? ModrinthClient.Kind.SHADER : kind == 8 ? ModrinthClient.Kind.RESOURCEPACK : null;
+    }
+
+    // ---- packs from Modrinth ------------------------------------------------------------------------
+
+    private volatile List<ModrinthClient.Hit> hits;
+    private volatile boolean packLoading;
+    private volatile boolean packMore;
+    private String packQuery = "";
+    private final Map<String, String> installedPacks = new LinkedHashMap<>();
+    private boolean packsRead;
+
+    public List<ModrinthClient.Hit> hits() {
+        return hits;
+    }
+
+    public boolean packLoading() {
+        return packLoading;
+    }
+
+    public boolean packMore() {
+        return packMore;
+    }
+
+    public String packQuery() {
+        return packQuery;
+    }
+
+    private Path packFile() {
+        return wardrobe.resolveSibling("market-packs.json");
+    }
+
+    private void readPacks() {
+        if (packsRead) {
+            return;
+        }
+        packsRead = true;
+        try {
+            if (Files.exists(packFile())) {
+                com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(Files.readString(packFile(), StandardCharsets.UTF_8)).getAsJsonObject();
+                o.entrySet().forEach(e -> installedPacks.put(e.getKey(), e.getValue().getAsString()));
+            }
+        } catch (IOException | RuntimeException ignored) {
+            // A broken record just means nothing shows as installed.
+        }
+    }
+
+    private void writePacks() {
+        try {
+            com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+            installedPacks.forEach(o::addProperty);
+            Files.createDirectories(packFile().getParent());
+            Files.writeString(packFile(), o.toString(), StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+            // The record is only a convenience.
+        }
+    }
+
+    private static Path packFolder(ModrinthClient.Kind k) {
+        return MinecraftClient.getInstance().runDirectory.toPath().resolve(k.folder);
+    }
+
+    public void searchPacks(String query) {
+        ModrinthClient.Kind k = packKind();
+        if (k == null || packLoading) {
+            return;
+        }
+        packQuery = query.trim();
+        loadPacks(k, 0);
+    }
+
+    public void morePacks() {
+        ModrinthClient.Kind k = packKind();
+        if (k != null && !packLoading && hits != null) {
+            loadPacks(k, hits.size());
+        }
+    }
+
+    private void loadPacks(ModrinthClient.Kind k, int offset) {
+        packLoading = true;
+        status = "Searching Modrinth...";
+        ModrinthClient.search(k, packQuery, offset).whenComplete((list, error) -> MinecraftClient.getInstance().execute(() -> {
+            packLoading = false;
+            if (packKind() != k) {
+                return;
+            }
+            if (error != null) {
+                status = "Could not search Modrinth: " + ModrinthClient.reason(error);
+                if (hits == null) {
+                    hits = List.of();
+                }
+                return;
+            }
+            List<ModrinthClient.Hit> all = new ArrayList<>(offset == 0 || hits == null ? List.of() : hits);
+            all.addAll(list);
+            hits = all;
+            packMore = list.size() >= 20;
+            status = all.isEmpty() ? "Nothing found" : "";
+        }));
+    }
+
+    public boolean packInstalled(ModrinthClient.Hit h) {
+        readPacks();
+        String f = installedPacks.get(h.id());
+        ModrinthClient.Kind k = packKind();
+        return f != null && k != null && Files.exists(packFolder(k).resolve(f));
+    }
+
+    public boolean packActive(ModrinthClient.Hit h) {
+        ModrinthClient.Kind k = packKind();
+        String f = installedPacks.get(h.id());
+        if (k == null || f == null) {
+            return false;
+        }
+        if (k == ModrinthClient.Kind.RESOURCEPACK) {
+            return MinecraftClient.getInstance().getResourcePackManager().getEnabledNames().contains("file/" + f);
+        }
+        return f.equals(irisPack());
+    }
+
+    public static boolean irisPresent() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("iris");
+    }
+
+    private static Path irisConfig() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("iris.properties");
+    }
+
+    private static String irisPack() {
+        try {
+            if (Files.exists(irisConfig())) {
+                java.util.Properties p = new java.util.Properties();
+                try (java.io.Reader r = Files.newBufferedReader(irisConfig(), StandardCharsets.UTF_8)) {
+                    p.load(r);
+                }
+                return p.getProperty("shaderPack");
+            }
+        } catch (IOException ignored) {
+            // No Iris settings yet.
+        }
+        return null;
+    }
+
+    /** Downloads the pack if needed and puts it on: a resource pack is switched on at once, a shader pack is chosen in Iris. */
+    public void getPack(ModrinthClient.Hit h) {
+        ModrinthClient.Kind k = packKind();
+        if (k == null) {
+            return;
+        }
+        String key = "pack/" + h.id();
+        synchronized (busy) {
+            if (!busy.add(key)) {
+                return;
+            }
+        }
+        readPacks();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        String have = installedPacks.get(h.id());
+        boolean present = have != null && Files.exists(packFolder(k).resolve(have));
+        status = (present ? "Putting on " : "Downloading ") + h.title() + "...";
+        java.util.concurrent.CompletableFuture<String> job = present ? java.util.concurrent.CompletableFuture.completedFuture(have)
+                : ModrinthClient.install(k, h.id(), packFolder(k), pct -> mc.execute(() -> status = "Downloading " + h.title() + ": " + pct + "%"));
+        job.whenComplete((file, error) -> mc.execute(() -> {
+            synchronized (busy) {
+                busy.remove(key);
+            }
+            if (error != null) {
+                status = "Could not get " + h.title() + ": " + ModrinthClient.reason(error);
+                return;
+            }
+            installedPacks.put(h.id(), file);
+            writePacks();
+            status = k == ModrinthClient.Kind.RESOURCEPACK ? useResourcePack(mc, h.title(), file) : useShader(h.title(), file);
+        }));
+    }
+
+    private static String useResourcePack(MinecraftClient mc, String title, String file) {
+        try {
+            net.minecraft.resource.ResourcePackManager rpm = mc.getResourcePackManager();
+            rpm.scanPacks();
+            String id = "file/" + file;
+            if (rpm.getProfile(id) == null) {
+                return title + " was downloaded, but the game does not list it as a pack";
+            }
+            List<String> names = new ArrayList<>(rpm.getEnabledNames());
+            if (!names.contains(id)) {
+                names.add(id);
+            }
+            rpm.setEnabledProfiles(names);
+            mc.options.resourcePacks.clear();
+            mc.options.resourcePacks.addAll(rpm.getEnabledNames());
+            mc.options.write();
+            mc.reloadResources();
+            return title + " is on";
+        } catch (RuntimeException e) {
+            return title + " was downloaded, switch it on in Options > Resource Packs";
+        }
+    }
+
+    private static String useShader(String title, String file) {
+        if (!irisPresent()) {
+            return title + " is saved in shaderpacks. Shaders need the Iris mod, which is not installed";
+        }
+        try {
+            java.util.Properties p = new java.util.Properties();
+            if (Files.exists(irisConfig())) {
+                try (java.io.Reader r = Files.newBufferedReader(irisConfig(), StandardCharsets.UTF_8)) {
+                    p.load(r);
+                }
+            }
+            p.setProperty("shaderPack", file);
+            p.setProperty("enableShaders", "true");
+            try (java.io.Writer w = Files.newBufferedWriter(irisConfig(), StandardCharsets.UTF_8)) {
+                p.store(w, "Iris Configuration");
+            }
+            return title + " is chosen in Iris: reload shaders in the Iris menu or restart the game";
+        } catch (IOException e) {
+            return title + " was downloaded, choose it in Options > Video Settings > Shader Packs";
+        }
     }
 
     public boolean installed(MarketClient.Entry e) {
@@ -245,8 +478,20 @@ public final class Market extends Module {
         }
     }
 
+    public boolean busy(ModrinthClient.Hit h) {
+        synchronized (busy) {
+            return busy.contains("pack/" + h.id());
+        }
+    }
+
     /** Loads the catalog once; the menu calls this when the panel opens. */
     public void ensureLoaded() {
+        if (packKind() != null) {
+            if (hits == null && !packLoading) {
+                loadPacks(packKind(), 0);
+            }
+            return;
+        }
         if (entries == null && !loading) {
             refresh();
         }

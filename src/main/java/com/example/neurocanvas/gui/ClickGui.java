@@ -1027,14 +1027,46 @@ public final class ClickGui extends Screen {
 
     // ---- Market panel -------------------------------------------------------------------------
 
-    private record MRow(int kind, int y, int h, String text, Setting setting, com.example.neurocanvas.client.MarketClient.Entry entry, int col) { }
+    private record MRow(int kind, int y, int h, String text, Setting setting, com.example.neurocanvas.client.MarketClient.Entry entry, int col,
+                        com.example.neurocanvas.client.ModrinthClient.Hit hit) {
+        MRow(int kind, int y, int h, String text, Setting setting, com.example.neurocanvas.client.MarketClient.Entry entry, int col) {
+            this(kind, y, h, text, setting, entry, col, null);
+        }
+    }
 
-    private static final int M_SETTING = 0, M_NOTE = 1, M_CARD = 2;
+    private static final int M_SETTING = 0, M_NOTE = 1, M_CARD = 2, M_TABS = 3, M_SEARCH = 4, M_PACK = 5, M_MORE = 6;
+    private static final int TAB_H = 26;
+    private static final int PACK_H = 66;
+    private String packInput = "";
+    private boolean packFocus;
     private static final int PREVIEW_H = 104;
     private int marketContent;
 
     private boolean marketPanel() {
         return fullView instanceof com.example.neurocanvas.module.Market && query.isEmpty();
+    }
+
+    /** Where each tab of the market sits inside a row of width pw: {x, line, width}. They wrap onto the next line when they do not fit. */
+    private int[][] marketTabRects(int pw) {
+        String[] tabs = com.example.neurocanvas.module.Market.TABS;
+        int[][] out = new int[tabs.length][];
+        int x = 0;
+        int line = 0;
+        for (int i = 0; i < tabs.length; i++) {
+            int w = Ui.width(textRenderer, tabs[i]) + 24;
+            if (x > 0 && x + w > pw) {
+                line++;
+                x = 0;
+            }
+            out[i] = new int[] {x, line, w};
+            x += w + 6;
+        }
+        return out;
+    }
+
+    private int marketTabsHeight(int pw) {
+        int[][] r = marketTabRects(pw);
+        return (r[r.length - 1][1] + 1) * TAB_H + 6;
     }
 
     private List<MRow> marketRows() {
@@ -1043,6 +1075,35 @@ public final class ClickGui extends Screen {
         List<MRow> rows = new ArrayList<>();
         int top = rowsTop() - (int) settingsScroll;
         int y = top;
+        int pw = panelW() - 2 * PAD;
+        int th = marketTabsHeight(pw);
+        rows.add(new MRow(M_TABS, y, th, "", null, null, 0));
+        y += th;
+        com.example.neurocanvas.client.ModrinthClient.Kind pack = m.packKind();
+        if (pack != null) {
+            rows.add(new MRow(M_SEARCH, y, 30, "", null, null, 0));
+            y += 36;
+            if (pack == com.example.neurocanvas.client.ModrinthClient.Kind.SHADER && !com.example.neurocanvas.module.Market.irisPresent()) {
+                rows.add(new MRow(M_NOTE, y, 22, "Shaders need the Iris mod (not installed): packs are saved, but nothing will use them", null, null, 0));
+                y += 22;
+            }
+            if (!m.status().isEmpty()) {
+                rows.add(new MRow(M_NOTE, y, 22, m.status(), null, null, 0));
+                y += 22;
+            }
+            if (m.hits() != null) {
+                for (com.example.neurocanvas.client.ModrinthClient.Hit h : m.hits()) {
+                    rows.add(new MRow(M_PACK, y, PACK_H, h.title(), null, null, 0, h));
+                    y += PACK_H + 8;
+                }
+                if (m.packMore() && !m.packLoading()) {
+                    rows.add(new MRow(M_MORE, y, 26, "Load more", null, null, 0));
+                    y += 34;
+                }
+            }
+            marketContent = y - top;
+            return rows;
+        }
         for (Setting s : m.settings) {
             rows.add(new MRow(M_SETTING, y, ROW_H, s.name, s, null, 0));
             y += ROW_H;
@@ -1066,6 +1127,73 @@ public final class ClickGui extends Screen {
         }
         marketContent = y - top;
         return rows;
+    }
+
+    private static String compact(long n) {
+        return n >= 1_000_000 ? String.format("%.1fM", n / 1_000_000.0) : n >= 1000 ? (n / 1000) + "K" : Long.toString(n);
+    }
+
+    private void renderPackRow(DrawContext ctx, Theme th, MRow r, int px, int pw, int mx, int my, int viewY, int viewH) {
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
+        int y = r.y();
+        if (y + r.h() < viewY || y > viewY + viewH) {
+            return;
+        }
+        boolean hover = inside(mx, my, px, y, pw, r.h()) && my >= viewY && my < viewY + viewH;
+        Ui.surface(ctx, px, y, pw, r.h(), 8, hover ? th.hover() : th.panel2());
+        com.example.neurocanvas.client.ModrinthClient.Hit h = r.hit();
+        int bw = 74;
+        int textW = pw - bw - 34;
+        Ui.roundRect(ctx, px + 10, y + 12, 40, 40, 10, Ui.alpha(th.accent() & 0xFFFFFF, 0.22f));
+        Ui.textCentered(ctx, textRenderer, h.title().isEmpty() ? "?" : h.title().substring(0, 1).toUpperCase(), px + 30, y + 28, th.accent());
+        int tx = px + 60;
+        Ui.text(ctx, textRenderer, clip(h.title(), textW - 50), tx, y + 9, th.text());
+        Ui.text(ctx, textRenderer, clip("by " + h.author() + "  -  " + compact(h.downloads()) + " downloads", textW - 50), tx, y + 23, th.accent());
+        java.util.List<String> lines = Ui.wrap(textRenderer, h.description(), textW - 50);
+        if (!lines.isEmpty()) {
+            Ui.text(ctx, textRenderer, clip(lines.get(0) + (lines.size() > 1 ? " ..." : ""), textW - 50), tx, y + 38, th.dim());
+        }
+        boolean busy = m.busy(h);
+        boolean on = m.packActive(h);
+        boolean have = m.packInstalled(h);
+        String label = busy ? "..." : on ? "On" : have ? "Use" : "Get";
+        int bx = px + pw - bw - 10;
+        boolean bh = inside(mx, my, bx, y + (r.h() - 26) / 2, bw, 26);
+        int fill = busy ? th.hover() : on ? Ui.alpha(0x4ADE80, 0.30f) : (bh ? th.accent2() : th.accent());
+        Ui.roundRect(ctx, bx, y + (r.h() - 26) / 2, bw, 26, 8, fill);
+        Ui.textCentered(ctx, textRenderer, label, bx + bw / 2, y + (r.h() - 8) / 2, on ? 0xFF4ADE80 : (busy ? th.dim() : (th.bg() | 0xFF000000)));
+    }
+
+    private void renderMarketTabs(DrawContext ctx, Theme th, MRow r, int px, int pw, int mx, int my) {
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
+        String[] tabs = com.example.neurocanvas.module.Market.TABS;
+        int[][] rects = marketTabRects(pw);
+        for (int i = 0; i < tabs.length; i++) {
+            int tx = px + rects[i][0];
+            int ty = r.y() + rects[i][1] * TAB_H;
+            boolean on = i == m.kind();
+            boolean hover = inside(mx, my, tx, ty, rects[i][2], TAB_H - 4);
+            if (on) {
+                Ui.glow(ctx, tx, ty, rects[i][2], TAB_H - 4, 9, th.accent(), 0.25f, 6f);
+            }
+            Ui.roundRect(ctx, tx, ty, rects[i][2], TAB_H - 4, 9, on ? Ui.alpha(th.accent() & 0xFFFFFF, 0.38f) : (hover ? th.hover() : th.panel2()));
+            Ui.textCentered(ctx, textRenderer, tabs[i], tx + rects[i][2] / 2, ty + (TAB_H - 4 - 8) / 2, on || hover ? th.text() : th.dim());
+        }
+    }
+
+    private void renderPackSearch(DrawContext ctx, Theme th, MRow r, int px, int pw, int mx, int my) {
+        com.example.neurocanvas.module.Market m = (com.example.neurocanvas.module.Market) fullView;
+        int btnW = 76;
+        int boxW = pw - btnW - 8;
+        if (packFocus) {
+            Ui.roundRect(ctx, px - 1, r.y() - 1, boxW + 2, 32, 9, th.accent());
+        }
+        Ui.roundRect(ctx, px, r.y(), boxW, 30, 8, th.panel2());
+        String shown = packInput.isEmpty() ? "Search on Modrinth" : packInput + (packFocus && System.currentTimeMillis() / 500 % 2 == 0 ? "|" : "");
+        Ui.text(ctx, textRenderer, clip(shown, boxW - 20), px + 10, r.y() + 11, packInput.isEmpty() ? th.dim() : th.text());
+        boolean hover = inside(mx, my, px + boxW + 8, r.y(), btnW, 30);
+        Ui.roundRect(ctx, px + boxW + 8, r.y(), btnW, 30, 8, hover ? th.accent2() : th.accent());
+        Ui.textCentered(ctx, textRenderer, m.packLoading() ? "..." : "Search", px + boxW + 8 + btnW / 2, r.y() + 11, th.bg() | 0xFF000000);
     }
 
     private static final int MARKET_CARD_H = 142;
@@ -1096,6 +1224,24 @@ public final class ClickGui extends Screen {
         int cw = marketCardW();
         ctx.enableScissor(panelX(), viewY, panelX() + panelW(), viewY + viewH);
         for (MRow r : marketRows()) {
+            if (r.kind() == M_TABS) {
+                renderMarketTabs(ctx, th, r, px, pw, mx, my);
+                continue;
+            }
+            if (r.kind() == M_SEARCH) {
+                renderPackSearch(ctx, th, r, px, pw, mx, my);
+                continue;
+            }
+            if (r.kind() == M_PACK) {
+                renderPackRow(ctx, th, r, px, pw, mx, my, viewY, viewH);
+                continue;
+            }
+            if (r.kind() == M_MORE) {
+                boolean mh = inside(mx, my, px, r.y(), pw, 26);
+                Ui.roundRect(ctx, px, r.y(), pw, 26, 8, mh ? th.hover() : th.panel2());
+                Ui.textCentered(ctx, textRenderer, "Load more", px + pw / 2, r.y() + 9, th.text());
+                continue;
+            }
             if (r.kind() == M_SETTING) {
                 renderSetting(ctx, th, r.setting(), r.y(), mx, my);
                 continue;
@@ -1207,8 +1353,51 @@ public final class ClickGui extends Screen {
         if (my < rowsTop() || my >= bodyTop() + bodyH() - 4) {
             return false;
         }
+        int pw = panelW() - 2 * PAD;
         for (MRow r : marketRows()) {
-            if (r.kind() == M_SETTING) {
+            if (r.kind() == M_TABS) {
+                int[][] rects = marketTabRects(pw);
+                for (int i = 0; i < rects.length; i++) {
+                    if (inside(mx, my, px + rects[i][0], r.y() + rects[i][1] * TAB_H, rects[i][2], TAB_H - 4)) {
+                        if (i != m.kind()) {
+                            m.setKind(i);
+                            packInput = "";
+                            packFocus = false;
+                            settingsScroll = 0;
+                            Interface.click(1.0f);
+                        }
+                        return true;
+                    }
+                }
+            } else if (r.kind() == M_SEARCH) {
+                int btnW = 76;
+                int boxW = pw - btnW - 8;
+                if (inside(mx, my, px + boxW + 8, r.y(), btnW, 30)) {
+                    m.searchPacks(packInput);
+                    packFocus = false;
+                    Interface.click(1.2f);
+                    return true;
+                }
+                if (inside(mx, my, px, r.y(), boxW, 30)) {
+                    packFocus = true;
+                    return true;
+                }
+            } else if (r.kind() == M_PACK) {
+                int bw = 74;
+                if (inside(mx, my, px + pw - bw - 10, r.y() + (r.h() - 26) / 2, bw, 26)) {
+                    if (!m.packActive(r.hit())) {
+                        m.getPack(r.hit());
+                    }
+                    Interface.click(1.3f);
+                    return true;
+                }
+            } else if (r.kind() == M_MORE) {
+                if (inside(mx, my, px, r.y(), pw, 26)) {
+                    m.morePacks();
+                    Interface.click(1.1f);
+                    return true;
+                }
+            } else if (r.kind() == M_SETTING) {
                 if (my >= r.y() && my < r.y() + r.h() && inside(mx, my, ctrlX() - 4, r.y(), CTRL_W + 8, ROW_H)) {
                     Setting s = r.setting();
                     switch (s.kind) {
@@ -1619,6 +1808,7 @@ public final class ClickGui extends Screen {
         nameFocus = false;
         friendFocus = false;
         roomFocus = false;
+        packFocus = false;
         bindingFor = null;
         List<Category> cats = categories();
         int ih = sideItemH(cats.size());
@@ -1809,6 +1999,12 @@ public final class ClickGui extends Screen {
         if (aiView() && AI.charTyped(chr)) {
             return true;
         }
+        if (packFocus) {
+            if (packInput.length() < 40 && chr >= 32) {
+                packInput += chr;
+            }
+            return true;
+        }
         if (roomFocus) {
             if (roomInput.length() < 40 && (Character.isLetterOrDigit(chr) && chr < 128 || chr == '_' || chr == '-')) {
                 roomInput += Character.toLowerCase(chr);
@@ -1843,6 +2039,17 @@ public final class ClickGui extends Screen {
             } else {
                 bindingFor.key = keyCode == 259 || keyCode == 261 ? -1 : keyCode;
                 bindingFor = null;
+            }
+            return true;
+        }
+        if (packFocus) {
+            if (keyCode == 259 && !packInput.isEmpty()) {
+                packInput = packInput.substring(0, packInput.length() - 1);
+            } else if (keyCode == 256) {
+                packFocus = false;
+            } else if (keyCode == 257 || keyCode == 335) {
+                ((com.example.neurocanvas.module.Market) fullView).searchPacks(packInput);
+                packFocus = false;
             }
             return true;
         }
