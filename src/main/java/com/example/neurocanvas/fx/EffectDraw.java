@@ -96,6 +96,10 @@ public final class EffectDraw {
 
     /** An expanding, fading ring on the ground. progress runs 0..1. */
     public static void ripple(RenderEnv env, EffectSpec s, Vec3d p, float progress) {
+        if (progress >= 1f) {
+            return;
+        }
+        progress = Math.max(0f, progress);
         float radius0 = (0.2f + progress * 2.2f) * s.size;
         float width0 = 0.12f * s.size;
         float outer = radius0 + width0 * 5f;
@@ -181,7 +185,7 @@ public final class EffectDraw {
         float r1 = ((s.color1 >> 16) & 0xFF) / 255f, g1 = ((s.color1 >> 8) & 0xFF) / 255f, b1 = (s.color1 & 0xFF) / 255f;
         float r2 = ((s.color2 >> 16) & 0xFF) / 255f, g2 = ((s.color2 >> 8) & 0xFF) / 255f, b2 = (s.color2 & 0xFF) / 255f;
         return new float[] {
-            MathHelper.lerp(t, r1, r2), MathHelper.lerp(t, g1, g2), MathHelper.lerp(t, b1, b2), alpha
+            MathHelper.lerp(t, r1, r2), MathHelper.lerp(t, g1, g2), MathHelper.lerp(t, b1, b2), Math.max(0f, Math.min(1f, alpha))
         };
     }
 }

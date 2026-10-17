@@ -50,7 +50,8 @@ public final class ClickGui extends Screen {
     // Remembered between openings, so the menu comes back to the section and the unfolded cards you were on.
     private static Category tab;
     private static Module fullView;
-    private static final Set<Module> expanded = new LinkedHashSet<>();
+    private static final Set<String> expanded = new LinkedHashSet<>();
+    private static boolean expandedLoaded;
     private static double listScroll;
     private static double settingsScroll;
 
@@ -80,9 +81,7 @@ public final class ClickGui extends Screen {
         if (tab == null) {
             tab = categories().get(0);
         }
-        if (expanded.isEmpty()) {
-            expandFirst();
-        }
+        loadExpanded();
         if (tab == Category.CONFIG) {
             refreshPresets();
         }
@@ -96,12 +95,38 @@ public final class ClickGui extends Screen {
         H = Math.max(300, Math.min(420, height - 24));
     }
 
-    private void expandFirst() {
-        for (Module m : modulesIn(tab)) {
-            if (!special(m)) {
-                expanded.add(m);
-                return;
+    private static java.nio.file.Path expandedFile() {
+        return NeuroCanvasClient.modules().menuFile();
+    }
+
+    /** The unfolded cards are remembered between openings and game sessions; with no file every card starts folded. */
+    private static void loadExpanded() {
+        if (expandedLoaded) {
+            return;
+        }
+        expandedLoaded = true;
+        try {
+            java.nio.file.Path f = expandedFile();
+            if (java.nio.file.Files.exists(f)) {
+                com.google.gson.JsonObject o = com.google.gson.JsonParser.parseString(java.nio.file.Files.readString(f)).getAsJsonObject();
+                if (o.has("open")) {
+                    o.getAsJsonArray("open").forEach(e -> expanded.add(e.getAsString()));
+                }
             }
+        } catch (IOException | RuntimeException ignored) {
+            // A missing or broken file means everything starts folded.
+        }
+    }
+
+    private static void saveExpanded() {
+        try {
+            com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+            com.google.gson.JsonArray a = new com.google.gson.JsonArray();
+            expanded.forEach(a::add);
+            o.add("open", a);
+            java.nio.file.Files.writeString(expandedFile(), o.toString());
+        } catch (IOException ignored) {
+            // The state is a convenience; losing it is harmless.
         }
     }
 
@@ -234,7 +259,7 @@ public final class ClickGui extends Screen {
     }
 
     private float openOf(Module m) {
-        return special(m) ? 0f : openAnim.getOrDefault(m, expanded.contains(m) ? 1f : 0f);
+        return special(m) ? 0f : openAnim.getOrDefault(m, expanded.contains(m.name) ? 1f : 0f);
     }
 
     private List<Item> layout() {
@@ -495,19 +520,23 @@ public final class ClickGui extends Screen {
         int uy = userY();
         Ui.surface(ctx, x, uy, w, 42, 10, th.panel());
         String name = client.getSession() == null ? "Player" : client.getSession().getUsername();
-        int fx = x + 9;
+        int fx = x + 10;
         int fy = uy + 9;
-        Ui.roundRect(ctx, fx - 1, fy - 1, 26, 26, 8, Ui.alpha(th.accent() & 0xFFFFFF, 0.5f));
+        int fs = 24;
         if (client.player != null) {
-            net.minecraft.util.Identifier skin = client.player.getSkinTexture();
-            ctx.drawTexture(skin, fx, fy, 24, 24, 8f, 8f, 8, 8, 64, 64);
-            ctx.drawTexture(skin, fx, fy, 24, 24, 40f, 8f, 8, 8, 64, 64);
+            int skin = client.getTextureManager().getTexture(client.player.getSkinTexture()).getGlId();
+            Ui.texturedRoundUv(ctx, fx, fy, fs, fs, 8, skin, 8 / 64f, 8 / 64f, 16 / 64f, 16 / 64f);
+            Ui.texturedRoundUv(ctx, fx, fy, fs, fs, 8, skin, 40 / 64f, 8 / 64f, 48 / 64f, 16 / 64f);
         } else {
-            Ui.textCentered(ctx, textRenderer, name.substring(0, 1).toUpperCase(), fx + 12, fy + 8, th.text());
+            Ui.roundRect(ctx, fx, fy, fs, fs, 8, th.panel2());
+            Ui.textCentered(ctx, textRenderer, name.substring(0, 1).toUpperCase(), fx + fs / 2, fy + 8, th.text());
         }
-        Ui.roundRect(ctx, fx + 19, fy + 19, 7, 7, 3, 0xFF5CE08A);
-        Ui.text(ctx, textRenderer, clip(name, w - 48), x + 40, uy + 11, th.text());
-        Ui.text(ctx, textRenderer, version(), x + 40, uy + 23, th.accent());
+        // The frame goes over the picture, so the square corners of the face are cut by it.
+        Ui.outline(ctx, fx, fy, fs, fs, 8, -1.6f, 0f, Ui.alpha(th.accent() & 0xFFFFFF, 0.9f), Ui.alpha(th.accent() & 0xFFFFFF, 0.9f));
+        Ui.roundRect(ctx, fx + fs - 5, fy + fs - 5, 9, 9, 4, th.bg() | 0xFF000000);
+        Ui.roundRect(ctx, fx + fs - 4, fy + fs - 4, 7, 7, 3, 0xFF5CE08A);
+        Ui.text(ctx, textRenderer, clip(name, w - 52), x + 44, uy + 11, th.text());
+        Ui.text(ctx, textRenderer, version(), x + 44, uy + 23, th.accent());
     }
 
     private void drawSection(DrawContext ctx, Theme th, int count) {
@@ -532,7 +561,7 @@ public final class ClickGui extends Screen {
         int viewH = vy1() - vy0();
         listScroll = clamp(listScroll, 0, Math.max(0, cardsContent - viewH));
         for (Module m : vis) {
-            float target = expanded.contains(m) && !special(m) ? 1f : 0f;
+            float target = expanded.contains(m.name) && !special(m) ? 1f : 0f;
             float a = openAnim.getOrDefault(m, target);
             openAnim.put(m, anim ? a + Math.signum(target - a) * Math.min(Math.abs(target - a), dt * 6f) : target);
             float on = m.enabled ? 1f : 0f;
@@ -1542,8 +1571,6 @@ public final class ClickGui extends Screen {
             fullView = null;
             if (tab == Category.CONFIG) {
                 refreshPresets();
-            } else if (modulesIn(tab).stream().noneMatch(expanded::contains)) {
-                expandFirst();
             }
             listScroll = 0;
             settingsScroll = 0;
@@ -1660,8 +1687,11 @@ public final class ClickGui extends Screen {
         if (special(m)) {
             fullView = m;
             settingsScroll = 0;
-        } else if (!expanded.remove(m)) {
-            expanded.add(m);
+        } else {
+            if (!expanded.remove(m.name)) {
+                expanded.add(m.name);
+            }
+            saveExpanded();
         }
     }
 

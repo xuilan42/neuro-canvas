@@ -13,7 +13,11 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.projectile.PersistentProjectileEntity;
 import net.minecraft.entity.projectile.ProjectileEntity;
+import net.minecraft.entity.projectile.TridentEntity;
+import net.minecraft.entity.projectile.thrown.EggEntity;
 import net.minecraft.entity.projectile.thrown.EnderPearlEntity;
+import net.minecraft.entity.projectile.thrown.ExperienceBottleEntity;
+import net.minecraft.entity.projectile.thrown.SnowballEntity;
 import net.minecraft.entity.projectile.thrown.PotionEntity;
 import net.minecraft.item.BowItem;
 import net.minecraft.item.CrossbowItem;
@@ -22,6 +26,9 @@ import net.minecraft.item.Items;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.fluid.FluidState;
+import net.minecraft.registry.tag.FluidTags;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -32,7 +39,7 @@ import net.minecraft.world.RaycastContext;
  * (ender pearls, arrows, tridents, splash potions), each with the time left until it lands.
  */
 public final class Predictions extends Module {
-    private record Shot(double speed, double gravity, float roll) { }
+    private record Shot(double speed, double gravity, float roll, double waterDrag) { }
 
     private record Trace(List<Vec3d> points, Vec3d landing, Vec3d normal, boolean entityHit, int ticks, int color) { }
 
@@ -49,6 +56,7 @@ public final class Predictions extends Module {
     private final Setting flying = add(Setting.bool("Flying projectiles", true));
     private final Setting others = add(Setting.bool("Other players' projectiles", true));
     private final Setting landingTime = add(Setting.bool("Landing time", true));
+    private final Setting addMotion = add(Setting.bool("Add my motion to shots", false));
     private final Setting range = add(Setting.number("Projectile range", 16, 128, 64));
 
     public Predictions() {
@@ -60,31 +68,31 @@ public final class Predictions extends Module {
         ItemStack active = p.isUsingItem() ? p.getActiveItem() : ItemStack.EMPTY;
         if (active.isOf(Items.BOW)) {
             float pull = BowItem.getPullProgress(p.getItemUseTime());
-            return pull < 0.1f ? null : new Shot(pull * 3.0, 0.05, 0f);
+            return pull < 0.1f ? null : new Shot(pull * 3.0, 0.05, 0f, 0.6);
         }
         if (active.isOf(Items.TRIDENT)) {
-            return new Shot(2.5, 0.05, 0f);
+            return new Shot(2.5, 0.05, 0f, 0.99);
         }
         for (Hand h : Hand.values()) {
             ItemStack s = p.getStackInHand(h);
             if (s.isOf(Items.CROSSBOW) && CrossbowItem.isCharged(s)) {
-                return new Shot(3.15, 0.05, 0f);
+                return CrossbowItem.hasProjectile(s, Items.FIREWORK_ROCKET) ? new Shot(1.6, 0, 0f, 1.0) : new Shot(3.15, 0.05, 0f, 0.6);
             }
             if (s.isOf(Items.ENDER_PEARL) || s.isOf(Items.SNOWBALL) || s.isOf(Items.EGG)) {
-                return new Shot(1.5, 0.03, 0f);
+                return new Shot(1.5, 0.03, 0f, 0.8);
             }
             if (s.isOf(Items.SPLASH_POTION) || s.isOf(Items.LINGERING_POTION)) {
-                return new Shot(0.5, 0.05, -20f);
+                return new Shot(0.5, 0.05, -20f, 0.8);
             }
             if (s.isOf(Items.EXPERIENCE_BOTTLE)) {
-                return new Shot(0.7, 0.07, -20f);
+                return new Shot(0.7, 0.07, -20f, 0.8);
             }
         }
         return null;
     }
 
     /** Steps a projectile forward tick by tick until it hits a block or an entity. */
-    private Trace trace(MinecraftClient mc, Entity ignore, Entity owner, Vec3d start, Vec3d velocity, double gravity, int color) {
+    private Trace trace(MinecraftClient mc, Entity ignore, Entity owner, Vec3d start, Vec3d velocity, double gravity, double waterDrag, int color) {
         List<Vec3d> points = new ArrayList<>();
         points.add(start);
         Vec3d pos = start;
@@ -95,6 +103,10 @@ public final class Predictions extends Module {
         int ticks = 0;
         Entity context = ignore != null ? ignore : mc.player;
         for (int i = 0; i < (int) steps.value && landing == null; i++) {
+            if (pos.y < mc.world.getBottomY() || !mc.world.getChunkManager().isChunkLoaded(MathHelper.floor(pos.x) >> 4, MathHelper.floor(pos.z) >> 4)) {
+                break;
+            }
+            boolean inWater = inWater(mc, pos);
             Vec3d next = pos.add(vel);
             BlockHitResult block = mc.world.raycast(new RaycastContext(pos, next, RaycastContext.ShapeType.COLLIDER,
                     RaycastContext.FluidHandling.NONE, context));
@@ -121,10 +133,16 @@ public final class Predictions extends Module {
                     normal = hitNormal;
                 }
             }
-            vel = vel.multiply(0.99).subtract(0, gravity, 0);
+            vel = vel.multiply(inWater ? waterDrag : 0.99).subtract(0, gravity, 0);
             pos = next;
         }
         return new Trace(points, landing, normal, entityHit, ticks, color);
+    }
+
+    private static boolean inWater(MinecraftClient mc, Vec3d p) {
+        BlockPos bp = BlockPos.ofFloored(p);
+        FluidState f = mc.world.getFluidState(bp);
+        return f.isIn(FluidTags.WATER) && p.y <= bp.getY() + f.getHeight(mc.world, bp);
     }
 
     private Trace ownShot(RenderEnv env, ClientPlayerEntity p, Shot shot) {
@@ -133,22 +151,34 @@ public final class Predictions extends Module {
         double pitch = Math.toRadians(p.getPitch(td));
         double roll = Math.toRadians(shot.roll);
         Vec3d dir = new Vec3d(-Math.sin(yaw) * Math.cos(pitch), -Math.sin(pitch + roll), Math.cos(yaw) * Math.cos(pitch)).normalize();
-        Vec3d shooter = p.getVelocity();
-        Vec3d vel = dir.multiply(shot.speed).add(shooter.x, p.isOnGround() ? 0 : shooter.y, shooter.z);
+        Vec3d vel = dir.multiply(shot.speed);
+        if (addMotion.on()) {
+            Vec3d shooter = p.getVelocity();
+            vel = vel.add(shooter.x, p.isOnGround() ? 0 : shooter.y, shooter.z);
+        }
         Vec3d pos = new Vec3d(MathHelper.lerp(td, p.prevX, p.getX()), MathHelper.lerp(td, p.prevY, p.getY()) + p.getEyeHeight(p.getPose()) - 0.1,
                 MathHelper.lerp(td, p.prevZ, p.getZ()));
-        return trace(env.mc(), null, null, pos, vel, shot.gravity, pathColor.argb());
+        return trace(env.mc(), null, p, pos, vel, shot.gravity, shot.waterDrag, pathColor.argb());
     }
 
-    /** Gravity of a projectile already in the air, or NaN when it is not one we track. */
-    private static double gravityOf(Entity e) {
-        if (e instanceof EnderPearlEntity) {
-            return 0.03;
+    /** Gravity and water drag of a projectile already in the air, or null when it is not one we track. */
+    private static double[] motionOf(Entity e) {
+        if (e instanceof EnderPearlEntity || e instanceof SnowballEntity || e instanceof EggEntity) {
+            return new double[] {0.03, 0.8};
         }
-        if (e instanceof PersistentProjectileEntity || e instanceof PotionEntity) {
-            return 0.05;
+        if (e instanceof ExperienceBottleEntity) {
+            return new double[] {0.07, 0.8};
         }
-        return Double.NaN;
+        if (e instanceof PotionEntity) {
+            return new double[] {0.05, 0.8};
+        }
+        if (e instanceof TridentEntity) {
+            return new double[] {e.hasNoGravity() ? 0 : 0.05, 0.99};
+        }
+        if (e instanceof PersistentProjectileEntity) {
+            return new double[] {e.hasNoGravity() ? 0 : 0.05, 0.6};
+        }
+        return null;
     }
 
     @Override
@@ -166,8 +196,8 @@ public final class Predictions extends Module {
         if (flying.on()) {
             double maxSq = range.value * range.value;
             for (Entity e : mc.world.getEntities()) {
-                double g = gravityOf(e);
-                if (Double.isNaN(g) || e.squaredDistanceTo(p) > maxSq) {
+                double[] g = motionOf(e);
+                if (g == null || e.squaredDistanceTo(p) > maxSq) {
                     continue;
                 }
                 Entity owner = e instanceof ProjectileEntity projectile ? projectile.getOwner() : null;
@@ -179,7 +209,7 @@ public final class Predictions extends Module {
                     continue;
                 }
                 Vec3d pos = EffectDraw.lerpPos(e, env.tickDelta());
-                traces.add(trace(mc, e, owner, pos, vel, g, thrownColor.argb()));
+                traces.add(trace(mc, e, owner, pos, vel, g[0], g[1], thrownColor.argb()));
             }
         }
         if (traces.isEmpty()) {

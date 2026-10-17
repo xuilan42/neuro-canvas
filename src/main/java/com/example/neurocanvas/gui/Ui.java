@@ -362,4 +362,31 @@ public final class Ui {
         tess.draw();
         RenderSystem.enableCull();
     }
+
+    /** A rounded rectangle filled with the part (u0, v0)-(u1, v1) of a texture (0..1, v down), for icons such as a skin face. */
+    public static void texturedRoundUv(DrawContext c, int x, int y, int w, int h, int r, int textureId,
+                                       float u0, float v0, float u1, float v1) {
+        if (w <= 0 || h <= 0) {
+            return;
+        }
+        r = Math.max(0, Math.min(r, Math.min(w, h) / 2));
+        int segs = r <= 0 ? 1 : Math.max(4, Math.min(16, (int) (r * 1.5)));
+        float[][] p = path(x, y, w, h, r, segs);
+        int n = p[0].length;
+        prepare(c);
+        Matrix4f m = c.getMatrices().peek().getPositionMatrix();
+        RenderSystem.setShader(GameRenderer::getPositionTexColorProgram);
+        RenderSystem.setShaderTexture(0, textureId);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        b.begin(VertexFormat.DrawMode.TRIANGLE_FAN, VertexFormats.POSITION_TEXTURE_COLOR);
+        b.vertex(m, x + w / 2f, y + h / 2f, 0).texture((u0 + u1) / 2f, (v0 + v1) / 2f).color(1f, 1f, 1f, 1f).next();
+        for (int i = 0; i <= n; i++) {
+            int j = i % n;
+            b.vertex(m, p[0][j], p[1][j], 0).texture(u0 + (p[0][j] - x) / w * (u1 - u0), v0 + (p[1][j] - y) / h * (v1 - v0))
+                    .color(1f, 1f, 1f, 1f).next();
+        }
+        tess.draw();
+        RenderSystem.enableCull();
+    }
 }

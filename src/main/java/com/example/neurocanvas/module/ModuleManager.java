@@ -55,6 +55,11 @@ public final class ModuleManager {
         return modules;
     }
 
+    /** Where the menu remembers which module cards are unfolded. */
+    public Path menuFile() {
+        return file.resolveSibling("menu.json");
+    }
+
     public Path presetsDir() {
         return file.resolveSibling("presets");
     }

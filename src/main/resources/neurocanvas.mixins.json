@@ -7,7 +7,6 @@
     "AbstractClientPlayerEntityMixin",
     "BackgroundRendererMixin",
     "CameraMixin",
-    "ClientPlayerEntityMixin",
     "ClientWorldMixin",
     "EntityMixin",
     "EntityRenderDispatcherMixin",

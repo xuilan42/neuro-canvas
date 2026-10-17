@@ -13,7 +13,10 @@ public final class JumpCircles extends EffectModule {
         EffectSpec spec = spec(EffectSpec.Type.JUMP_RIPPLE);
         long now = System.currentTimeMillis();
         for (WorldState.Ripple r : env.state().ripples) {
-            EffectDraw.ripple(env, spec, r.pos(), (now - r.start()) / (float) WorldState.RIPPLE_LIFETIME_MS);
+            float progress = (now - r.start()) / (float) WorldState.RIPPLE_LIFETIME_MS;
+            if (progress < 1f) {
+                EffectDraw.ripple(env, spec, r.pos(), progress);
+            }
         }
     }
 }
