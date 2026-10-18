@@ -46,6 +46,7 @@ public final class Interface extends Module {
     private final Setting visGlow = add(Setting.number("Visual glow", 0, 1, 0.7));
     private final Setting glassOpacity = add(Setting.number("Glass opacity", 0, 1, 0.6));
     private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
+    private final Setting glassThrough = add(Setting.bool("Effects through glass", true));
     private final Setting safeMode = add(Setting.bool("Safe mode", false));
     private final Setting sounds = add(Setting.bool("Sounds", true));
     private final Setting updates = add(Setting.bool("Check for updates", true));
@@ -207,6 +208,8 @@ public final class Interface extends Module {
     public static float brightness() { return instance == null ? 1f : instance.brightness.f(); }
     /** How solid the glass theme is: 0 shows the blurred scene almost untouched, 1 is nearly opaque tinted glass. */
     public static float glassOpacity() { return instance == null ? 0.6f : instance.glassOpacity.f(); }
+    /** Fog, particles and overlays are drawn through glass, ice and water as if they were not there (and glass does not count as a wall). */
+    public static boolean glassThrough() { return instance == null || instance.glassThrough.on(); }
     public static boolean shaderVisuals() { return instance == null || instance.shaderVis.on(); }
     public static float visualGlow() { return instance == null ? 0.7f : instance.visGlow.f(); }
     /** When on, world effects that the camera can see are not hidden by player and mob models. */

@@ -244,6 +244,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         });
         UseEntityCallback.EVENT.register((player, world, hand, entity, hit) ->
                 world.isClient && fakePlayer.owns(entity) ? ActionResult.FAIL : ActionResult.PASS);
+        WorldRenderEvents.AFTER_ENTITIES.register(ctx -> com.example.neurocanvas.fx.OpaqueDepth.capture(MinecraftClient.getInstance()));
         WorldRenderEvents.LAST.register(this::renderWorld);
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> dispatcher.register(literal("fake")
                 .then(literal("spawn")
@@ -469,6 +470,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
     private void renderWorld(WorldRenderContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
+        com.example.neurocanvas.fx.OpaqueDepth.restore(mc);
         if (mc.player == null) {
             return;
         }

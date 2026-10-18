@@ -26,8 +26,7 @@ public final class BoxBatch {
         double cz = (box.minZ + box.maxZ) / 2;
         for (double f : new double[] {0.85, 0.5, 0.15}) {
             Vec3d to = new Vec3d(cx, box.minY + h * f, cz);
-            if (mc.world.raycast(new RaycastContext(from, to, RaycastContext.ShapeType.COLLIDER,
-                    RaycastContext.FluidHandling.NONE, mc.player)).getType() == HitResult.Type.MISS) {
+            if (Depth.clear(mc, from, to)) {
                 return true;
             }
         }

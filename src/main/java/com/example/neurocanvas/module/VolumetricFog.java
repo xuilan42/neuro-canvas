@@ -60,7 +60,7 @@ public final class VolumetricFog extends Module {
         return enabled && !failed && ranLastFrame && removeVanilla.on();
     }
 
-    private static boolean shaderPackActive() {
+    public static boolean shaderPackActive() {
         if (!FabricLoader.getInstance().isModLoaded("iris")) {
             return false;
         }
