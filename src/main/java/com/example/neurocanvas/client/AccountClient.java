@@ -33,7 +33,51 @@ public final class AccountClient {
     private static volatile int generation;
     private static Path file;
 
+    private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger("neurocanvas");
+
     private AccountClient() { }
+
+    /** A short reason for the plate in the menu (it has room for about twenty letters). */
+    private static String shortReason(Throwable e) {
+        Throwable c = e;
+        while (c.getCause() != null && c.getCause() != c) {
+            c = c.getCause();
+        }
+        String m = String.valueOf(e.getMessage());
+        if (c instanceof java.net.http.HttpTimeoutException || c instanceof java.net.ConnectException || c instanceof java.net.UnknownHostException
+                || c instanceof java.nio.channels.UnresolvedAddressException || c instanceof java.net.SocketException || c instanceof javax.net.ssl.SSLException
+                || m.contains("timed out") || m.contains("GOAWAY") || m.contains("closed")) {
+            return "No connection";
+        }
+        java.util.regex.Matcher n = java.util.regex.Pattern.compile("server answered (\\d+)").matcher(m);
+        if (n.find()) {
+            return "Server error " + n.group(1);
+        }
+        if (m.contains("no server address")) {
+            return "No server address";
+        }
+        return m.length() > 22 ? m.substring(0, 20) + ".." : m;
+    }
+
+    /** Ends the linking with a reason: short on the plate, full in the chat and in the log. */
+    private static void fail(int gen, Throwable e) {
+        LOG.warn("Linking the account failed", e);
+        if (gen != generation) {
+            return;
+        }
+        linkCode = "";
+        note = shortReason(e);
+        state = State.SIGNED_OUT;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc != null) {
+            String full = String.valueOf(e.getMessage());
+            mc.execute(() -> {
+                if (mc.player != null) {
+                    mc.player.sendMessage(net.minecraft.text.Text.literal("[Neuro Canvas] Could not link the account: " + full), false);
+                }
+            });
+        }
+    }
 
     public static void init(Path dir) {
         file = dir.resolve("account.json");
@@ -178,7 +222,13 @@ public final class AccountClient {
 
     private static void link(int gen) {
         try {
-            JsonObject start = post("/v1/acc/device/start", new JsonObject());
+            JsonObject start;
+            try {
+                start = post("/v1/acc/device/start", new JsonObject());
+            } catch (IOException first) {
+                Thread.sleep(1500);
+                start = post("/v1/acc/device/start", new JsonObject());
+            }
             String poll = start.get("poll").getAsString();
             linkCode = start.get("code").getAsString();
             String url = start.get("url").getAsString();
@@ -192,6 +242,7 @@ public final class AccountClient {
                 mc.execute(() -> net.minecraft.util.Util.getOperatingSystem().open(URI.create(url)));
             }
             long end = System.currentTimeMillis() + 10 * 60_000;
+            int failures = 0;
             while (gen == generation && System.currentTimeMillis() < end) {
                 Thread.sleep(2000);
                 if (gen != generation) {
@@ -199,7 +250,17 @@ public final class AccountClient {
                 }
                 JsonObject b = new JsonObject();
                 b.addProperty("poll", poll);
-                JsonObject r = post("/v1/acc/device/poll", b);
+                JsonObject r;
+                try {
+                    r = post("/v1/acc/device/poll", b);
+                    failures = 0;
+                } catch (IOException blip) {
+                    // A short break in the connection must not end the linking: only a long one does.
+                    if (++failures >= 8) {
+                        throw blip;
+                    }
+                    continue;
+                }
                 String status = r.get("status").getAsString();
                 if (status.equals("ok")) {
                     token = r.get("token").getAsString();
@@ -222,11 +283,7 @@ public final class AccountClient {
                 state = State.SIGNED_OUT;
             }
         } catch (IOException | RuntimeException e) {
-            if (gen == generation) {
-                linkCode = "";
-                note = "Could not reach the server";
-                state = State.SIGNED_OUT;
-            }
+            fail(gen, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

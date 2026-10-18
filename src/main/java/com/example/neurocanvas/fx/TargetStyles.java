@@ -20,8 +20,27 @@ public final class TargetStyles {
 
     private TargetStyles() { }
 
-    public static void draw(int style, RenderEnv env, EffectSpec s, Vec3d p, float h) {
-        Depth.state(Depth.over(env.mc(), p.add(0, h * 0.5, 0)));
+    /**
+     * @param around true: the effect is drawn with the depth test on, so the part that is behind the target's body is hidden by it
+     *               (and walls hide it too): particles really fly around the target. false: drawn over everything the camera can see.
+     */
+    public static void draw(int style, boolean around, RenderEnv env, EffectSpec s, Vec3d p, float h) {
+        if (around) {
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(false);
+        } else {
+            Depth.state(Depth.over(env.mc(), p.add(0, h * 0.5, 0)));
+        }
+        try {
+            drawStyle(style, env, s, p, h);
+        } finally {
+            if (around) {
+                RenderSystem.depthMask(true);
+            }
+        }
+    }
+
+    private static void drawStyle(int style, RenderEnv env, EffectSpec s, Vec3d p, float h) {
         switch (style) {
             case 1 -> ghost(env, s, p, h);
             case 2 -> points(env, s, p, h);
