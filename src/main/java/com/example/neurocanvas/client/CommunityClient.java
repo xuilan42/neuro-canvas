@@ -116,6 +116,64 @@ public final class CommunityClient {
         });
     }
 
+    private static String contentHash(Map<String, byte[]> files) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+            for (String n : new java.util.TreeSet<>(files.keySet())) {
+                md.update((n + ":" + files.get(n).length + ":").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                md.update(files.get(n));
+            }
+            return java.util.HexFormat.of().formatHex(md.digest());
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    private static JsonObject postTemp(JsonObject body, String bearer) throws IOException, InterruptedException {
+        HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/v1/acc/temp")).timeout(Duration.ofSeconds(40))
+                .header("content-type", "application/json").header("x-nc", "1").header("Authorization", bearer)
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
+        HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+        if (r.statusCode() != 200) {
+            throw new IOException(message(r));
+        }
+        return JsonParser.parseString(r.body()).getAsJsonObject();
+    }
+
+    /**
+     * Puts a temporary copy of an item on the server so that other users can see it on you. It is not listed anywhere and the server
+     * forgets it after a few days. When the server already has this exact content only a short question is sent, not the files.
+     */
+    public static CompletableFuture<String> uploadTemp(String type, String name, Map<String, byte[]> files) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                String bearer = AccountClient.bearer();
+                if (bearer == null) {
+                    throw new IOException("sign in first");
+                }
+                JsonObject body = new JsonObject();
+                body.addProperty("type", type);
+                body.addProperty("name", name);
+                body.addProperty("hash", contentHash(files));
+                JsonObject o = postTemp(body, bearer);
+                if (!o.has("code")) {
+                    JsonObject f = new JsonObject();
+                    for (Map.Entry<String, byte[]> e : files.entrySet()) {
+                        f.addProperty(e.getKey(), Base64.getEncoder().encodeToString(e.getValue()));
+                    }
+                    body.add("files", f);
+                    o = postTemp(body, bearer);
+                }
+                return o.get("code").getAsString();
+            } catch (IOException | RuntimeException e) {
+                throw new CompletionException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new CompletionException(e);
+            }
+        });
+    }
+
     /** Reports a shared item; after enough reports from different people it is hidden from the list. */
     public static CompletableFuture<Void> report(String code) {
         return CompletableFuture.runAsync(() -> {

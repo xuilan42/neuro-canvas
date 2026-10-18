@@ -4,6 +4,8 @@ import com.example.neurocanvas.avatar.Attach;
 import com.example.neurocanvas.avatar.BbInstance;
 import com.example.neurocanvas.avatar.BbModel;
 import com.example.neurocanvas.avatar.CosmeticPack;
+import com.example.neurocanvas.client.AccountClient;
+import com.example.neurocanvas.client.CommunityClient;
 import com.example.neurocanvas.client.MarketClient;
 import com.example.neurocanvas.client.NeuroCanvasClient;
 import com.example.neurocanvas.client.SharedStore;
@@ -74,6 +76,7 @@ public final class Showcase extends Module {
     private final Setting announce = add(Setting.bool("Share what I wear", true));
     private final Setting showOthers = add(Setting.bool("Show what others wear", true));
     private final Setting shareAll = add(Setting.button("Share everything I wear"));
+    private final Setting autoShare = add(Setting.bool("Auto-share items only I have (temporary copy)", true));
 
     private final Map<String, List<Item>> others = new HashMap<>();
     private final Map<String, Emoting> emoting = new HashMap<>();
@@ -121,7 +124,77 @@ public final class Showcase extends Module {
         } catch (IOException ignored) {
             // Not from the community.
         }
-        return officialNames.contains(c.type().folder + "/" + name) ? "m:" + name : null;
+        if (officialNames.contains(c.type().folder + "/" + name)) {
+            return "m:" + name;
+        }
+        return tempRef(c, name);
+    }
+
+    /** A copy the mod put on the server by itself, so that others can see an item that is only on this computer. */
+    private static final class TempShare {
+        String code;
+        long stamp;
+        long checkedAt;
+        long failedAt;
+        boolean busy;
+    }
+
+    private final Map<String, TempShare> temp = new HashMap<>();
+
+    private static long folderStamp(java.nio.file.Path folder) {
+        long stamp = 17;
+        try (java.util.stream.Stream<java.nio.file.Path> s = Files.list(folder)) {
+            for (java.nio.file.Path p : (Iterable<java.nio.file.Path>) s.filter(Files::isRegularFile)::iterator) {
+                stamp = stamp * 31 + p.getFileName().toString().hashCode();
+                stamp = stamp * 31 + Files.size(p);
+                stamp = stamp * 31 + Files.getLastModifiedTime(p).toMillis();
+            }
+        } catch (IOException ignored) {
+            // The folder is gone: no copy.
+        }
+        return stamp;
+    }
+
+    /** The code of the temporary copy of a worn item that has no other way to be got, started in the background when it is missing. */
+    private String tempRef(CosmeticModule c, String name) {
+        if (!autoShare.on() || !AccountClient.signedIn() || !AccountClient.verified()) {
+            return null;
+        }
+        String key = c.type().folder + "/" + name;
+        TempShare t = temp.computeIfAbsent(key, k -> new TempShare());
+        long now = System.currentTimeMillis();
+        if (t.busy) {
+            return t.code;
+        }
+        if (now - t.checkedAt > 4000) {
+            t.checkedAt = now;
+            java.nio.file.Path folder = c.folder().resolve(name);
+            long stamp = folderStamp(folder);
+            boolean changed = stamp != t.stamp || t.code == null;
+            if (changed && (t.failedAt == 0 || now - t.failedAt > 300_000 || stamp != t.stamp)) {
+                t.busy = true;
+                MinecraftClient mc = MinecraftClient.getInstance();
+                java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return CommunityClient.readFolder(folder);
+                    } catch (IOException e) {
+                        throw new java.util.concurrent.CompletionException(e);
+                    }
+                }).thenCompose(files -> CommunityClient.uploadTemp(c.type().folder, name, files)).whenComplete((code, error) -> mc.execute(() -> {
+                    t.busy = false;
+                    t.stamp = stamp;
+                    if (error != null) {
+                        t.failedAt = System.currentTimeMillis();
+                        t.code = null;
+                    } else {
+                        t.failedAt = 0;
+                        t.code = code;
+                        lastSent = "\0";
+                    }
+                }));
+            }
+        }
+        return t.code;
     }
 
     private List<Item> mine() {
