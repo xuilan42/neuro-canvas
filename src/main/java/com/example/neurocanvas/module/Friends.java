@@ -1,16 +1,11 @@
 package com.example.neurocanvas.module;
 
 import com.example.neurocanvas.client.NeuroCanvasClient;
-import com.google.gson.Gson;
-import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -32,9 +27,6 @@ public final class Friends extends Module {
     private final Setting myStatus = add(Setting.bool("Show when I am in the menu", true));
     private final Setting othersStatus = add(Setting.bool("Show who is in the menu", true));
 
-    private final Path file;
-    /** lower case name -> name as typed */
-    private final Map<String, String> friends = new LinkedHashMap<>();
     private final Map<String, Long> inMenuUntil = new HashMap<>();
     private boolean menuOpen;
     private int lastSent = -1;
@@ -44,72 +36,112 @@ public final class Friends extends Module {
         super("Friends", Category.FRIENDS, "Who sees your pings and status, and your friends list", true);
         aiControllable = false;
         alwaysOn = true;
-        this.file = file;
-        load();
     }
 
-    // ---- the list ---------------------------------------------------------------------------
+    // ---- the list: accounts, not nicks ------------------------------------------------------
 
-    private void load() {
-        try {
-            if (Files.exists(file)) {
-                String[] names = new Gson().fromJson(Files.readString(file, StandardCharsets.UTF_8), String[].class);
-                if (names != null) {
-                    for (String n : names) {
-                        if (n != null && NAME.matcher(n).matches()) {
-                            friends.put(n.toLowerCase(Locale.ROOT), n);
-                        }
-                    }
-                }
+    /** Friends are accounts (kept on the server, and a friend counts once both have added each other). A player here is a friend when their account is one. */
+    private volatile List<String> friendNames = List.of();
+    private volatile List<String> incoming = List.of();
+    private volatile List<String> outgoing = List.of();
+    private volatile java.util.Set<String> friendKeys = java.util.Set.of();
+    private volatile String friendsNote = "";
+    private long lastFetch;
+    private boolean wasSignedIn;
+
+    private void apply(com.google.gson.JsonObject o) {
+        friendNames = names(o, "friends");
+        incoming = names(o, "incoming");
+        outgoing = names(o, "outgoing");
+        java.util.Set<String> keys = new java.util.HashSet<>();
+        friendNames.forEach(n -> keys.add(n.toLowerCase(Locale.ROOT)));
+        friendKeys = keys;
+    }
+
+    private static List<String> names(com.google.gson.JsonObject o, String key) {
+        List<String> out = new ArrayList<>();
+        if (o.has(key)) {
+            o.getAsJsonArray(key).forEach(e -> out.add(e.getAsString()));
+        }
+        return out;
+    }
+
+    /** Asks the server for the lists again (cheap; the menu and a timer call it). */
+    public void refresh() {
+        if (!com.example.neurocanvas.client.AccountClient.signedIn()) {
+            return;
+        }
+        lastFetch = System.currentTimeMillis();
+        com.example.neurocanvas.client.AccountClient.call("GET", "/v1/acc/friends", null).whenComplete((o, e) -> {
+            if (e == null) {
+                apply(o);
             }
-        } catch (IOException | RuntimeException ignored) {
-            // Start with an empty list.
-        }
+        });
     }
 
-    private void save() {
-        try {
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, new Gson().toJson(friends.values()), StandardCharsets.UTF_8);
-        } catch (IOException ignored) {
-            // The list is kept in memory anyway.
-        }
+    private void change(java.util.concurrent.CompletableFuture<com.google.gson.JsonObject> call) {
+        call.whenComplete((o, e) -> MinecraftClient.getInstance().execute(() -> {
+            if (e != null) {
+                friendsNote = com.example.neurocanvas.client.MarketClient.reason(e);
+                return;
+            }
+            friendsNote = "";
+            apply(o);
+        }));
     }
 
     public static boolean validName(String name) {
         return name != null && NAME.matcher(name).matches();
     }
 
-    public boolean isFriend(String name) {
-        return name != null && friends.containsKey(name.toLowerCase(Locale.ROOT));
+    public boolean signedIn() {
+        return com.example.neurocanvas.client.AccountClient.signedIn();
     }
 
-    public boolean add(String name) {
-        if (!validName(name)) {
+    public String note() {
+        return friendsNote;
+    }
+
+    /** Whether the player with this in-game nick is a friend: what counts is the account they are signed in with. */
+    public boolean isFriend(String nick) {
+        if (nick == null || friendKeys.isEmpty()) {
             return false;
         }
-        friends.put(name.toLowerCase(Locale.ROOT), name);
-        save();
-        return true;
+        String acc = NeuroCanvasClient.modules().get(NameTags.class).accountOf(nick);
+        return acc != null && friendKeys.contains(acc.toLowerCase(Locale.ROOT));
     }
 
-    public void remove(String name) {
-        friends.remove(name.toLowerCase(Locale.ROOT));
-        save();
+    public boolean isFriendAccount(String account) {
+        return account != null && friendKeys.contains(account.toLowerCase(Locale.ROOT));
     }
 
-    public void toggle(String name) {
-        if (isFriend(name)) {
-            remove(name);
-        } else {
-            add(name);
+    /** Sends a friend request, or accepts one; the answer is the new state of the lists. */
+    public void addAccount(String account) {
+        String name = account == null ? "" : account.trim().replaceFirst("^@", "");
+        if (!validName(name)) {
+            friendsNote = "An account name is 3 to 16 letters, digits or _";
+            return;
         }
+        com.google.gson.JsonObject b = new com.google.gson.JsonObject();
+        b.addProperty("name", name);
+        change(com.example.neurocanvas.client.AccountClient.call("POST", "/v1/acc/friends", b));
+    }
+
+    /** Removes a friend, cancels a request or declines one. */
+    public void removeAccount(String account) {
+        change(com.example.neurocanvas.client.AccountClient.call("DELETE", "/v1/acc/friends?name=" + java.net.URLEncoder.encode(account, StandardCharsets.UTF_8), null));
     }
 
     public List<String> friendNames() {
-        List<String> out = new ArrayList<>(friends.values());
-        out.sort(String.CASE_INSENSITIVE_ORDER);
-        return out;
+        return friendNames;
+    }
+
+    public List<String> incomingRequests() {
+        return incoming;
+    }
+
+    public List<String> outgoingRequests() {
+        return outgoing;
     }
 
     // ---- sharing ----------------------------------------------------------------------------
@@ -127,24 +159,16 @@ public final class Friends extends Module {
         return acceptFrom.index() == 0 || isFriend(from);
     }
 
-    /** Sends a message to the others on this server, addressed as the Share setting says. */
+    /** Sends a message to the others on this server. With "Friends only" the server delivers it to your friends' accounts, whatever their nicks. */
     public void broadcast(JsonObject message) {
         if (shareWith.index() == 2) {
             return;
         }
         if (shareWith.index() == 1) {
-            if (friends.isEmpty()) {
+            if (!com.example.neurocanvas.client.AccountClient.signedIn() || friendNames.isEmpty()) {
                 return;
             }
-            JsonArray to = new JsonArray();
-            int n = 0;
-            for (String name : friends.values()) {
-                if (n++ >= 64) {
-                    break;
-                }
-                to.add(name);
-            }
-            message.add("to", to);
+            message.addProperty("friends", true);
         }
         NeuroCanvasClient.modules().get(NameTags.class).send(message.toString());
     }
@@ -157,6 +181,16 @@ public final class Friends extends Module {
 
     @Override
     public void tickAlways(MinecraftClient mc) {
+        boolean in = com.example.neurocanvas.client.AccountClient.signedIn();
+        if (in && (!wasSignedIn || System.currentTimeMillis() - lastFetch > 30_000)) {
+            refresh();
+        } else if (!in && wasSignedIn) {
+            friendNames = List.of();
+            incoming = List.of();
+            outgoing = List.of();
+            friendKeys = java.util.Set.of();
+        }
+        wasSignedIn = in;
         if (!enabled || !myStatus.on() || mc.player == null) {
             return;
         }

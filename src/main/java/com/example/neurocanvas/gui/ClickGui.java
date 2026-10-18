@@ -61,7 +61,7 @@ public final class ClickGui extends Screen {
     private float open;
     private final TextBox searchBox = new TextBox("Search modules...", 40, false);
     private final TextBox nameBox = new TextBox("Preset name", 24, false).allow(c -> Character.isLetterOrDigit(c) || c == ' ' || c == '_' || c == '-', false);
-    private final TextBox friendBox = new TextBox("Add a friend by name", 16, false).allow(c -> c < 128 && (Character.isLetterOrDigit(c) || c == '_'), false);
+    private final TextBox friendBox = new TextBox("Add a friend by account name", 17, false).allow(c -> c < 128 && (Character.isLetterOrDigit(c) || c == '_'), false);
     private final TextBox roomBox = new TextBox("Room name (3-40 letters, digits, _ or -; the same for both)", 40, false)
             .allow(c -> c < 128 && (Character.isLetterOrDigit(c) || c == '_' || c == '-'), true);
     private final TextBox packBox = new TextBox("Search on Modrinth", 40, false);
@@ -84,6 +84,7 @@ public final class ClickGui extends Screen {
     protected void init() {
         fit();
         NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class).setMenuOpen(true);
+        NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Friends.class).refresh();
         if (tab == null) {
             tab = categories().get(0);
         }
@@ -810,7 +811,7 @@ public final class ClickGui extends Screen {
 
     private record FRow(int kind, int y, int h, String text, Setting setting, boolean flag, boolean extra) { }
 
-    private static final int F_SETTING = 0, F_HEADER = 1, F_USER = 2, F_FRIEND = 3, F_INPUT = 4, F_NOTE = 5, F_ROOM = 6;
+    private static final int F_SETTING = 0, F_HEADER = 1, F_USER = 2, F_FRIEND = 3, F_INPUT = 4, F_NOTE = 5, F_ROOM = 6, F_REQUEST = 7, F_OUT = 8;
     private int friendsContent;
 
     private boolean friendsPanel() {
@@ -828,6 +829,10 @@ public final class ClickGui extends Screen {
             y += ROW_H;
         }
         y += 6;
+        if (!f.signedIn()) {
+            rows.add(new FRow(F_NOTE, y, 22, "Friends are accounts: press Sign in / Register on the left to play with friends", null, false, false));
+            y += 28;
+        }
         String room = tags.room();
         rows.add(new FRow(F_HEADER, y, 20, room.isEmpty() ? "Meet in a room (for friends on other addresses)" : "Room: " + room, null, false, false));
         y += 20;
@@ -854,25 +859,48 @@ public final class ClickGui extends Screen {
             rows.add(new FRow(F_USER, y, 24, n, null, f.isFriend(n), f.inMenu(n)));
             y += 24;
         }
-        y += 6;
-        List<String> mine = f.friendNames();
-        rows.add(new FRow(F_HEADER, y, 20, "My friends (" + mine.size() + ")", null, false, false));
-        y += 20;
-        if (mine.isEmpty()) {
-            rows.add(new FRow(F_NOTE, y, 22, "No friends yet: tap the star next to a name, or type one below", null, false, false));
-            y += 22;
-        }
-        for (String n : mine) {
-            boolean here = false;
-            for (String o : online) {
-                here |= o.equalsIgnoreCase(n);
+        if (f.signedIn()) {
+            List<String> req = f.incomingRequests();
+            if (!req.isEmpty()) {
+                y += 6;
+                rows.add(new FRow(F_HEADER, y, 20, "Friend requests (" + req.size() + ")", null, false, false));
+                y += 20;
+                for (String n : req) {
+                    rows.add(new FRow(F_REQUEST, y, 24, n, null, false, false));
+                    y += 24;
+                }
             }
-            rows.add(new FRow(F_FRIEND, y, 24, n, null, here, f.inMenu(n)));
-            y += 24;
+            y += 6;
+            List<String> mine = f.friendNames();
+            rows.add(new FRow(F_HEADER, y, 20, "My friends (" + mine.size() + ")", null, false, false));
+            y += 20;
+            if (mine.isEmpty()) {
+                rows.add(new FRow(F_NOTE, y, 22, "No friends yet: tap the star next to a player, or type an account name below", null, false, false));
+                y += 22;
+            }
+            for (String n : mine) {
+                String nick = tags.nickOf(n);
+                rows.add(new FRow(F_FRIEND, y, 24, n, null, nick != null, nick != null && f.inMenu(nick)));
+                y += 24;
+            }
+            List<String> out = f.outgoingRequests();
+            if (!out.isEmpty()) {
+                y += 6;
+                rows.add(new FRow(F_HEADER, y, 20, "Waiting for an answer (" + out.size() + ")", null, false, false));
+                y += 20;
+                for (String n : out) {
+                    rows.add(new FRow(F_OUT, y, 24, n, null, false, false));
+                    y += 24;
+                }
+            }
+            if (!f.note().isEmpty()) {
+                rows.add(new FRow(F_NOTE, y, 22, f.note(), null, false, false));
+                y += 22;
+            }
+            y += 4;
+            rows.add(new FRow(F_INPUT, y, 28, "", null, false, false));
+            y += 28;
         }
-        y += 4;
-        rows.add(new FRow(F_INPUT, y, 28, "", null, false, false));
-        y += 28;
         friendsContent = y - top;
         return rows;
     }
@@ -898,12 +926,24 @@ public final class ClickGui extends Screen {
                 case F_USER, F_FRIEND -> {
                     boolean hover = inside(mx, my, px, r.y(), pw, 22) && my >= viewY && my < viewY + viewH;
                     Ui.surface(ctx, px, r.y(), pw, 22, 6, hover ? th.hover() : th.panel2());
+                    com.example.neurocanvas.module.NameTags rowTags = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class);
+                    String rowAccount = r.kind() == F_USER ? rowTags.accountOf(r.text()) : null;
                     int nameColor = r.kind() == F_FRIEND && !r.flag() ? th.dim() : th.text();
-                    Ui.textMid(ctx, textRenderer, r.text(), px + 10, r.y(), 22, nameColor);
-                    int after = px + 10 + Ui.width(textRenderer, r.text()) + 8;
+                    String shownName = r.kind() == F_FRIEND ? "@" + r.text() : r.text();
+                    Ui.textMid(ctx, textRenderer, shownName, px + 10, r.y(), 22, nameColor);
+                    int after = px + 10 + Ui.width(textRenderer, shownName) + 8;
                     if (r.kind() == F_FRIEND) {
                         ctx.fill(after, r.y() + 9, after + 5, r.y() + 14, r.flag() ? 0xFF5CE08A : th.hover());
                         after += 12;
+                        if (r.flag()) {
+                            String as = "as " + rowTags.nickOf(r.text());
+                            Ui.text(ctx, textRenderer, as, after, r.y() + 7, th.dim());
+                            after += Ui.width(textRenderer, as) + 8;
+                        }
+                    } else {
+                        String tag = rowAccount != null ? "@" + rowAccount : "no account";
+                        Ui.text(ctx, textRenderer, tag, after, r.y() + 7, rowAccount != null ? th.accent() : th.dim());
+                        after += Ui.width(textRenderer, tag) + 8;
                     }
                     if (r.extra()) {
                         Ui.text(ctx, textRenderer, "in menu", after, r.y() + 7, th.accent());
@@ -925,10 +965,27 @@ public final class ClickGui extends Screen {
                                 Ui.text(ctx, textRenderer, textRenderer.trimToWidth("wears " + what, room), after + (r.extra() ? 44 : 0), r.y() + 7, th.dim());
                             }
                         }
-                        com.example.neurocanvas.gui.Icons.star(ctx, bx + 6, r.y() + 7, r.flag(), r.flag() ? 0xFFFFD23F : th.dim());
+                        if (rowAccount != null) {
+                            com.example.neurocanvas.gui.Icons.star(ctx, bx + 6, r.y() + 7, r.flag(), r.flag() ? 0xFFFFD23F : th.dim());
+                        }
                     } else {
                         boolean xHover = inside(mx, my, bx, r.y(), 26, 22);
                         Ui.textCentered(ctx, textRenderer, "x", bx + 13, r.y() + 7, xHover ? 0xFFFF6B6B : th.dim());
+                    }
+                }
+                case F_REQUEST, F_OUT -> {
+                    boolean hover = inside(mx, my, px, r.y(), pw, 22) && my >= viewY && my < viewY + viewH;
+                    Ui.surface(ctx, px, r.y(), pw, 22, 6, hover ? th.hover() : th.panel2());
+                    Ui.textMid(ctx, textRenderer, "@" + r.text(), px + 10, r.y(), 22, th.text());
+                    int bx = px + pw - 26;
+                    boolean xHover = inside(mx, my, bx, r.y(), 26, 22);
+                    Ui.textCentered(ctx, textRenderer, "x", bx + 13, r.y() + 7, xHover ? 0xFFFF6B6B : th.dim());
+                    if (r.kind() == F_REQUEST) {
+                        boolean ah = inside(mx, my, px + pw - 88, r.y() + 2, 56, 18);
+                        Ui.roundRect(ctx, px + pw - 88, r.y() + 2, 56, 18, 5, ah ? th.accent2() : th.accent());
+                        Ui.textCentered(ctx, textRenderer, "Accept", px + pw - 60, r.y() + 7, th.bg() | 0xFF000000);
+                    } else {
+                        Ui.text(ctx, textRenderer, "waiting", px + pw - 26 - 8 - Ui.width(textRenderer, "waiting"), r.y() + 7, th.dim());
                     }
                 }
                 case F_ROOM -> {
@@ -983,9 +1040,16 @@ public final class ClickGui extends Screen {
                 }
                 case F_USER -> {
                     com.example.neurocanvas.module.Showcase showcase = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Showcase.class);
+                    String clickedAccount = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NameTags.class).accountOf(r.text());
                     if (mx >= px + pw - 30) {
-                        f.toggle(r.text());
-                        Interface.click(r.flag() ? 0.8f : 1.3f);
+                        if (clickedAccount != null && f.signedIn()) {
+                            if (f.isFriendAccount(clickedAccount)) {
+                                f.removeAccount(clickedAccount);
+                            } else {
+                                f.addAccount(clickedAccount);
+                            }
+                            Interface.click(r.flag() ? 0.8f : 1.3f);
+                        }
                     } else if (mx >= px + pw - 70 && mx < px + pw - 34 && !showcase.itemsOf(r.text()).isEmpty()) {
                         showcase.getAll(r.text());
                         Interface.click(1.3f);
@@ -994,7 +1058,24 @@ public final class ClickGui extends Screen {
                 }
                 case F_FRIEND -> {
                     if (mx >= px + pw - 30) {
-                        f.remove(r.text());
+                        f.removeAccount(r.text());
+                        Interface.click(0.8f);
+                    }
+                    return true;
+                }
+                case F_REQUEST -> {
+                    if (mx >= px + pw - 30) {
+                        f.removeAccount(r.text());
+                        Interface.click(0.8f);
+                    } else if (mx >= px + pw - 88) {
+                        f.addAccount(r.text());
+                        Interface.click(1.3f);
+                    }
+                    return true;
+                }
+                case F_OUT -> {
+                    if (mx >= px + pw - 30) {
+                        f.removeAccount(r.text());
                         Interface.click(0.8f);
                     }
                     return true;
@@ -1034,7 +1115,8 @@ public final class ClickGui extends Screen {
     }
 
     private void addFriendFromInput(com.example.neurocanvas.module.Friends f) {
-        if (f.add(friendBox.text().trim())) {
+        if (f.signedIn() && !friendBox.isEmpty()) {
+            f.addAccount(friendBox.text());
             friendBox.set("");
             Interface.click(1.3f);
         }

@@ -59,6 +59,21 @@ public final class NameTags extends Module {
     /** In-game nick (lower case) -> account name, for the players here who are signed in to Neuro Canvas (the online users). */
     private volatile java.util.Map<String, String> accounts = java.util.Map.of();
 
+    /** The in-game nick of the player here who is signed in as this account, or null. */
+    public String nickOf(String account) {
+        for (java.util.Map.Entry<String, String> e : accounts.entrySet()) {
+            if (e.getValue().equalsIgnoreCase(account)) {
+                for (String n : onlineDisplay) {
+                    if (n.equalsIgnoreCase(e.getKey())) {
+                        return n;
+                    }
+                }
+                return e.getKey();
+            }
+        }
+        return null;
+    }
+
     public String accountOf(String nick) {
         return accounts.get(nick.toLowerCase(Locale.ROOT));
     }

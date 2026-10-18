@@ -263,6 +263,45 @@ public final class AccountClient {
         }
     }
 
+    /** A request made as the account (JSON in, JSON out). An error message from the server becomes the exception message. */
+    public static java.util.concurrent.CompletableFuture<JsonObject> call(String method, String path, JsonObject body) {
+        return java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                String bearer = bearer();
+                if (bearer == null) {
+                    throw new IOException("sign in first");
+                }
+                HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base() + path)).timeout(Duration.ofSeconds(15))
+                        .header("Authorization", bearer).header("x-nc", "1");
+                HttpRequest req = switch (method) {
+                    case "GET" -> b.GET().build();
+                    case "DELETE" -> b.DELETE().build();
+                    default -> b.header("content-type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body == null ? "{}" : body.toString())).build();
+                };
+                HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                if (r.statusCode() == 401) {
+                    invalidate();
+                    throw new IOException("sign in again");
+                }
+                JsonObject o;
+                try {
+                    o = JsonParser.parseString(r.body()).getAsJsonObject();
+                } catch (RuntimeException e) {
+                    throw new IOException("server answered " + r.statusCode());
+                }
+                if (r.statusCode() != 200) {
+                    throw new IOException(o.has("error") ? o.get("error").getAsString() : "server answered " + r.statusCode());
+                }
+                return o;
+            } catch (IOException | RuntimeException e) {
+                throw new java.util.concurrent.CompletionException(e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new java.util.concurrent.CompletionException(e);
+            }
+        });
+    }
+
     public static String siteUrl() throws IOException {
         return base() + "/account.html";
     }
