@@ -56,6 +56,12 @@ public final class NameTags extends Module {
     private volatile String status = "off";
     private volatile int generation;
     private volatile WebSocket socket;
+    /** In-game nick (lower case) -> account name, for the players here who are signed in to Neuro Canvas (the online users). */
+    private volatile java.util.Map<String, String> accounts = java.util.Map.of();
+
+    public String accountOf(String nick) {
+        return accounts.get(nick.toLowerCase(Locale.ROOT));
+    }
     private volatile String room = "";
     private static final java.util.regex.Pattern ROOM = java.util.regex.Pattern.compile("[a-z0-9_-]{3,40}");
     private String connectedTo = "";
@@ -156,7 +162,7 @@ public final class NameTags extends Module {
             status = !enabled ? "off" : url.isBlank() ? "this build has no registry address" : "singleplayer";
             return;
         }
-        String wanted = url + "|" + server + "|" + name;
+        String wanted = url + "|" + server + "|" + name + "|" + (com.example.neurocanvas.client.AccountClient.signedIn() ? "acc" : "anon");
         if (!wanted.equals(connectedTo)) {
             start(wanted, server, name);
         }
@@ -230,7 +236,12 @@ public final class NameTags extends Module {
             };
             try {
                 status = "connecting...";
-                WebSocket ws = HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8)).buildAsync(uris[which], listener).get();
+                java.net.http.WebSocket.Builder builder = HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8));
+                String bearer = com.example.neurocanvas.client.AccountClient.bearer();
+                if (bearer != null) {
+                    builder.header("Authorization", bearer);
+                }
+                WebSocket ws = builder.buildAsync(uris[which], listener).get();
                 if (gen != generation) {
                     ws.abort();
                     return;
@@ -245,6 +256,10 @@ public final class NameTags extends Module {
                 }
                 ws.abort();
             } catch (ExecutionException | RuntimeException e) {
+                if (String.valueOf(e.getMessage()).contains("401") || (e.getCause() != null && String.valueOf(e.getCause().getMessage()).contains("401"))) {
+                    // The server no longer knows this token: the account was signed out elsewhere.
+                    com.example.neurocanvas.client.AccountClient.invalidate();
+                }
                 if (gen == generation) {
                     status = "registry unreachable, retrying";
                     which = (which + 1) % uris.length;
@@ -311,6 +326,11 @@ public final class NameTags extends Module {
             Set<String> names = new HashSet<>();
             message.getAsJsonArray("players")
                     .forEach(e -> names.add(e.getAsString().toLowerCase(Locale.ROOT)));
+            java.util.Map<String, String> accs = new java.util.HashMap<>();
+            if (message.has("accounts") && message.get("accounts").isJsonObject()) {
+                message.getAsJsonObject("accounts").entrySet().forEach(en -> accs.put(en.getKey().toLowerCase(Locale.ROOT), en.getValue().getAsString()));
+            }
+            accounts = accs;
             online = names;
             java.util.List<String> display = new java.util.ArrayList<>();
             message.getAsJsonArray("players").forEach(e -> display.add(e.getAsString()));

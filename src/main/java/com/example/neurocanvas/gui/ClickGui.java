@@ -227,7 +227,12 @@ public final class ClickGui extends Screen {
     private int sideX() { return wx() + 10; }
     private int sideW() { return SIDE_W - 14; }
     private int userY() { return wy() + H - PAD - 42; }
-    private int sideItemH(int n) { return Math.max(20, Math.min(30, (userY() - 8 - bodyTop()) / Math.max(1, n) - 2)); }
+    private static boolean needsAccount() { return !com.example.neurocanvas.client.AccountClient.signedIn(); }
+    private int bannerY() { return userY() - 46; }
+    private int sideItemH(int n) {
+        int room = userY() - 8 - bodyTop() - (needsAccount() ? 46 : 0);
+        return Math.max(20, Math.min(30, room / Math.max(1, n) - 2));
+    }
     private int sideItemY(int i, int ih) { return bodyTop() + 2 + i * (ih + 2); }
 
     private int vy0() { return bodyTop() + SEC_H; }
@@ -541,7 +546,27 @@ public final class ClickGui extends Screen {
         Ui.roundRect(ctx, fx + fs - 5, fy + fs - 5, 9, 9, 4, th.bg() | 0xFF000000);
         Ui.roundRect(ctx, fx + fs - 4, fy + fs - 4, 7, 7, 3, 0xFF5CE08A);
         Ui.text(ctx, textRenderer, clip(name, w - 52), x + 44, uy + 11, th.text());
-        Ui.text(ctx, textRenderer, version(), x + 44, uy + 23, th.accent());
+        if (com.example.neurocanvas.client.AccountClient.signedIn()) {
+            String who = "@" + com.example.neurocanvas.client.AccountClient.name();
+            Ui.text(ctx, textRenderer, clip(who, w - 52), x + 44, uy + 23, com.example.neurocanvas.client.AccountClient.verified() ? th.accent() : th.dim());
+        } else {
+            Ui.text(ctx, textRenderer, version(), x + 44, uy + 23, th.dim());
+        }
+        if (needsAccount()) {
+            drawAccountBanner(ctx, th, x, bannerY(), w, mx, my);
+        }
+    }
+
+    private void drawAccountBanner(DrawContext ctx, Theme th, int x, int y, int w, int mx, int my) {
+        boolean linking = com.example.neurocanvas.client.AccountClient.state() == com.example.neurocanvas.client.AccountClient.State.LINKING;
+        boolean hover = inside(mx, my, x, y, w, 40);
+        Ui.roundRect(ctx, x, y, w, 40, 10, Ui.alpha(th.accent() & 0xFFFFFF, hover ? 0.42f : 0.28f));
+        Ui.glow(ctx, x, y, w, 40, 10, th.accent(), 0.25f, 6f);
+        String title = linking ? "Waiting for the browser..." : "Sign in / Register";
+        String sub = linking ? "Code " + com.example.neurocanvas.client.AccountClient.linkCode() + "  (click: cancel)"
+                : (com.example.neurocanvas.client.AccountClient.note().isEmpty() ? "Online, friends, sharing" : com.example.neurocanvas.client.AccountClient.note());
+        Ui.text(ctx, textRenderer, clip(title, w - 16), x + 8, y + 9, th.text());
+        Ui.text(ctx, textRenderer, clip(sub, w - 16), x + 8, y + 23, th.dim());
     }
 
     private void drawSection(DrawContext ctx, Theme th, int count) {
@@ -1794,6 +1819,15 @@ public final class ClickGui extends Screen {
         bindingFor = null;
         if (inside(mx, my, sbX(), sbY(), sbW(), SB_H)) {
             clickBox(searchBox, mx);
+            return true;
+        }
+        if (needsAccount() && inside(mx, my, sideX(), bannerY(), sideW(), 40)) {
+            if (com.example.neurocanvas.client.AccountClient.state() == com.example.neurocanvas.client.AccountClient.State.LINKING) {
+                com.example.neurocanvas.client.AccountClient.cancelLink();
+            } else {
+                com.example.neurocanvas.client.AccountClient.startLink();
+            }
+            Interface.click(1.2f);
             return true;
         }
         List<Category> cats = categories();

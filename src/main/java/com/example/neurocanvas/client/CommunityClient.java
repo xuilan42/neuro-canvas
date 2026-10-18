@@ -82,26 +82,31 @@ public final class CommunityClient {
         return "server answered " + r.statusCode();
     }
 
+    /** Shares an item as the signed-in account (the author is the account name). Without an account nothing is sent. */
     public static CompletableFuture<Shared> upload(String type, String name, String author, Map<String, byte[]> files) {
         return CompletableFuture.supplyAsync(() -> {
             try {
+                String bearer = AccountClient.bearer();
+                if (bearer == null) {
+                    throw new IOException("sign in first: press Sign in / Register in the menu");
+                }
                 JsonObject body = new JsonObject();
                 body.addProperty("type", type);
                 body.addProperty("name", name);
-                body.addProperty("author", author);
                 JsonObject f = new JsonObject();
                 for (Map.Entry<String, byte[]> e : files.entrySet()) {
                     f.addProperty(e.getKey(), Base64.getEncoder().encodeToString(e.getValue()));
                 }
                 body.add("files", f);
-                HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/v1/community")).timeout(Duration.ofSeconds(30))
-                        .header("content-type", "application/json").POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
+                HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/v1/acc/items")).timeout(Duration.ofSeconds(30))
+                        .header("content-type", "application/json").header("x-nc", "1").header("Authorization", bearer)
+                        .POST(HttpRequest.BodyPublishers.ofString(body.toString())).build();
                 HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
                 if (r.statusCode() != 200) {
                     throw new IOException(message(r));
                 }
                 JsonObject o = JsonParser.parseString(r.body()).getAsJsonObject();
-                return new Shared(o.get("code").getAsString(), o.get("token").getAsString());
+                return new Shared(o.get("code").getAsString(), "account");
             } catch (IOException | RuntimeException e) {
                 throw new CompletionException(e);
             } catch (InterruptedException e) {
@@ -154,8 +159,12 @@ public final class CommunityClient {
     public static CompletableFuture<Void> remove(String code, String token) {
         return CompletableFuture.runAsync(() -> {
             try {
-                HttpRequest req = HttpRequest.newBuilder(URI.create(base() + "/v1/community/" + code + "?token=" + token))
-                        .timeout(Duration.ofSeconds(15)).DELETE().build();
+                String bearer = AccountClient.bearer();
+                HttpRequest req = "account".equals(token) && bearer != null
+                        ? HttpRequest.newBuilder(URI.create(base() + "/v1/acc/items/" + code)).timeout(Duration.ofSeconds(15))
+                                .header("Authorization", bearer).header("x-nc", "1").DELETE().build()
+                        : HttpRequest.newBuilder(URI.create(base() + "/v1/community/" + code + "?token=" + token))
+                                .timeout(Duration.ofSeconds(15)).DELETE().build();
                 HttpResponse<String> r = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
                 if (r.statusCode() != 200 && r.statusCode() != 403) {
                     throw new IOException(message(r));

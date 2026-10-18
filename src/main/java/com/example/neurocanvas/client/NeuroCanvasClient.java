@@ -107,6 +107,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         Path dir = FabricLoader.getInstance().getGameDir().resolve("neurocanvas");
+        AccountClient.init(dir);
         modules = new ModuleManager(dir.resolve("modules.json"));
         modules.register(new TargetEsp());
         modules.register(new JumpCircles());
@@ -181,6 +182,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new TargetHud());
         Interface ui = new Interface(dir.resolve("themes"), dir.resolve("theme-servers.json"));
         modules.register(ui);
+        modules.register(new com.example.neurocanvas.module.AccountModule());
         try {
             modules.load();
             if (Interface.checkUpdates()) {
