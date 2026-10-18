@@ -44,6 +44,7 @@ public final class ClickGui extends Screen {
     private static final int CCW = 170;
     private static final int RSHIFT = 344;
     private static final int WIN_R = 12;
+    private static final net.minecraft.util.Identifier LOGO = new net.minecraft.util.Identifier("neurocanvas", "textures/logo.png");
 
     private static final AiPanel AI = new AiPanel();
 
@@ -464,8 +465,7 @@ public final class ClickGui extends Screen {
     private void renderHeader(DrawContext ctx, Theme th, int mx, int my) {
         int lx = wx() + PAD + 2;
         int ly = wy() + 14;
-        Ui.roundRect(ctx, lx - 4, ly - 4, 28, 28, 14, Ui.alpha(th.accent() & 0xFFFFFF, 0.16f));
-        iconScaled(ctx, Category.AI, lx + 1, ly + 1, 2, th.accent());
+        ctx.drawTexture(LOGO, lx - 4, ly - 4, 28, 28, 0f, 0f, 112, 112, 112, 112);
         textScaled(ctx, "NEURO", lx + 32, ly + 1, 1.15f, th.text());
         textScaled(ctx, "CANVAS", lx + 32 + Ui.width(textRenderer, "NEURO") * 1.15f + 4, ly + 1, 1.15f, th.accent());
         textScaled(ctx, "BOOST YOUR GAMEPLAY", lx + 32, ly + 15, 0.62f, th.dim());

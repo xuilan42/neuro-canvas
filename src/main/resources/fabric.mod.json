@@ -8,6 +8,7 @@
     "xuilan42"
   ],
   "license": "GPL-3.0-only",
+  "icon": "assets/neurocanvas/icon.png",
   "environment": "client",
   "entrypoints": {
     "client": [
