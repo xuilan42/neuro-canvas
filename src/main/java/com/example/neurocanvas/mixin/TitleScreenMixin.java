@@ -24,6 +24,8 @@ public abstract class TitleScreenMixin {
 
     @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screen/SplashTextRenderer;render(Lnet/minecraft/client/gui/DrawContext;ILnet/minecraft/client/font/TextRenderer;I)V"), require = 0)
     private void neurocanvas$splash(SplashTextRenderer splash, DrawContext context, int width, TextRenderer font, int color, Operation<Void> original) {
-        original.call(splash, context, width, font, GuiSkin.titleSplashColor(color));
+        if (!GuiSkin.titleHidesSplash()) {
+            original.call(splash, context, width, font, color);
+        }
     }
 }

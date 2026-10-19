@@ -668,7 +668,7 @@ public final class GuiSkin {
         return NeuroCanvasClient.modules() != null && Interface.guiSkin() && Interface.guiTitle() && !BROKEN.contains("title");
     }
 
-    /** Over the panorama: a theme tint, a soft aurora and dark edges, so the rotating world sits behind the menu instead of competing with it. */
+    /** Replaces the panorama with the same gradient and aurora as the other menus. */
     public static void titlePanorama(DrawContext ctx) {
         if (!titleOn()) {
             return;
@@ -680,11 +680,10 @@ public final class GuiSkin {
             int h = ctx.getScaledWindowHeight();
             int base = opaque(base(th));
             int accent = th.accent() & 0xFFFFFF;
-            ctx.fillGradient(0, 0, w, h, Ui.alpha(Ui.mix(base, 0xFF000000, 0.5f) & 0xFFFFFF, 0.55f), Ui.alpha(Ui.mix(base, opaque(accent), 0.25f) & 0xFFFFFF, 0.62f));
+            ctx.fillGradient(0, 0, w, h, opaque(Ui.mix(base, 0xFF000000, 0.45f)), opaque(Ui.mix(base, opaque(accent), 0.2f)));
             if (Interface.shaderEffects()) {
-                GuiFx.overlay(mc, ctx, ThemeStyle.Overlay.AURORA.ordinal(), 0, 0, w, h, 0, opaque(accent), opaque(th.accent2()), 0.45f);
+                GuiFx.overlay(mc, ctx, ThemeStyle.Overlay.AURORA.ordinal(), 0, 0, w, h, 0, opaque(accent), opaque(th.accent2()), 0.6f);
             }
-            Ui.vignette(ctx, w, h, 0.28f, Ui.alpha(0x000000, 0.55f));
         } catch (Throwable e) {
             broke("title", e);
         }
@@ -731,8 +730,11 @@ public final class GuiSkin {
         }
     }
 
-    /** The splash text takes the theme accent instead of yellow. */
-    public static int titleSplashColor(int vanilla) {
+    public static boolean titleHidesSplash() {
+        return titleOn();
+    }
+
+    private static int unusedSplashColor(int vanilla) {
         if (!titleOn()) {
             return vanilla;
         }
