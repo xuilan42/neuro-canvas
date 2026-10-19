@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class TooltipBackgroundRendererMixin {
     @Inject(method = "render", at = @At("HEAD"), cancellable = true, require = 0)
     private static void neurocanvas$panel(DrawContext context, int x, int y, int width, int height, int z, CallbackInfo ci) {
-        if (GuiSkin.tooltip(context, x, y, width, height)) {
+        if (GuiSkin.tooltip(context, x, y, width, height, z)) {
             ci.cancel();
         }
     }

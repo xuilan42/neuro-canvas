@@ -298,11 +298,17 @@ public final class GuiSkin {
         }
     }
 
-    /** The panel behind a tooltip. Returns true when it drew one. */
-    public static boolean tooltip(DrawContext ctx, int x, int y, int width, int height) {
+    /**
+     * The panel behind a tooltip. The game passes the height of the tooltip layer (400) as a number and draws each of its own rectangles at
+     * that height; our shapes use the matrix instead, so the matrix is lifted by it, otherwise items in the slots are drawn over the panel.
+     * Returns true when it drew one.
+     */
+    public static boolean tooltip(DrawContext ctx, int x, int y, int width, int height, int z) {
         if (!widgetsOn("tooltip")) {
             return false;
         }
+        ctx.getMatrices().push();
+        ctx.getMatrices().translate(0f, 0f, (float) z);
         try {
             Theme th = Interface.theme();
             int px = x - 4;
@@ -316,6 +322,8 @@ public final class GuiSkin {
         } catch (Throwable e) {
             broke("tooltip", e);
             return false;
+        } finally {
+            ctx.getMatrices().pop();
         }
     }
 
