@@ -625,18 +625,7 @@ public final class GuiSkin {
             return false;
         }
         try {
-            MinecraftClient mc = MinecraftClient.getInstance();
-            if (!splashLoaded) {
-                splashLoaded = true;
-                Path file = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("neurocanvas").orElseThrow()
-                        .findPath("assets/neurocanvas/textures/logo_big.png").orElseThrow();
-                try (java.io.InputStream in = Files.newInputStream(file)) {
-                    NativeImageBackedTexture tex = new NativeImageBackedTexture(NativeImage.read(in));
-                    tex.setFilter(true, false);
-                    mc.getTextureManager().registerTexture(SPLASH_LOGO, tex);
-                    splashLogoOk = true;
-                }
-            }
+            loadLogo();
             if (!splashLogoOk) {
                 return false;
             }
@@ -654,6 +643,141 @@ public final class GuiSkin {
         } catch (Throwable e) {
             broke("splash", e);
             return false;
+        }
+    }
+
+    private static void loadLogo() throws IOException {
+        if (splashLoaded) {
+            return;
+        }
+        splashLoaded = true;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        Path file = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("neurocanvas").orElseThrow()
+                .findPath("assets/neurocanvas/textures/logo_big.png").orElseThrow();
+        try (java.io.InputStream in = Files.newInputStream(file)) {
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(NativeImage.read(in));
+            tex.setFilter(true, false);
+            mc.getTextureManager().registerTexture(SPLASH_LOGO, tex);
+            splashLogoOk = true;
+        }
+    }
+
+    // ---- the title screen -------------------------------------------------------------------------------
+
+    private static boolean titleOn() {
+        return NeuroCanvasClient.modules() != null && Interface.guiSkin() && Interface.guiTitle() && !BROKEN.contains("title");
+    }
+
+    /** Over the panorama: a theme tint, a soft aurora and dark edges, so the rotating world sits behind the menu instead of competing with it. */
+    public static void titlePanorama(DrawContext ctx) {
+        if (!titleOn()) {
+            return;
+        }
+        try {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            Theme th = Interface.theme();
+            int w = ctx.getScaledWindowWidth();
+            int h = ctx.getScaledWindowHeight();
+            int base = opaque(base(th));
+            int accent = th.accent() & 0xFFFFFF;
+            ctx.fillGradient(0, 0, w, h, Ui.alpha(Ui.mix(base, 0xFF000000, 0.5f) & 0xFFFFFF, 0.55f), Ui.alpha(Ui.mix(base, opaque(accent), 0.25f) & 0xFFFFFF, 0.62f));
+            if (Interface.shaderEffects()) {
+                GuiFx.overlay(mc, ctx, ThemeStyle.Overlay.AURORA.ordinal(), 0, 0, w, h, 0, opaque(accent), opaque(th.accent2()), 0.45f);
+            }
+            Ui.vignette(ctx, w, h, 0.28f, Ui.alpha(0x000000, 0.55f));
+        } catch (Throwable e) {
+            broke("title", e);
+        }
+    }
+
+    /** Our logo and name instead of the Mojang logo. Returns true when it drew them. */
+    public static boolean titleLogo(DrawContext ctx, float alpha) {
+        if (!titleOn()) {
+            return false;
+        }
+        try {
+            loadLogo();
+            if (!splashLogoOk) {
+                return false;
+            }
+            MinecraftClient mc = MinecraftClient.getInstance();
+            Theme th = Interface.theme();
+            int w = ctx.getScaledWindowWidth();
+            int h = ctx.getScaledWindowHeight();
+            int s = Math.max(36, Math.min(64, (int) (h * 0.14f)));
+            String name = "Neuro Canvas";
+            float k = s / 22f;
+            int tw = (int) (mc.textRenderer.getWidth(name) * k);
+            int gap = s / 3;
+            int x = (w - (s + gap + tw)) / 2;
+            int y = Math.max(8, (int) (h / 4f + 22 - s) / 2 + 6);
+            int accent = th.accent() & 0xFFFFFF;
+            com.mojang.blaze3d.systems.RenderSystem.enableBlend();
+            com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+            Ui.glow(ctx, x, y, s, s, s / 4, accent, 0.55f * alpha, 20f);
+            ctx.setShaderColor(1f, 1f, 1f, alpha);
+            ctx.drawTexture(SPLASH_LOGO, x, y, s, s, 0f, 0f, 512, 512, 512, 512);
+            ctx.setShaderColor(1f, 1f, 1f, 1f);
+            ctx.getMatrices().push();
+            ctx.getMatrices().translate(x + s + gap, y + (s - 8 * k) / 2f, 0);
+            ctx.getMatrices().scale(k, k, 1f);
+            int a = Math.max(4, (int) (alpha * 255)) << 24;
+            ctx.drawTextWithShadow(mc.textRenderer, name, 0, 0, a | 0xFFFFFF);
+            ctx.getMatrices().pop();
+            return true;
+        } catch (Throwable e) {
+            broke("title", e);
+            return false;
+        }
+    }
+
+    /** The splash text takes the theme accent instead of yellow. */
+    public static int titleSplashColor(int vanilla) {
+        if (!titleOn()) {
+            return vanilla;
+        }
+        try {
+            return (vanilla & 0xFF000000) | (Ui.mix(opaque(Interface.theme().accent()), 0xFFFFFFFF, 0.35f) & 0xFFFFFF);
+        } catch (Throwable e) {
+            broke("title", e);
+            return vanilla;
+        }
+    }
+
+    /**
+     * The language and accessibility buttons of the title screen: the game draws a picture that already contains a grey button, so the
+     * button is drawn in the theme and the symbol on top of it. Returns true when it did.
+     */
+    public static boolean titleIcon(PressableWidget w, DrawContext ctx, Identifier texture, int u, int v, float alpha) {
+        if (!titleOn() || !(MinecraftClient.getInstance().currentScreen instanceof net.minecraft.client.gui.screen.TitleScreen)) {
+            return false;
+        }
+        String path = texture.getPath();
+        boolean language = path.endsWith("widgets.png") && u == 0 && v == 106;
+        boolean access = path.endsWith("accessibility.png");
+        if (!language && !access || !button(w, ctx, alpha)) {
+            return false;
+        }
+        try {
+            int cx = w.getX() + w.getWidth() / 2;
+            int cy = w.getY() + w.getHeight() / 2;
+            int c = Ui.alpha(0xFFFFFF, (w.isHovered() ? 1f : 0.85f) * alpha);
+            if (language) {
+                Ui.outline(ctx, cx - 5, cy - 5, 10, 10, 5, -1f, 0f, c, c);
+                ctx.fill(cx - 5, cy, cx + 5, cy + 1, c);
+                ctx.fill(cx, cy - 5, cx + 1, cy + 5, c);
+                Ui.outline(ctx, cx - 2, cy - 5, 5, 10, 2, -1f, 0f, c, c);
+            } else {
+                Ui.roundRect(ctx, cx - 1, cy - 6, 3, 3, 1, c);
+                ctx.fill(cx - 5, cy - 2, cx + 6, cy - 1, c);
+                ctx.fill(cx, cy - 1, cx + 1, cy + 2, c);
+                ctx.fill(cx - 3, cy + 2, cx - 2, cy + 6, c);
+                ctx.fill(cx + 2, cy + 2, cx + 3, cy + 6, c);
+            }
+            return true;
+        } catch (Throwable e) {
+            broke("title", e);
+            return true;
         }
     }
 

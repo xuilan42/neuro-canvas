@@ -19,6 +19,8 @@
     "SplashOverlayMixin",
     "TabButtonWidgetMixin",
     "TextFieldWidgetMixin",
+    "TexturedButtonWidgetMixin",
+    "TitleScreenMixin",
     "TooltipBackgroundRendererMixin",
     "ToastEntryMixin",
     "ClientWorldMixin",
