@@ -137,6 +137,20 @@ public final class GuiSkin {
         }
     }
 
+    /** The animated layer of a menu background, by the chosen style. */
+    private static void menuStyle(MinecraftClient mc, DrawContext ctx, int w, int h, int accent, int accent2, float strength) {
+        if (!Interface.shaderEffects()) {
+            return;
+        }
+        int style = Interface.guiBgStyle();
+        if (style == 0) {
+            GuiFx.overlay(mc, ctx, ThemeStyle.Overlay.AURORA.ordinal(), 0, 0, w, h, 0, opaque(accent), opaque(accent2), strength);
+        } else if (style >= 2) {
+            GuiFx.background(mc, ctx, style - 1, w, h, opaque(accent), opaque(accent2), strength);
+        }
+    }
+
+
     /** Replaces the dirt tile behind a menu that is not in a world. Returns true when it drew the background itself. */
     public static boolean menuBackground(Screen screen, DrawContext ctx) {
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -152,9 +166,7 @@ public final class GuiSkin {
             int accent = th.accent() & 0xFFFFFF;
             int accent2 = th.accent2() & 0xFFFFFF;
             ctx.fillGradient(0, 0, w, h, opaque(Ui.mix(opaque(base), 0xFF000000, 0.45f)), opaque(Ui.mix(opaque(base), opaque(accent), 0.2f)));
-            if (Interface.shaderEffects()) {
-                GuiFx.overlay(mc, ctx, ThemeStyle.Overlay.AURORA.ordinal(), 0, 0, w, h, 0, opaque(accent), opaque(accent2), 0.6f * p);
-            }
+            menuStyle(mc, ctx, w, h, accent, accent2, 0.6f * p);
             return true;
         } catch (Throwable e) {
             broke("menu", e);
@@ -681,9 +693,7 @@ public final class GuiSkin {
             int base = opaque(base(th));
             int accent = th.accent() & 0xFFFFFF;
             ctx.fillGradient(0, 0, w, h, opaque(Ui.mix(base, 0xFF000000, 0.45f)), opaque(Ui.mix(base, opaque(accent), 0.2f)));
-            if (Interface.shaderEffects()) {
-                GuiFx.overlay(mc, ctx, ThemeStyle.Overlay.AURORA.ordinal(), 0, 0, w, h, 0, opaque(accent), opaque(th.accent2()), 0.6f);
-            }
+            menuStyle(mc, ctx, w, h, accent, th.accent2() & 0xFFFFFF, 0.6f);
         } catch (Throwable e) {
             broke("title", e);
         }

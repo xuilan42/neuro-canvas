@@ -229,4 +229,41 @@ public final class GuiFx {
             u.set(((argb >> 16) & 0xFF) / 255f, ((argb >> 8) & 0xFF) / 255f, (argb & 0xFF) / 255f);
         }
     }
+
+    private static boolean bgFailed;
+
+    /** A full-screen animated menu background (style 1..11 of neuro_bg) over whatever is already drawn. */
+    public static void background(MinecraftClient mc, DrawContext ctx, int style, int w, int h, int accent, int accent2, float strength) {
+        if (bgFailed || style <= 0 || strength <= 0.01f) {
+            return;
+        }
+        try {
+            ctx.draw();
+            net.minecraft.client.gl.ShaderProgram bg = com.example.neurocanvas.fx.Shaders.get("neuro_bg");
+            if (bg == null) {
+                bgFailed = true;
+                return;
+            }
+            double scale = mc.getWindow().getScaleFactor();
+            set1(bg, "Mode", style);
+            set1(bg, "Time", (System.nanoTime() / 1_000_000L % 1_000_000L) / 1000f);
+            set1(bg, "Strength", strength);
+            set1(bg, "Scale", (float) scale);
+            GlUniform rect = bg.getUniform("Rect");
+            if (rect != null) {
+                rect.set(0f, 0f, (float) (w * scale), (float) (h * scale));
+            }
+            rgb(bg, "Accent", accent);
+            rgb(bg, "Accent2", accent2);
+            RenderSystem.disableDepthTest();
+            RenderSystem.enableBlend();
+            RenderSystem.defaultBlendFunc();
+            RenderSystem.setShader(() -> bg);
+            fullscreenQuad();
+            RenderSystem.enableDepthTest();
+            com.example.neurocanvas.fx.Shaders.finish();
+        } catch (Throwable e) {
+            bgFailed = true;
+        }
+    }
 }
