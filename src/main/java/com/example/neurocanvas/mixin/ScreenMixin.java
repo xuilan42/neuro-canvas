@@ -24,4 +24,14 @@ public abstract class ScreenMixin {
             ci.cancel();
         }
     }
+
+    @Inject(method = "render", at = @At("TAIL"), require = 0)
+    private void neurocanvas$waiting(DrawContext context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        Object self = this;
+        if (self instanceof net.minecraft.client.gui.screen.ConnectScreen || self instanceof net.minecraft.client.gui.screen.DownloadingTerrainScreen
+                || self instanceof net.minecraft.client.gui.screen.LevelLoadingScreen || self instanceof net.minecraft.client.gui.screen.ProgressScreen
+                || self instanceof net.minecraft.client.gui.screen.MessageScreen) {
+            GuiSkin.waitingDots(context);
+        }
+    }
 }

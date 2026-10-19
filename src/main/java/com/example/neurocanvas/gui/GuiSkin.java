@@ -598,6 +598,55 @@ public final class GuiSkin {
         }
     }
 
+    // ---- panels of the HUD: tab list, scoreboard, held item name, subtitles ------------------------------
+
+    /**
+     * One of the plain fills those parts of the HUD draw behind their text. It becomes a themed panel with the same opacity: dark fills take the
+     * theme's dark colour, light ones (the rows of the tab list) a soft accent. Returns true when it drew the panel.
+     */
+    public static boolean hudFill(DrawContext ctx, int x1, int y1, int x2, int y2, int color) {
+        if ((color >>> 24) == 0 || !hudOn("panels")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            float a = (color >>> 24) / 255f;
+            boolean dark = luminance(color & 0xFFFFFF) < 0.5f;
+            int fill = dark ? Ui.mix(opaque(base(th)), 0xFF000000, 0.3f) : Ui.mix(opaque(base(th)), opaque(th.accent()), 0.55f);
+            int h = y2 - y1;
+            Ui.roundRect(ctx, x1, y1, x2 - x1, h, h > 14 ? 4 : 0, Ui.alpha(fill & 0xFFFFFF, Math.min(1f, dark ? a : a * 2.2f)));
+            return true;
+        } catch (Throwable e) {
+            broke("panels", e);
+            return false;
+        }
+    }
+
+    // ---- loading screens other than the start-up one ------------------------------------------------------
+
+    /** Three soft dots that swell one after another, drawn near the bottom of the screens that wait for the game (connecting, terrain, world, saving). */
+    public static void waitingDots(DrawContext ctx) {
+        if (NeuroCanvasClient.modules() == null || !Interface.guiSkin() || !Interface.guiLoading() || BROKEN.contains("waiting")) {
+            return;
+        }
+        try {
+            Theme th = Interface.theme();
+            int cx = ctx.getScaledWindowWidth() / 2;
+            int y = ctx.getScaledWindowHeight() - 36;
+            double t = System.nanoTime() / 1e9;
+            for (int i = 0; i < 3; i++) {
+                float k = (float) (0.5 + 0.5 * Math.sin(t * 4.0 - i * 0.9));
+                int r = 2 + Math.round(2 * k);
+                int x = cx + (i - 1) * 14;
+                int c = Ui.mix(opaque(th.accent()), opaque(th.accent2()), i / 2f) & 0xFFFFFF;
+                Ui.glow(ctx, x - r, y - r, r * 2, r * 2, r, c, 0.5f * k, 6f);
+                Ui.roundRect(ctx, x - r, y - r, r * 2, r * 2, r, Ui.alpha(c, 0.45f + 0.55f * k));
+            }
+        } catch (Throwable e) {
+            broke("waiting", e);
+        }
+    }
+
     // ---- the loading screen (startup and resource reloads) ----------------------------------------------
 
     private static final Identifier SPLASH_LOGO = new Identifier("neurocanvas", "splash_logo");
