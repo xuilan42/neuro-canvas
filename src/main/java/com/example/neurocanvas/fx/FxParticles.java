@@ -32,6 +32,17 @@ public final class FxParticles {
         public int c1 = 0xFFFFFFFF;
         public int c2 = 0xFFFFFFFF;
         public Shape shape = Shape.CIRCLE;
+        /** Constant acceleration (blocks per second squared); gravity is separate. */
+        public float ax, ay, az;
+        /** Turns the particle around the vertical axis through (cx, cz), radians per second. */
+        public float swirl;
+        public double cx, cz;
+        /** Pulls toward (tx, ty, tz) with this strength (falls off with the square of the distance). */
+        public float attract;
+        public double tx, ty, tz;
+        /** The particle stops at this height (and bounces by {@code bounce}, 0 = lies still). */
+        public double floorY = -1e9;
+        public float bounce;
     }
 
     private static final Map<Shape, float[]> POLY = new EnumMap<>(Shape.class);
@@ -66,9 +77,23 @@ public final class FxParticles {
         for (int i = particles.size() - 1; i >= 0; i--) {
             P p = particles.get(i);
             p.life += dt;
+            if (p.life < 0) {
+                continue;
+            }
             if (p.life >= p.max) {
                 particles.remove(i);
                 continue;
+            }
+            p.vx += p.ax * dt;
+            p.vy += p.ay * dt;
+            p.vz += p.az * dt;
+            if (p.attract != 0f) {
+                double dx = p.tx - p.x, dy = p.ty - p.y, dz = p.tz - p.z;
+                double d2 = Math.max(0.04, dx * dx + dy * dy + dz * dz);
+                double k = p.attract / d2 / Math.sqrt(d2) * dt;
+                p.vx += dx * k;
+                p.vy += dy * k;
+                p.vz += dz * k;
             }
             p.vy -= p.gravity * dt;
             float keep = Math.max(0f, 1f - p.drag * dt);
@@ -79,6 +104,23 @@ public final class FxParticles {
             p.y += p.vy * dt;
             p.z += p.vz * dt;
             p.rot += p.spin * dt;
+            if (p.swirl != 0f) {
+                double a = p.swirl * dt;
+                double dx = p.x - p.cx, dz = p.z - p.cz;
+                double c = Math.cos(a), sn = Math.sin(a);
+                p.x = p.cx + dx * c - dz * sn;
+                p.z = p.cz + dx * sn + dz * c;
+            }
+            if (p.y < p.floorY) {
+                p.y = p.floorY;
+                p.vy = -p.vy * p.bounce;
+                p.vx *= 0.6;
+                p.vz *= 0.6;
+                if (p.bounce <= 0f) {
+                    p.vy = 0;
+                    p.spin = 0;
+                }
+            }
         }
     }
 
@@ -147,7 +189,7 @@ public final class FxParticles {
             }
             b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
             for (P p : particles) {
-                if (shaderShape(p.shape) != shape) {
+                if (shaderShape(p.shape) != shape || p.life < 0) {
                     continue;
                 }
                 float f = p.life / p.max;
@@ -197,6 +239,9 @@ public final class FxParticles {
         BufferBuilder b = Tessellator.getInstance().getBuffer();
         b.begin(VertexFormat.DrawMode.TRIANGLES, VertexFormats.POSITION_COLOR);
         for (P p : particles) {
+            if (p.life < 0) {
+                continue;
+            }
             float f = p.life / p.max;
             int argb = mix(p.c1, p.c2, f);
             float a = p.alpha * (1f - f * f) * ((argb >>> 24) / 255f);
