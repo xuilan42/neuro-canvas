@@ -67,7 +67,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
             return;
         }
         long now = mc.world.getTime();
-        seen.values().removeIf(t -> now - t > 200 || now < t);
+        seen.values().removeIf(t -> now - t > 30 || now < t);
         int mode = whose.index();
         if (mode == 0) {
             watched.clear();
