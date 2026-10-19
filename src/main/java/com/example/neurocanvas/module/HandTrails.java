@@ -1,6 +1,5 @@
 package com.example.neurocanvas.module;
 
-import com.example.neurocanvas.fx.Depth;
 import com.example.neurocanvas.fx.EffectDraw;
 import com.example.neurocanvas.fx.EffectSpec;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -11,6 +10,10 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.Tessellator;
 import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.gl.GlUniform;
+import net.minecraft.client.gl.ShaderProgram;
+import java.util.Comparator;
+import java.util.Random;
 import net.minecraft.client.render.VertexFormats;
 import net.minecraft.util.Arm;
 import net.minecraft.util.math.MathHelper;
@@ -19,30 +22,42 @@ import org.joml.Matrix4f;
 
 /** A glowing ribbon dragged behind your hand and held item as you move and turn. */
 public final class HandTrails extends Module {
-    private record Seg(Vec3d base, Vec3d tip, double time) { }
+    private static final class P {
+        double x, y, z, vx, vy, vz;
+        float age, life, size, rot, spin, seed;
+    }
 
     private final Setting hand = add(Setting.choice("Hand", 0, "Main", "Off"));
-    private final Setting length = add(Setting.number("Length (ticks)", 4, 60, 18));
-    private final Setting size = add(Setting.number("Item size", 0.2, 1.5, 0.7));
-    private final Setting taper = add(Setting.number("Taper", 0, 1, 0.7));
-    private final Setting smooth = add(Setting.bool("Smooth curve", true));
+    private final Setting emit = add(Setting.choice("Emit", 0, "Always", "While the hand moves"));
+    private final Setting density = add(Setting.number("Puffs per second", 2, 120, 30));
+    private final Setting lifetime = add(Setting.number("Lifetime (s)", 0.3, 6, 1.6));
+    private final Setting size = add(Setting.number("Puff size", 0.03, 0.6, 0.16));
+    private final Setting grow = add(Setting.number("Growth", 0, 4, 1.8));
+    private final Setting rise = add(Setting.number("Rise speed", -0.5, 1.5, 0.35));
+    private final Setting turbulence = add(Setting.number("Turbulence", 0, 2, 0.6));
+    private final Setting itemLength = add(Setting.number("Emit along item", 0, 1.5, 0.6));
     private final Setting followSwing = add(Setting.bool("Follow swing", true));
-    private final Setting color1 = add(Setting.color("Color 1", 0.55));
-    private final Setting color2 = add(Setting.color("Color 2", 0.8));
-    private final Setting alpha = add(Setting.number("Alpha", 0.05, 1, 0.8));
+    private final Setting color1 = add(Setting.color("Color 1", 0.75));
+    private final Setting color2 = add(Setting.color("Color 2", 0.55));
+    private final Setting alpha = add(Setting.number("Alpha", 0.05, 1, 0.5));
+    private final Setting glow = add(Setting.bool("Glow", true));
+    private final Setting glowStrength = add(Setting.number("Glow strength", 0.3, 3, 1.4));
 
-    /** Samples are taken every frame (not every tick) so the ribbon is a smooth curve instead of a polyline of 20 Hz points. */
-    private final List<Seg> segs = new ArrayList<>();
+    private final List<P> list = new ArrayList<>();
+    private final Random random = new Random();
+    private double lastT;
+    private double carry;
+    private Vec3d lastHand;
 
     public HandTrails() {
-        super("HandTrails", Category.VISUALS, "Ribbon behind your hand and item", false);
+        super("HandTrails", Category.VISUALS, "Smoke that drifts off your hand and item, with an optional glow", false);
     }
 
     /**
      * Where the held item is, built the way the game places it in first person: a point to the side, down and in front of the camera,
      * pushed along the swing arc while you attack, and lagging a little behind your turning like the hand does.
      */
-    private Seg handSegment(ClientPlayerEntity p, float tickDelta, double time) {
+    private Vec3d[] handSegment(ClientPlayerEntity p, float tickDelta) {
         Vec3d eye = p.getCameraPosVec(tickDelta);
         double yaw = Math.toRadians(p.getYaw(tickDelta));
         double pitch = Math.toRadians(p.getPitch(tickDelta));
@@ -66,119 +81,145 @@ public final class HandTrails extends Module {
                 .add(fwd.multiply(0.62 - sz));
         double a = 0.75 + Math.sin(sq * Math.PI) * 1.1;
         Vec3d dir = up.multiply(Math.cos(a) * 0.8).add(fwd.multiply(Math.sin(a) * 0.6)).add(right.multiply(-0.15 * side));
-        Vec3d tip = base.add(dir.multiply(size.value));
-        return new Seg(base, tip, time);
-    }
-
-    private static double now(MinecraftClient mc, float tickDelta) {
-        return (mc.world.getTime() + tickDelta) * 50.0;
+        Vec3d tip = base.add(dir.multiply(0.7));
+        return new Vec3d[] {base, tip};
     }
 
     @Override
     public void tick(MinecraftClient mc) {
         if (mc.player == null || mc.world == null) {
-            segs.clear();
+            list.clear();
+            lastHand = null;
         }
-    }
-
-    private static Vec3d catmull(Vec3d p0, Vec3d p1, Vec3d p2, Vec3d p3, double t) {
-        double t2 = t * t;
-        double t3 = t2 * t;
-        return new Vec3d(
-                0.5 * (2 * p1.x + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
-                0.5 * (2 * p1.y + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
-                0.5 * (2 * p1.z + (-p0.z + p2.z) * t + (2 * p0.z - 5 * p1.z + 4 * p2.z - p3.z) * t2 + (-p0.z + 3 * p1.z - 3 * p2.z + p3.z) * t3));
-    }
-
-    private List<Seg> smoothed(List<Seg> in) {
-        int n = in.size();
-        if (!smooth.on() || n < 3) {
-            return in;
-        }
-        List<Seg> out = new ArrayList<>(n * 3);
-        for (int i = 0; i + 1 < n; i++) {
-            Seg p0 = in.get(Math.max(i - 1, 0));
-            Seg p1 = in.get(i);
-            Seg p2 = in.get(i + 1);
-            Seg p3 = in.get(Math.min(i + 2, n - 1));
-            for (int k = 0; k < 3; k++) {
-                double t = k / 3.0;
-                out.add(new Seg(catmull(p0.base, p1.base, p2.base, p3.base, t), catmull(p0.tip, p1.tip, p2.tip, p3.tip, t),
-                        p1.time + (p2.time - p1.time) * t));
-            }
-        }
-        out.add(in.get(n - 1));
-        return out;
     }
 
     @Override
     public void renderWorld(RenderEnv env) {
         MinecraftClient mc = env.mc();
-        if (mc.player == null || mc.world == null) {
+        ClientPlayerEntity player = mc.player;
+        if (player == null || mc.world == null) {
             return;
         }
-        double now = now(mc, env.tickDelta());
-        double life = Math.max(4, (int) length.value) * 50.0;
-        Seg live = handSegment(mc.player, env.tickDelta(), now);
-        if (segs.isEmpty() || now < segs.get(segs.size() - 1).time) {
-            segs.clear();
-            segs.add(live);
-        } else if (now - segs.get(segs.size() - 1).time >= 8.0) {
-            segs.add(live);
+        double dt = MathHelper.clamp(env.t() - lastT, 0.0, 0.1);
+        lastT = env.t();
+        Vec3d[] seg = handSegment(player, env.tickDelta());
+        Vec3d mid = seg[0].add(seg[1]).multiply(0.5);
+        double moved = lastHand == null ? 0 : mid.distanceTo(lastHand);
+        lastHand = mid;
+        double rate = density.value;
+        if (emit.index() == 1) {
+            rate *= MathHelper.clamp(moved / Math.max(dt, 1e-3) * 0.8, 0.0, 2.0);
         }
-        while (segs.size() > 1 && now - segs.get(0).time > life) {
-            segs.remove(0);
+        carry += rate * dt;
+        int spawn = Math.min((int) carry, 40);
+        carry -= (int) carry;
+        Vec3d along = seg[1].subtract(seg[0]).normalize();
+        double len = itemLength.value;
+        for (int i = 0; i < spawn && list.size() < 700; i++) {
+            P q = new P();
+            double f = random.nextDouble() * len;
+            q.x = seg[0].x + along.x * f + (random.nextDouble() - 0.5) * 0.04;
+            q.y = seg[0].y + along.y * f + (random.nextDouble() - 0.5) * 0.04;
+            q.z = seg[0].z + along.z * f + (random.nextDouble() - 0.5) * 0.04;
+            q.vx = (random.nextDouble() - 0.5) * 0.12;
+            q.vy = (random.nextDouble() - 0.2) * 0.1;
+            q.vz = (random.nextDouble() - 0.5) * 0.12;
+            q.life = (float) (lifetime.value * (0.7 + 0.6 * random.nextDouble()));
+            q.size = (float) (size.value * (0.7 + 0.6 * random.nextDouble()));
+            q.rot = random.nextFloat() * 6.2832f;
+            q.spin = (random.nextFloat() - 0.5f) * 1.2f;
+            q.seed = random.nextFloat() * 100f;
+            list.add(q);
         }
-        List<Seg> raw = new ArrayList<>(segs);
-        raw.add(live);
-        if (raw.size() < 2) {
+        double t = env.t();
+        for (java.util.Iterator<P> it = list.iterator(); it.hasNext(); ) {
+            P q = it.next();
+            q.age += (float) dt;
+            if (q.age >= q.life) {
+                it.remove();
+                continue;
+            }
+            double w = turbulence.value * 0.5;
+            q.vx += Math.sin(t * 1.7 + q.seed) * w * dt;
+            q.vz += Math.cos(t * 1.3 + q.seed * 1.7) * w * dt;
+            q.vy += (rise.value - q.vy) * 1.2 * dt;
+            q.vx *= Math.max(0.0, 1.0 - 1.5 * dt);
+            q.vz *= Math.max(0.0, 1.0 - 1.5 * dt);
+            q.x += q.vx * dt;
+            q.y += q.vy * dt;
+            q.z += q.vz * dt;
+            q.rot += q.spin * (float) dt;
+        }
+        if (list.isEmpty()) {
             return;
         }
-        List<Seg> all = smoothed(raw);
+        draw(env);
+    }
+
+    private void draw(RenderEnv env) {
+        ShaderProgram shader = com.example.neurocanvas.fx.Shaders.get(glow.on() ? "neuro_particle_add" : "neuro_particle");
+        if (shader == null) {
+            return;
+        }
+        double yaw = Math.toRadians(env.camYaw());
+        double pitch = Math.toRadians(env.camPitch());
+        float cy = (float) Math.cos(yaw), sy = (float) Math.sin(yaw);
+        float cp = (float) Math.cos(pitch), sp = (float) Math.sin(pitch);
+        float fx = -sy * cp, fy = -sp, fz = cy * cp;
+        float rx = cy, rz = sy;
+        float ux = fy * sy, uy = fz * cy - fx * sy, uz = -fy * cy;
+        Vec3d cam = env.mc().gameRenderer.getCamera().getPos();
+        Matrix4f m = env.m();
         EffectSpec spec = new EffectSpec();
         spec.color1 = color1.argb() & 0xFFFFFF;
         spec.color2 = color2.argb() & 0xFFFFFF;
-        float a = alpha.f() * ((color1.argb() >>> 24) / 255f);
-        float tp = taper.f();
+        float base = alpha.f() * ((color1.argb() >>> 24) / 255f);
 
-        Depth.state(Depth.over(mc, live.base));
+        List<P> sorted = new ArrayList<>(list);
+        if (!glow.on()) {
+            sorted.sort(Comparator.comparingDouble((P p) -> -((p.x - cam.x) * (p.x - cam.x) + (p.y - cam.y) * (p.y - cam.y) + (p.z - cam.z) * (p.z - cam.z))));
+        }
+        RenderSystem.enableBlend();
+        RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
-        int n = all.size();
-        float[] fs = new float[n];
-        Vec3d[] tips = new Vec3d[n];
-        for (int i = 0; i < n; i++) {
-            Seg s = all.get(i);
-            fs[i] = (float) Math.max(0.0, Math.min(1.0, 1.0 - (now - s.time) / life));
-            tips[i] = s.base.add(s.tip.subtract(s.base).multiply(1.0 - tp * (1.0 - fs[i])));
+        RenderSystem.disableCull();
+        RenderSystem.setShader(() -> shader);
+        com.example.neurocanvas.fx.Shaders.setScale(glowStrength.f());
+        com.example.neurocanvas.fx.Shaders.applyBrightness(shader);
+        com.example.neurocanvas.fx.Shaders.setScale(1f);
+        GlUniform shapeUniform = shader.getUniform("Shape");
+        if (shapeUniform != null) {
+            shapeUniform.set(8f);
         }
-        com.example.neurocanvas.fx.FxBatch fx = com.example.neurocanvas.fx.FxBatch.begin(env, com.example.neurocanvas.fx.FxBatch.RIBBON, 0f, 0f, 0f, 0);
-        if (fx != null) {
-            for (int i = 0; i + 1 < n; i++) {
-                Seg sa = all.get(i);
-                Seg sb = all.get(i + 1);
-                float[] ca = EffectDraw.blend(spec, 1f - fs[i], a * fs[i]);
-                float[] cb = EffectDraw.blend(spec, 1f - fs[i + 1], a * fs[i + 1]);
-                int colA = (Math.round(ca[3] * 255) << 24) | (Math.round(ca[0] * 255) << 16) | (Math.round(ca[1] * 255) << 8) | Math.round(ca[2] * 255);
-                int colB = (Math.round(cb[3] * 255) << 24) | (Math.round(cb[0] * 255) << 16) | (Math.round(cb[1] * 255) << 8) | Math.round(cb[2] * 255);
-                fx.vertex(sa.base.x, sa.base.y, sa.base.z, 0f, 0f, colA);
-                fx.vertex(tips[i].x, tips[i].y, tips[i].z, 0f, 1f, colA);
-                fx.vertex(tips[i + 1].x, tips[i + 1].y, tips[i + 1].z, 1f, 1f, colB);
-                fx.vertex(sb.base.x, sb.base.y, sb.base.z, 1f, 0f, colB);
+        Tessellator tess = Tessellator.getInstance();
+        BufferBuilder b = tess.getBuffer();
+        b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_TEXTURE_COLOR);
+        for (P p : sorted) {
+            float f = p.age / p.life;
+            float a = base * MathHelper.clamp(f / 0.12f, 0f, 1f) * (1f - f) * (1f - f);
+            double camDist = Math.sqrt((p.x - cam.x) * (p.x - cam.x) + (p.y - cam.y) * (p.y - cam.y) + (p.z - cam.z) * (p.z - cam.z));
+            a *= (float) MathHelper.clamp((camDist - 0.12) / 0.35, 0.0, 1.0);
+            if (a <= 0.004f) {
+                continue;
             }
-            fx.end();
-        } else {
-            Matrix4f m = env.m();
-            BufferBuilder b = Tessellator.getInstance().getBuffer();
-            b.begin(VertexFormat.DrawMode.TRIANGLE_STRIP, VertexFormats.POSITION_COLOR);
-            for (int i = 0; i < n; i++) {
-                float[] c = EffectDraw.blend(spec, 1f - fs[i], a * fs[i]);
-                Seg s2 = all.get(i);
-                b.vertex(m, (float) s2.base.x, (float) s2.base.y, (float) s2.base.z).color(c[0], c[1], c[2], c[3]).next();
-                b.vertex(m, (float) tips[i].x, (float) tips[i].y, (float) tips[i].z).color(c[0], c[1], c[2], c[3] * 0.35f).next();
+            float[] c = EffectDraw.blend(spec, f, 1f);
+            a *= c[3];
+            float s = p.size * (1f + (float) grow.value * f);
+            float cr = (float) Math.cos(p.rot), sr = (float) Math.sin(p.rot);
+            for (int k = 0; k < 4; k++) {
+                float cu = k == 0 || k == 3 ? -1f : 1f;
+                float cv = k < 2 ? -1f : 1f;
+                float px = (float) p.x + (rx * cu + ux * cv) * s;
+                float py = (float) p.y + (uy * cv) * s;
+                float pz = (float) p.z + (rz * cu + uz * cv) * s;
+                b.vertex(m, px, py, pz).texture(cu * cr - cv * sr, cu * sr + cv * cr).color(c[0], c[1], c[2], a).next();
             }
-            Tessellator.getInstance().draw();
         }
+        tess.draw();
+        RenderSystem.defaultBlendFunc();
         RenderSystem.depthMask(true);
+        RenderSystem.disableCull();
         RenderSystem.disableDepthTest();
+        com.example.neurocanvas.fx.Shaders.finish();
     }
 }
