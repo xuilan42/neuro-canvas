@@ -443,6 +443,149 @@ public final class GuiSkin {
         return inToast && x2 - x1 >= 100;
     }
 
+    // ---- the HUD: hotbar, experience bar, boss bars, chat -------------------------------------------------
+    // Plain (not glass) panels. The hearts, armour and hunger are left to the game, so mods that sit on them (AppleSkin) keep working.
+
+    private static boolean hudOn(String area) {
+        return NeuroCanvasClient.modules() != null && Interface.guiSkin() && Interface.guiHud() && !BROKEN.contains(area);
+    }
+
+    private static float slideX = Float.NaN;
+    private static long slideStamp;
+
+    /**
+     * One of the pieces of the hotbar the game draws from widgets.png (the bar, the selected slot, the off-hand slot). Returns true when the
+     * piece was drawn here and the game's own sprite must be skipped. The coordinates of the sprite say where the slot cells are.
+     */
+    public static boolean hotbar(DrawContext ctx, Identifier texture, int x, int y, int u, int v, int w, int h) {
+        if (!"textures/gui/widgets.png".equals(texture.getPath()) || !hudOn("hotbar")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            int accent = th.accent() & 0xFFFFFF;
+            int base = base(th);
+            if (u == 0 && v == 0 && w == 182 && h == 22) {
+                Ui.roundRect(ctx, x, y, 182, 22, 6, Ui.alpha(Ui.mix(opaque(base), 0xFF000000, 0.25f) & 0xFFFFFF, 0.78f));
+                int rim = Ui.alpha(0xFFFFFF, 0.13f);
+                Ui.outline(ctx, x, y, 182, 22, 6, -1f, 0f, rim, rim);
+                for (int m = 0; m < 9; m++) {
+                    Ui.roundRect(ctx, x + 2 + 20 * m, y + 2, 18, 18, 4, Ui.alpha(0xFFFFFF, 0.055f));
+                }
+                return true;
+            }
+            if (u == 0 && v == 22 && w == 24 && h == 22) {
+                // the selected slot: x is the sprite's, the cell is 3 pixels further in; it glides to the new slot
+                float target = x + 2;
+                long now = System.nanoTime();
+                float dt = Math.min(0.1f, (now - slideStamp) / 1_000_000_000f);
+                slideStamp = now;
+                if (Float.isNaN(slideX) || !Interface.animations() || Math.abs(slideX - target) > 80) {
+                    slideX = target;
+                } else {
+                    slideX += (target - slideX) * (1f - (float) Math.exp(-dt * 24f));
+                }
+                int sx = Math.round(slideX);
+                int sy = y + 2;
+                Ui.glow(ctx, sx, sy, 20, 20, 5, accent, 0.5f, 6f);
+                Ui.roundRect(ctx, sx, sy, 20, 20, 5, Ui.alpha(accent, 0.22f));
+                int rim = Ui.alpha(accent, 0.95f);
+                Ui.outline(ctx, sx, sy, 20, 20, 5, -1f, 0f, rim, rim);
+                return true;
+            }
+            if (v == 22 && w == 29 && h == 24 && (u == 24 || u == 53)) {
+                // the off-hand slot, on the left or the right of the bar (the sprite's x is 29 left of the bar, or at its right end + 0)
+                int px = u == 24 ? x - 1 : x + 4;
+                int py = y + 1;
+                Ui.roundRect(ctx, px, py, 26, 22, 6, Ui.alpha(Ui.mix(opaque(base), 0xFF000000, 0.25f) & 0xFFFFFF, 0.78f));
+                int rim = Ui.alpha(0xFFFFFF, 0.13f);
+                Ui.outline(ctx, px, py, 26, 22, 6, -1f, 0f, rim, rim);
+                Ui.roundRect(ctx, px + (u == 24 ? 3 : 5), py + 2, 18, 18, 4, Ui.alpha(0xFFFFFF, 0.055f));
+                return true;
+            }
+            return false;
+        } catch (Throwable e) {
+            broke("hotbar", e);
+            return false;
+        }
+    }
+
+    /** The two pieces of the experience bar (the empty bar and the filled part), drawn from icons.png by the game. */
+    public static boolean experienceBar(DrawContext ctx, Identifier texture, int x, int y, int u, int v, int w, int h) {
+        if (!"textures/gui/icons.png".equals(texture.getPath()) || !(v == 64 || v == 69) || !hudOn("xp")) {
+            return false;
+        }
+        try {
+            if (v == 64) {
+                Ui.roundRect(ctx, x, y + 1, 182, 4, 2, Ui.alpha(0xFFFFFF, 0.13f));
+            } else if (w > 0) {
+                Ui.glow(ctx, x, y + 1, w, 4, 2, 0x80FF20, 0.35f, 5f);
+                Ui.roundRect(ctx, x, y + 1, Math.max(4, w), 4, 2, Ui.alpha(0x80FF20, 0.95f));
+            }
+            return true;
+        } catch (Throwable e) {
+            broke("xp", e);
+            return false;
+        }
+    }
+
+    private static int bossColor(net.minecraft.entity.boss.BossBar.Color c) {
+        return switch (c) {
+            case PINK -> 0xF06BB0;
+            case BLUE -> 0x4F8CFF;
+            case RED -> 0xFF4B4B;
+            case GREEN -> 0x4CD964;
+            case YELLOW -> 0xFFD23F;
+            case PURPLE -> 0xA855F7;
+            default -> 0xF2F2F2;
+        };
+    }
+
+    /** One draw of a boss bar: textureV 0 is the empty bar, 5 the filled part (width is how much of it). Returns true when it drew it. */
+    public static boolean bossBar(DrawContext ctx, int x, int y, net.minecraft.entity.boss.BossBar bar, int width, int textureV) {
+        if (!hudOn("boss")) {
+            return false;
+        }
+        try {
+            int color = bossColor(bar.getColor());
+            if (textureV == 0) {
+                Ui.roundRect(ctx, x, y, 182, 5, 2, Ui.alpha(0xFFFFFF, 0.14f));
+            } else {
+                Ui.roundRect(ctx, x, y, Math.max(3, width), 5, 2, Ui.alpha(color, 0.95f));
+            }
+            int notches = switch (bar.getStyle()) {
+                case NOTCHED_6 -> 6;
+                case NOTCHED_10 -> 10;
+                case NOTCHED_12 -> 12;
+                case NOTCHED_20 -> 20;
+                default -> 0;
+            };
+            for (int k = 1; k < notches; k++) {
+                int tx = x + Math.round(182f * k / notches);
+                if (tx < x + width) {
+                    ctx.fill(tx, y, tx + 1, y + 5, Ui.alpha(0x000000, 0.55f));
+                }
+            }
+            return true;
+        } catch (Throwable e) {
+            broke("boss", e);
+            return false;
+        }
+    }
+
+    /** Chat backgrounds are black with some opacity; they take the theme's dark colour (same opacity). Other colours pass untouched. */
+    public static int chatFill(int color) {
+        if ((color & 0xFFFFFF) != 0 || (color >>> 24) == 0 || !hudOn("chat")) {
+            return color;
+        }
+        try {
+            return (color & 0xFF000000) | (Ui.mix(opaque(base(Interface.theme())), 0xFF000000, 0.3f) & 0xFFFFFF);
+        } catch (Throwable e) {
+            broke("chat", e);
+            return color;
+        }
+    }
+
     // ---- the loading screen (startup and resource reloads) ----------------------------------------------
 
     private static final Identifier SPLASH_LOGO = new Identifier("neurocanvas", "splash_logo");

@@ -6,7 +6,10 @@
   "client": [
     "AbstractClientPlayerEntityMixin",
     "BackgroundRendererMixin",
+    "BossBarHudMixin",
     "CameraMixin",
+    "ChatBackgroundMixin",
+    "ChatScreenMixin",
     "CheckboxWidgetMixin",
     "DrawContextMixin",
     "EntryListWidgetMixin",
@@ -30,6 +33,7 @@
     "CapeFeatureRendererMixin",
     "GameRendererMixin",
     "HeldItemRendererMixin",
+    "HotbarMixin",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",
     "KeyboardInputMixin",
