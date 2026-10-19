@@ -14,6 +14,9 @@ import java.util.Set;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.PressableWidget;
+import net.minecraft.client.gui.widget.SliderWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 
 /**
  * The look of Minecraft's own screens, taken from the current theme. This first part draws the backgrounds: in a world the screen
@@ -172,6 +175,146 @@ public final class GuiSkin {
             return true;
         } catch (Throwable e) {
             broke("menu", e);
+            return false;
+        }
+    }
+
+    // ---- widgets: buttons, sliders, text fields, tooltips ----------------------------------------
+
+    private static final class Anim {
+        float value;
+        long stamp = System.nanoTime();
+    }
+
+    private static final java.util.Map<Object, Anim> ANIMS = new java.util.WeakHashMap<>();
+
+    /** A value that follows {@code on} smoothly (about a tenth of a second), kept per widget. */
+    private static float ease(Object widget, boolean on) {
+        Anim a = ANIMS.computeIfAbsent(widget, k -> new Anim());
+        long now = System.nanoTime();
+        float dt = Math.min(0.1f, (now - a.stamp) / 1_000_000_000f);
+        a.stamp = now;
+        float target = on ? 1f : 0f;
+        a.value = Interface.animations() ? a.value + Math.max(-1f, Math.min(1f, (target - a.value) * Math.min(1f, dt * 14f) * 1.4f)) : target;
+        a.value = Math.max(0f, Math.min(1f, a.value));
+        return a.value;
+    }
+
+    private static boolean widgetsOn(String area) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (NeuroCanvasClient.modules() == null || !Interface.guiSkin() || !Interface.guiWidgets() || BROKEN.contains(area)) {
+            return false;
+        }
+        Screen s = mc.currentScreen;
+        return s != null && !excluded(s);
+    }
+
+    private static int panelRgb(Theme th, float hover, boolean active) {
+        return Ui.mix(opaque(base(th)), opaque(th.accent()), active ? 0.10f + 0.32f * hover : 0.03f) & 0xFFFFFF;
+    }
+
+    /** Draws the body of a button; the caller draws its label. Returns true when it did. */
+    public static boolean button(PressableWidget w, DrawContext ctx, float alpha) {
+        if (!widgetsOn("button")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            int x = w.getX();
+            int y = w.getY();
+            int bw = w.getWidth();
+            int bh = w.getHeight();
+            boolean on = w.active && (w.isHovered() || w.isFocused());
+            float hv = ease(w, on);
+            int r = Math.min(5, bh / 2);
+            if (hv > 0.04f) {
+                Ui.glow(ctx, x, y, bw, bh, r, th.accent() & 0xFFFFFF, 0.55f * hv * alpha, 6f);
+            }
+            Ui.roundRect(ctx, x, y, bw, bh, r, Ui.alpha(panelRgb(th, hv, w.active), alpha * (w.active ? 0.82f + 0.12f * hv : 0.5f)));
+            int rim = Ui.mix(Ui.alpha(0xFFFFFF, w.active ? 0.16f : 0.08f), Ui.alpha(th.accent() & 0xFFFFFF, 0.95f), hv);
+            rim = (rim & 0xFFFFFF) | ((int) (((rim >>> 24) & 0xFF) * alpha) << 24);
+            Ui.outline(ctx, x, y, bw, bh, r, -1f, 0f, rim, rim);
+            return true;
+        } catch (Throwable e) {
+            broke("button", e);
+            return false;
+        }
+    }
+
+    /** Draws the track and the handle of a slider (the value is 0..1); the caller draws its label. Returns true when it did. */
+    public static boolean slider(SliderWidget w, DrawContext ctx, double value, float alpha) {
+        if (!widgetsOn("slider")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            int x = w.getX();
+            int y = w.getY();
+            int bw = w.getWidth();
+            int bh = w.getHeight();
+            boolean on = w.active && (w.isHovered() || w.isFocused());
+            float hv = ease(w, on);
+            int r = Math.min(5, bh / 2);
+            Ui.roundRect(ctx, x, y, bw, bh, r, Ui.alpha(panelRgb(th, hv * 0.5f, w.active), alpha * (w.active ? 0.82f : 0.5f)));
+            int hx = x + (int) (value * (bw - 8));
+            if (hx > x) {
+                Ui.roundRect(ctx, x, y, hx - x + 4, bh, r, Ui.alpha(th.accent() & 0xFFFFFF, alpha * 0.34f));
+            }
+            int rim = Ui.alpha(0xFFFFFF, 0.14f);
+            Ui.outline(ctx, x, y, bw, bh, r, -1f, 0f, rim, rim);
+            if (hv > 0.04f) {
+                Ui.glow(ctx, hx, y, 8, bh, 3, th.accent() & 0xFFFFFF, 0.6f * hv * alpha, 5f);
+            }
+            Ui.roundRect(ctx, hx, y, 8, bh, 3, Ui.alpha(Ui.mix(opaque(th.accent()), 0xFFFFFFFF, 0.35f * hv + 0.1f) & 0xFFFFFF, alpha * (w.active ? 1f : 0.5f)));
+            return true;
+        } catch (Throwable e) {
+            broke("slider", e);
+            return false;
+        }
+    }
+
+    public static boolean fieldsOn() {
+        return widgetsOn("field");
+    }
+
+    /** The rounded background of a text field (it replaces the two plain rectangles the game draws). The outer rectangle is passed in. */
+    public static boolean fieldBackground(TextFieldWidget w, DrawContext ctx, int x1, int y1, int x2, int y2) {
+        if (!fieldsOn()) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            float hv = ease(w, w.isFocused());
+            int bw = x2 - x1;
+            int bh = y2 - y1;
+            int r = Math.min(4, bh / 2);
+            Ui.roundRect(ctx, x1, y1, bw, bh, r, Ui.alpha(Ui.mix(opaque(base(th)), 0xFF000000, 0.35f) & 0xFFFFFF, 0.9f));
+            int rim = Ui.mix(Ui.alpha(0xFFFFFF, 0.2f), Ui.alpha(th.accent() & 0xFFFFFF, 1f), hv);
+            Ui.outline(ctx, x1, y1, bw, bh, r, -1f, 0f, rim, rim);
+            return true;
+        } catch (Throwable e) {
+            broke("field", e);
+            return false;
+        }
+    }
+
+    /** The panel behind a tooltip. Returns true when it drew one. */
+    public static boolean tooltip(DrawContext ctx, int x, int y, int width, int height) {
+        if (!widgetsOn("tooltip")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            int px = x - 4;
+            int py = y - 4;
+            int pw = width + 8;
+            int ph = height + 8;
+            Ui.roundRect(ctx, px, py, pw, ph, 5, Ui.alpha(Ui.mix(opaque(base(th)), 0xFF000000, 0.2f) & 0xFFFFFF, 0.94f));
+            int rim = Ui.alpha(Ui.mix(opaque(th.accent()), opaque(th.accent2()), 0.5f) & 0xFFFFFF, 0.85f);
+            Ui.outline(ctx, px, py, pw, ph, 5, -1f, 0f, rim, rim);
+            return true;
+        } catch (Throwable e) {
+            broke("tooltip", e);
             return false;
         }
     }
