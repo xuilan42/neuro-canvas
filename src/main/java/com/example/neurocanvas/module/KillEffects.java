@@ -17,6 +17,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
     private final Setting style = add(Setting.choice("Style", 0, "Burst", "Souls", "Lightning", "All",
             "Ash", "Embers", "Shatter", "Confetti", "Black hole", "Fireworks", "Tornado", "Steam", "Petals", "Rain", "Shockwave", "Beam",
             "Voxels", "Melt", "Ice", "Bubbles", "Random"));
+    private final Setting whose = add(Setting.choice("Deaths", 0, "My kills", "Players", "Everyone"));
     private final Setting natural = add(Setting.bool("Natural colours", true));
     private final Setting count = add(Setting.number("Count", 4, 200, 30));
     private final Setting size = add(Setting.number("Size", 0.04, 0.5, 0.14));
@@ -35,11 +36,41 @@ public final class KillEffects extends Module implements WorldState.CombatListen
         WorldState.addCombatListener(this);
     }
 
+    private final java.util.Map<Integer, Long> seen = new java.util.HashMap<>();
+
     @Override
     public void onKill(LivingEntity e) {
-        if (!enabled) {
+        if (enabled && seen.putIfAbsent(e.getId(), e.getWorld().getTime()) == null) {
+            play(e);
+        }
+    }
+
+    /** With "Players" or "Everyone", every death in range plays the effect, not just the ones you caused. */
+    @Override
+    public void tick(net.minecraft.client.MinecraftClient mc) {
+        if (mc.world == null || mc.player == null) {
+            seen.clear();
             return;
         }
+        long now = mc.world.getTime();
+        seen.values().removeIf(t -> now - t > 200 || now < t);
+        int mode = whose.index();
+        if (mode == 0) {
+            return;
+        }
+        for (net.minecraft.entity.Entity en : mc.world.getEntities()) {
+            if (!(en instanceof LivingEntity e) || e == mc.player || !e.isDead() || e instanceof net.minecraft.entity.decoration.ArmorStandEntity
+                    || mode == 1 && !(e instanceof net.minecraft.entity.player.PlayerEntity)
+                    || e.squaredDistanceTo(mc.player) > 48 * 48 || Teams.ignores(e)) {
+                continue;
+            }
+            if (seen.putIfAbsent(e.getId(), now) == null) {
+                play(e);
+            }
+        }
+    }
+
+    private void play(LivingEntity e) {
         int s = style.index();
         if (s == 20) {
             s = random.nextInt(20);
