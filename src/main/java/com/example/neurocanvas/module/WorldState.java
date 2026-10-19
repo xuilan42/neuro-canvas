@@ -90,6 +90,24 @@ public final class WorldState {
         }
     }
 
+    /** An entity is leaving the world: it counts as a kill when it is dead, or when you hit it moments ago and it vanishes close by. */
+    public void onRemoved(LivingEntity e) {
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc.player == null || e == mc.player) {
+            return;
+        }
+        long now = System.currentTimeMillis();
+        boolean hit = false;
+        for (Attacked a : attacked) {
+            if (a.entity == e && now - a.time < 5000) {
+                hit = true;
+            }
+        }
+        if (e.isDead() || hit && e.squaredDistanceTo(mc.player) < 30 * 30) {
+            onDeathStatus(e);
+        }
+    }
+
     /** The server's own death announcement (entity status 3), the reliable signal even when the entity is removed at once. */
     public void onDeathStatus(LivingEntity e) {
         long now = System.currentTimeMillis();
