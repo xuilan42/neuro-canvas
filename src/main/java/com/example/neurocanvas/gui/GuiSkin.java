@@ -14,7 +14,10 @@ import java.util.Set;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.widget.CheckboxWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
+import net.minecraft.client.gui.widget.TabButtonWidget;
+import net.minecraft.client.toast.Toast;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 
@@ -325,6 +328,116 @@ public final class GuiSkin {
         } finally {
             ctx.getMatrices().pop();
         }
+    }
+
+    // ---- scrollbars, checkboxes, tabs, toasts -------------------------------------------------------
+
+    public static boolean scrollOn() {
+        return widgetsOn("scroll");
+    }
+
+    /** The three rectangles of a list's scrollbar: 0 the track, 1 the handle, 2 its highlight (not needed). Returns true when it handled the part. */
+    public static boolean scrollbar(DrawContext ctx, int part, int x1, int y1, int x2, int y2) {
+        if (!scrollOn()) {
+            return false;
+        }
+        if (part == 2) {
+            return true;
+        }
+        try {
+            Theme th = Interface.theme();
+            int w = x2 - x1;
+            int r = Math.max(1, w / 2);
+            if (part == 0) {
+                Ui.roundRect(ctx, x1, y1, w, y2 - y1, r, Ui.alpha(0xFFFFFF, 0.07f));
+            } else {
+                Ui.roundRect(ctx, x1, y1, w, y2 - y1, r, Ui.alpha(th.accent() & 0xFFFFFF, 0.85f));
+            }
+            return true;
+        } catch (Throwable e) {
+            broke("scroll", e);
+            return false;
+        }
+    }
+
+    public static boolean checkbox(CheckboxWidget w, DrawContext ctx, int x, int y, int bw, int bh) {
+        if (!widgetsOn("checkbox")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            boolean on = w.active && (w.isHovered() || w.isFocused());
+            float hv = ease(w, on);
+            int r = Math.min(4, bh / 2);
+            if (hv > 0.04f) {
+                Ui.glow(ctx, x, y, bw, bh, r, th.accent() & 0xFFFFFF, 0.45f * hv, 5f);
+            }
+            Ui.roundRect(ctx, x, y, bw, bh, r, Ui.alpha(panelRgb(th, hv, w.active), w.active ? 0.85f : 0.5f));
+            int rim = Ui.mix(Ui.alpha(0xFFFFFF, 0.18f), Ui.alpha(th.accent() & 0xFFFFFF, 0.95f), Math.max(hv, w.isChecked() ? 1f : 0f));
+            Ui.outline(ctx, x, y, bw, bh, r, -1f, 0f, rim, rim);
+            if (w.isChecked()) {
+                int in = Math.max(3, Math.min(bw, bh) / 4);
+                Ui.roundRect(ctx, x + in, y + in, bw - 2 * in, bh - 2 * in, Math.max(1, r - 1), Ui.alpha(th.accent() & 0xFFFFFF, w.active ? 1f : 0.5f));
+            }
+            return true;
+        } catch (Throwable e) {
+            broke("checkbox", e);
+            return false;
+        }
+    }
+
+    public static boolean tab(TabButtonWidget w, DrawContext ctx, int x, int y, int bw, int bh) {
+        if (!widgetsOn("tab")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            boolean current = w.isCurrentTab();
+            float hv = ease(w, w.isHovered() || w.isFocused() || current);
+            int r = Math.min(5, bh / 2);
+            if (current) {
+                Ui.glow(ctx, x, y, bw, bh, r, th.accent() & 0xFFFFFF, 0.4f, 5f);
+            }
+            Ui.roundRect(ctx, x, y, bw, bh, r, Ui.alpha(Ui.mix(opaque(base(th)), opaque(th.accent()), 0.06f + 0.34f * hv) & 0xFFFFFF, 0.88f));
+            int rim = Ui.mix(Ui.alpha(0xFFFFFF, 0.14f), Ui.alpha(th.accent() & 0xFFFFFF, 0.95f), current ? 1f : hv * 0.6f);
+            Ui.outline(ctx, x, y, bw, bh, r, -1f, 0f, rim, rim);
+            return true;
+        } catch (Throwable e) {
+            broke("tab", e);
+            return false;
+        }
+    }
+
+    private static boolean inToast;
+
+    /** Draws the panel of a toast (advancement, recipe, system message) and hides the game's own background of it. Returns true when it did. */
+    public static boolean toastStart(Toast toast, DrawContext ctx) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (NeuroCanvasClient.modules() == null || !Interface.guiSkin() || !Interface.guiWidgets() || BROKEN.contains("toast")) {
+            return false;
+        }
+        try {
+            Theme th = Interface.theme();
+            int w = toast.getWidth();
+            int h = toast.getHeight();
+            Ui.roundRect(ctx, 0, 0, w, h, 5, Ui.alpha(Ui.mix(opaque(base(th)), 0xFF000000, 0.15f) & 0xFFFFFF, 0.93f));
+            int rim = Ui.alpha(Ui.mix(opaque(th.accent()), opaque(th.accent2()), 0.5f) & 0xFFFFFF, 0.9f);
+            Ui.outline(ctx, 0, 0, w, h, 5, -1f, 0f, rim, rim);
+            inToast = true;
+            return true;
+        } catch (Throwable e) {
+            broke("toast", e);
+            return false;
+        }
+    }
+
+    public static void toastEnd() {
+        inToast = false;
+    }
+
+    /** While a toast is drawn, the large pieces of the game's toast texture (its background) are skipped; the small icons in it stay. */
+    public static boolean suppressToastTexture(int x1, int x2, int y1, int y2) {
+        return inToast && x2 - x1 >= 100;
     }
 
     public static String describe() {
