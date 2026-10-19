@@ -17,7 +17,10 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.CheckboxWidget;
 import net.minecraft.client.gui.widget.PressableWidget;
 import net.minecraft.client.gui.widget.TabButtonWidget;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
 import net.minecraft.client.toast.Toast;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.gui.widget.SliderWidget;
 import net.minecraft.client.gui.widget.TextFieldWidget;
 
@@ -438,6 +441,107 @@ public final class GuiSkin {
     /** While a toast is drawn, the large pieces of the game's toast texture (its background) are skipped; the small icons in it stay. */
     public static boolean suppressToastTexture(int x1, int x2, int y1, int y2) {
         return inToast && x2 - x1 >= 100;
+    }
+
+    // ---- the loading screen (startup and resource reloads) ----------------------------------------------
+
+    private static final Identifier SPLASH_LOGO = new Identifier("neurocanvas", "splash_logo");
+    private static boolean splashLoaded;
+    private static boolean splashLogoOk;
+    private static boolean splashDrew;
+
+    private static boolean splashOn() {
+        return Interface.guiSkin() && Interface.guiLoading() && !BROKEN.contains("splash");
+    }
+
+    /** base, accent, accent 2; the theme once it exists, the default purple otherwise (the screen can appear before the theme is ready). */
+    private static int[] splashColors() {
+        try {
+            Theme th = Interface.theme();
+            return new int[] {Ui.mix(opaque(base(th)), 0xFF000000, 0.45f) & 0xFFFFFF, th.accent() & 0xFFFFFF, th.accent2() & 0xFFFFFF};
+        } catch (Throwable e) {
+            return new int[] {0x07050F, 0xA855F7, 0x5B8CFF};
+        }
+    }
+
+    /** The colour that replaces the red of the loading screen. Returns the game's own colour when the skin is off. */
+    public static int splashBackground(int vanilla) {
+        if (!splashOn()) {
+            return vanilla;
+        }
+        return opaque(splashColors()[0]);
+    }
+
+    /**
+     * Draws our logo (read from the mod's jar, not from the resource manager, which is busy while the screen is up) with a soft glow,
+     * and reports whether it did. When it did, the game's own two halves of the Mojang logo are skipped.
+     */
+    public static boolean splashLogo(DrawContext ctx) {
+        splashDrew = false;
+        if (!splashOn()) {
+            return false;
+        }
+        try {
+            MinecraftClient mc = MinecraftClient.getInstance();
+            if (!splashLoaded) {
+                splashLoaded = true;
+                Path file = net.fabricmc.loader.api.FabricLoader.getInstance().getModContainer("neurocanvas").orElseThrow()
+                        .findPath("assets/neurocanvas/textures/logo_big.png").orElseThrow();
+                try (java.io.InputStream in = Files.newInputStream(file)) {
+                    NativeImageBackedTexture tex = new NativeImageBackedTexture(NativeImage.read(in));
+                    tex.setFilter(true, false);
+                    mc.getTextureManager().registerTexture(SPLASH_LOGO, tex);
+                    splashLogoOk = true;
+                }
+            }
+            if (!splashLogoOk) {
+                return false;
+            }
+            int w = ctx.getScaledWindowWidth();
+            int h = ctx.getScaledWindowHeight();
+            int s = Math.max(48, Math.min(128, (int) (h * 0.30f)));
+            int x = (w - s) / 2;
+            int y = (int) (h * 0.45f) - s / 2;
+            int[] c = splashColors();
+            com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+            Ui.glow(ctx, x, y, s, s, s / 4, c[1], 0.6f, 22f);
+            ctx.drawTexture(SPLASH_LOGO, x, y, s, s, 0f, 0f, 512, 512, 512, 512);
+            splashDrew = true;
+            return true;
+        } catch (Throwable e) {
+            broke("splash", e);
+            return false;
+        }
+    }
+
+    public static boolean splashDrewLogo() {
+        return splashDrew;
+    }
+
+    /** The progress bar of the loading screen: a thin rounded track with an accent fill. Returns true when it drew one. */
+    public static boolean splashBar(DrawContext ctx, int x1, int y1, int x2, int y2, float opacity, float progress) {
+        if (!splashOn() || !splashDrew) {
+            return false;
+        }
+        try {
+            int[] c = splashColors();
+            int w = ctx.getScaledWindowWidth();
+            int h = ctx.getScaledWindowHeight();
+            int bw = Math.max(120, Math.min(260, (int) (Math.min(w, h * 2) * 0.32f)));
+            int bx = (w - bw) / 2;
+            int bh = 4;
+            int by = (y1 + y2) / 2 - bh / 2;
+            float p = Math.max(0f, Math.min(1f, progress));
+            Ui.roundRect(ctx, bx, by, bw, bh, 2, Ui.alpha(0xFFFFFF, 0.12f * opacity));
+            int fw = Math.max(bh, (int) (bw * p));
+            int fill = Ui.mix(opaque(c[1]), opaque(c[2]), p) & 0xFFFFFF;
+            Ui.glow(ctx, bx, by, fw, bh, 2, fill, 0.55f * opacity, 7f);
+            Ui.roundRect(ctx, bx, by, fw, bh, 2, Ui.alpha(fill, opacity));
+            return true;
+        } catch (Throwable e) {
+            broke("splash", e);
+            return false;
+        }
     }
 
     public static String describe() {

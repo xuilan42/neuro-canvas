@@ -49,6 +49,7 @@ public final class Interface extends Module {
     private final Setting guiSkin = add(Setting.bool("Custom Minecraft GUI", true));
     private final Setting guiBackgrounds = add(Setting.bool("GUI backgrounds", true));
     private final Setting guiWidgets = add(Setting.bool("GUI buttons and fields", true));
+    private final Setting guiLoading = add(Setting.bool("GUI loading screen", true));
     private final Setting guiBlur = add(Setting.number("GUI blur", 0, 2, 0.9));
     private final Setting glassThrough = add(Setting.bool("Effects through glass", true));
     private final Setting safeMode = add(Setting.bool("Safe mode", false));
@@ -218,6 +219,7 @@ public final class Interface extends Module {
     public static boolean guiSkin() { return instance != null && instance.guiSkin.on(); }
     public static boolean guiBackgrounds() { return instance != null && instance.guiBackgrounds.on(); }
     public static boolean guiWidgets() { return instance != null && instance.guiWidgets.on(); }
+    public static boolean guiLoading() { return instance != null && instance.guiLoading.on(); }
     public static float guiBlur() { return instance == null ? 0f : instance.guiBlur.f(); }
     public static boolean shaderVisuals() { return instance == null || instance.shaderVis.on(); }
     public static float visualGlow() { return instance == null ? 0.7f : instance.visGlow.f(); }

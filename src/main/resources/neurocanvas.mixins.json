@@ -13,6 +13,7 @@
     "PressableWidgetMixin",
     "ScreenMixin",
     "SliderWidgetMixin",
+    "SplashOverlayMixin",
     "TabButtonWidgetMixin",
     "TextFieldWidgetMixin",
     "TooltipBackgroundRendererMixin",
