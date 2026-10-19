@@ -56,19 +56,40 @@ public final class KillEffects extends Module implements WorldState.CombatListen
         seen.values().removeIf(t -> now - t > 200 || now < t);
         int mode = whose.index();
         if (mode == 0) {
+            watched.clear();
             return;
         }
+        java.util.Map<Integer, LivingEntity> current = new java.util.HashMap<>();
         for (net.minecraft.entity.Entity en : mc.world.getEntities()) {
-            if (!(en instanceof LivingEntity e) || e == mc.player || !e.isDead() || e instanceof net.minecraft.entity.decoration.ArmorStandEntity
+            if (!(en instanceof LivingEntity e) || e == mc.player || e instanceof net.minecraft.entity.decoration.ArmorStandEntity
                     || mode == 1 && !(e instanceof net.minecraft.entity.player.PlayerEntity)
                     || e.squaredDistanceTo(mc.player) > 48 * 48 || Teams.ignores(e)) {
                 continue;
             }
-            if (seen.putIfAbsent(e.getId(), now) == null) {
+            current.put(e.getId(), e);
+            if (e.hurtTime > 0) {
+                hurtAt.put(e.getId(), now);
+            }
+            if (e.isDead() && seen.putIfAbsent(e.getId(), now) == null) {
                 play(e);
             }
         }
+        // A player the server removed right after a hit never shows zero health: treat "hurt, then gone nearby" as a death.
+        for (java.util.Map.Entry<Integer, LivingEntity> w : watched.entrySet()) {
+            LivingEntity e = w.getValue();
+            Long hurt = hurtAt.get(w.getKey());
+            if (!current.containsKey(w.getKey()) && e.isRemoved() && hurt != null && now - hurt < 30
+                    && e.squaredDistanceTo(mc.player) < 28 * 28 && seen.putIfAbsent(w.getKey(), now) == null) {
+                play(e);
+            }
+        }
+        hurtAt.values().removeIf(t -> now - t > 100);
+        watched.clear();
+        watched.putAll(current);
     }
+
+    private final java.util.Map<Integer, LivingEntity> watched = new java.util.HashMap<>();
+    private final java.util.Map<Integer, Long> hurtAt = new java.util.HashMap<>();
 
     private void play(LivingEntity e) {
         int s = style.index();

@@ -79,8 +79,18 @@ public final class WorldState {
             target = living;
             targetTime = System.currentTimeMillis();
             pendingHits.add(new PendingHit(living));
+            attacked.removeIf(a -> a.entity == living);
+            attacked.add(new Attacked(living, targetTime));
+            while (attacked.size() > 12) {
+                attacked.remove(0);
+            }
         }
     }
+
+    /** Everything you hit in the last few seconds, so a kill counts even when you hit someone else afterwards. */
+    private record Attacked(LivingEntity entity, long time) { }
+
+    private final List<Attacked> attacked = new ArrayList<>();
 
     private void trackCombat(PlayerEntity p) {
         if (target != null) {
@@ -145,6 +155,7 @@ public final class WorldState {
             ripples.clear();
             trail.clear();
             pendingHits.clear();
+            attacked.clear();
             target = null;
             return;
         }
@@ -164,11 +175,20 @@ public final class WorldState {
         wasOnGround = onGround;
         ripples.removeIf(r -> now - r.start > RIPPLE_LIFETIME_MS);
         trackCombat(mc.player);
+        long nowMs = System.currentTimeMillis();
+        attacked.removeIf(a -> {
+            boolean dead = a.entity.isDead();
+            // Servers often remove a dead player at once, before its health ever reads zero: gone soon after a hit and close by counts.
+            boolean vanished = a.entity.isRemoved() && nowMs - a.time < 4000 && a.entity.squaredDistanceTo(mc.player) < 32 * 32;
+            if (dead || vanished) {
+                COMBAT_LISTENERS.forEach(l -> l.onKill(a.entity));
+                return true;
+            }
+            return nowMs - a.time > 15000 || a.entity.isRemoved();
+        });
         if (target != null) {
-            if (target.isDead()) {
-                LivingEntity killed = target;
+            if (target.isDead() || target.isRemoved()) {
                 target = null;
-                COMBAT_LISTENERS.forEach(l -> l.onKill(killed));
             } else if (!target.isAlive() || now - targetTime > targetLifetimeMs) {
                 target = null;
             }
