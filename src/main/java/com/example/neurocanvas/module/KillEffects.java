@@ -45,6 +45,20 @@ public final class KillEffects extends Module implements WorldState.CombatListen
         }
     }
 
+    @Override
+    public void onDeath(LivingEntity e, boolean mine) {
+        int mode = whose.index();
+        if (!enabled || mine || mode == 0 || e == net.minecraft.client.MinecraftClient.getInstance().player
+                || e instanceof net.minecraft.entity.decoration.ArmorStandEntity
+                || mode == 1 && !(e instanceof net.minecraft.entity.player.PlayerEntity) || Teams.ignores(e)) {
+            return;
+        }
+        net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc.player != null && e.squaredDistanceTo(mc.player) <= 64 * 64 && seen.putIfAbsent(e.getId(), e.getWorld().getTime()) == null) {
+            play(e);
+        }
+    }
+
     /** With "Players" or "Everyone", every death in range plays the effect, not just the ones you caused. */
     @Override
     public void tick(net.minecraft.client.MinecraftClient mc) {

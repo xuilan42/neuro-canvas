@@ -43,6 +43,9 @@ public final class WorldState {
 
         default void onKill(LivingEntity entity) { }
 
+        /** Any living entity the server announced as dead (status 3); {@code mine} when you hit it in the last seconds. */
+        default void onDeath(LivingEntity entity, boolean mine) { }
+
         default void onTotemUsed() { }
 
         default void onArmorBreak(String piece) { }
@@ -85,6 +88,30 @@ public final class WorldState {
                 attacked.remove(0);
             }
         }
+    }
+
+    /** The server's own death announcement (entity status 3), the reliable signal even when the entity is removed at once. */
+    public void onDeathStatus(LivingEntity e) {
+        long now = System.currentTimeMillis();
+        boolean mine = e == target && now - targetTime < 15000;
+        for (Attacked a : attacked) {
+            if (a.entity == e && now - a.time < 15000) {
+                mine = true;
+            }
+        }
+        boolean isMine = mine;
+        if (isMine) {
+            attacked.removeIf(a -> a.entity == e);
+            if (target == e) {
+                target = null;
+            }
+        }
+        COMBAT_LISTENERS.forEach(l -> {
+            l.onDeath(e, isMine);
+            if (isMine) {
+                l.onKill(e);
+            }
+        });
     }
 
     /** Everything you hit in the last few seconds, so a kill counts even when you hit someone else afterwards. */

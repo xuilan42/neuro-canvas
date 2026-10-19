@@ -11,6 +11,7 @@
     "ChatBackgroundMixin",
     "ChatScreenMixin",
     "CheckboxWidgetMixin",
+    "ClientPlayNetworkHandlerMixin",
     "DrawContextMixin",
     "EntryListWidgetMixin",
     "PressableWidgetMixin",
