@@ -15,7 +15,17 @@ import net.minecraft.client.gl.ShaderProgram;
 import java.util.Comparator;
 import java.util.Random;
 import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.model.BakedModel;
+import net.minecraft.client.render.model.json.ModelTransformationMode;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.Sprite;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.LivingEntity;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
 import net.minecraft.util.Arm;
+import org.joml.Vector3f;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
@@ -27,7 +37,7 @@ public final class HandTrails extends Module {
         float age, life, size, rot, spin, seed;
     }
 
-    private final Setting hand = add(Setting.choice("Hand", 0, "Main", "Off"));
+    private final Setting hand = add(Setting.choice("Hand", 0, "Main", "Off", "Both"));
     private final Setting emit = add(Setting.choice("Emit", 0, "Always", "While the hand moves"));
     private final Setting density = add(Setting.number("Puffs per second", 2, 120, 30));
     private final Setting lifetime = add(Setting.number("Lifetime (s)", 0.3, 6, 1.6));
@@ -35,13 +45,26 @@ public final class HandTrails extends Module {
     private final Setting grow = add(Setting.number("Growth", 0, 4, 1.8));
     private final Setting rise = add(Setting.number("Rise speed", -0.5, 1.5, 0.35));
     private final Setting turbulence = add(Setting.number("Turbulence", 0, 2, 0.6));
-    private final Setting itemLength = add(Setting.number("Emit along item", 0, 1.5, 0.6));
     private final Setting followSwing = add(Setting.bool("Follow swing", true));
     private final Setting color1 = add(Setting.color("Color 1", 0.75));
     private final Setting color2 = add(Setting.color("Color 2", 0.55));
     private final Setting alpha = add(Setting.number("Alpha", 0.05, 1, 0.5));
     private final Setting glow = add(Setting.bool("Glow", true));
     private final Setting glowStrength = add(Setting.number("Glow strength", 0.3, 3, 1.4));
+
+    /** One hand as it was drawn last frame: the item's model-to-view matrix (view model and swing animation included) and where on the item smoke may start. */
+    private static final class Slot {
+        Matrix4f matrix;
+        List<Vector3f> points;
+        boolean solid;
+        long time;
+    }
+
+    private final Slot[] slots = new Slot[2];
+    private Item cachedItem;
+    private Sprite cachedSprite;
+    private List<Vector3f> cachedPoints;
+    private boolean cachedSolid;
 
     private final List<P> list = new ArrayList<>();
     private final Random random = new Random();
@@ -85,11 +108,91 @@ public final class HandTrails extends Module {
         return new Vec3d[] {base, tip};
     }
 
+    /** Called while the game draws the held item: the matrix on the stack is exactly where the item is on screen. */
+    public void captureItem(LivingEntity entity, ItemStack stack, ModelTransformationMode mode, boolean leftHanded, MatrixStack matrices) {
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (!enabled || entity != mc.player || mc.world == null || stack.isEmpty()
+                || mode != ModelTransformationMode.FIRST_PERSON_RIGHT_HAND && mode != ModelTransformationMode.FIRST_PERSON_LEFT_HAND) {
+            return;
+        }
+        try {
+            boolean main = (mode == ModelTransformationMode.FIRST_PERSON_RIGHT_HAND) == (mc.player.getMainArm() == Arm.RIGHT);
+            int want = hand.index();
+            if (want == 0 && !main || want == 1 && main) {
+                return;
+            }
+            BakedModel model = mc.getItemRenderer().getModel(stack, mc.world, mc.player, 0);
+            MatrixStack ms = new MatrixStack();
+            ms.multiplyPositionMatrix(new Matrix4f(matrices.peek().getPositionMatrix()));
+            model.getTransformation().getTransformation(mode).apply(leftHanded, ms);
+            ms.translate(-0.5f, -0.5f, -0.5f);
+            Slot slot = new Slot();
+            slot.matrix = new Matrix4f(ms.peek().getPositionMatrix());
+            Sprite sprite = model.getParticleSprite();
+            if (stack.getItem() != cachedItem || sprite != cachedSprite) {
+                cachedItem = stack.getItem();
+                cachedSprite = sprite;
+                cachedSolid = model.hasDepth() && !model.isBuiltin();
+                cachedPoints = cachedSolid ? List.of() : flatPoints(sprite, model.isBuiltin());
+            }
+            slot.points = cachedPoints;
+            slot.solid = cachedSolid;
+            slot.time = System.nanoTime() / 1_000_000L;
+            slots[main ? 0 : 1] = slot;
+        } catch (Throwable ignored) {
+            // The ribbon falls back to the estimated hand position.
+        }
+    }
+
+    /** The opaque pixels of a flat item's texture, as points of the model (the sprite is drawn one pixel thick in the middle of the block). */
+    private static List<Vector3f> flatPoints(Sprite sprite, boolean builtin) {
+        List<Vector3f> out = new ArrayList<>();
+        try {
+            if (!builtin && sprite != null) {
+                NativeImage img = ((com.example.neurocanvas.mixin.SpriteContentsAccessor) sprite.getContents()).neurocanvas$image();
+                int w = sprite.getContents().getWidth();
+                int h = sprite.getContents().getHeight();
+                if (img != null) {
+                    for (int y = 0; y < Math.min(h, img.getHeight()); y++) {
+                        for (int x = 0; x < Math.min(w, img.getWidth()); x++) {
+                            if (((img.getColor(x, y) >>> 24) & 0xFF) > 40) {
+                                out.add(new Vector3f((x + 0.5f) / w, 1f - (y + 0.5f) / h, 0.5f));
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+            out.clear();
+        }
+        if (out.isEmpty()) {
+            for (int i = 0; i <= 8; i++) {
+                out.add(new Vector3f(0.2f + 0.075f * i, 0.2f + 0.075f * i, 0.5f));
+            }
+        }
+        return out;
+    }
+
+    private Vec3d toWorld(Slot s, Vector3f local, Camera camera) {
+        Vector3f v = s.matrix.transformPosition(local, new Vector3f());
+        v.rotate(camera.getRotation());
+        Vec3d c = camera.getPos();
+        return new Vec3d(c.x + v.x, c.y + v.y, c.z + v.z);
+    }
+
+    private Vec3d sample(Slot s, Camera camera) {
+        Vector3f local = s.solid ? new Vector3f(random.nextFloat(), random.nextFloat(), random.nextFloat())
+                : s.points.get(random.nextInt(s.points.size()));
+        return toWorld(s, local, camera);
+    }
+
     @Override
     public void tick(MinecraftClient mc) {
         if (mc.player == null || mc.world == null) {
             list.clear();
             lastHand = null;
+            slots[0] = null;
+            slots[1] = null;
         }
     }
 
@@ -102,8 +205,16 @@ public final class HandTrails extends Module {
         }
         double dt = MathHelper.clamp(env.t() - lastT, 0.0, 0.1);
         lastT = env.t();
+        Camera camera = mc.gameRenderer.getCamera();
+        long nowMs = System.nanoTime() / 1_000_000L;
+        List<Slot> live = new ArrayList<>(2);
+        for (Slot s : slots) {
+            if (s != null && nowMs - s.time < 120) {
+                live.add(s);
+            }
+        }
         Vec3d[] seg = handSegment(player, env.tickDelta());
-        Vec3d mid = seg[0].add(seg[1]).multiply(0.5);
+        Vec3d mid = live.isEmpty() ? seg[0].add(seg[1]).multiply(0.5) : toWorld(live.get(0), new Vector3f(0.5f, 0.5f, 0.5f), camera);
         double moved = lastHand == null ? 0 : mid.distanceTo(lastHand);
         lastHand = mid;
         double rate = density.value;
@@ -114,13 +225,18 @@ public final class HandTrails extends Module {
         int spawn = Math.min((int) carry, 40);
         carry -= (int) carry;
         Vec3d along = seg[1].subtract(seg[0]).normalize();
-        double len = itemLength.value;
         for (int i = 0; i < spawn && list.size() < 700; i++) {
             P q = new P();
-            double f = random.nextDouble() * len;
-            q.x = seg[0].x + along.x * f + (random.nextDouble() - 0.5) * 0.04;
-            q.y = seg[0].y + along.y * f + (random.nextDouble() - 0.5) * 0.04;
-            q.z = seg[0].z + along.z * f + (random.nextDouble() - 0.5) * 0.04;
+            Vec3d at;
+            if (live.isEmpty()) {
+                double f = random.nextDouble() * 0.6;
+                at = new Vec3d(seg[0].x + along.x * f, seg[0].y + along.y * f, seg[0].z + along.z * f);
+            } else {
+                at = sample(live.get(random.nextInt(live.size())), camera);
+            }
+            q.x = at.x + (random.nextDouble() - 0.5) * 0.03;
+            q.y = at.y + (random.nextDouble() - 0.5) * 0.03;
+            q.z = at.z + (random.nextDouble() - 0.5) * 0.03;
             q.vx = (random.nextDouble() - 0.5) * 0.12;
             q.vy = (random.nextDouble() - 0.2) * 0.1;
             q.vz = (random.nextDouble() - 0.5) * 0.12;

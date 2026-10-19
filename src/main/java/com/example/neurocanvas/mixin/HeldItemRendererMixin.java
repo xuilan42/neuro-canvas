@@ -37,6 +37,16 @@ public abstract class HeldItemRendererMixin {
         NeuroCanvasClient.modules().get(ViewModel.class).apply(matrices, hand, side);
     }
 
+    @Inject(method = "renderItem(Lnet/minecraft/entity/LivingEntity;Lnet/minecraft/item/ItemStack;Lnet/minecraft/client/render/model/json/ModelTransformationMode;ZLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
+            at = @At("HEAD"), require = 0)
+    private void neurocanvas$captureItem(net.minecraft.entity.LivingEntity entity, ItemStack stack,
+                                         net.minecraft.client.render.model.json.ModelTransformationMode mode, boolean leftHanded,
+                                         MatrixStack matrices, VertexConsumerProvider vertexConsumers, int light, CallbackInfo ci) {
+        if (NeuroCanvasClient.modules() != null) {
+            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.HandTrails.class).captureItem(entity, stack, mode, leftHanded, matrices);
+        }
+    }
+
     @Inject(method = "renderFirstPersonItem", at = @At("RETURN"), require = 0)
     private void neurocanvas$end(AbstractClientPlayerEntity player, float tickDelta, float pitch, Hand hand,
                                  float swingProgress, ItemStack item, float equipProgress, MatrixStack matrices,
