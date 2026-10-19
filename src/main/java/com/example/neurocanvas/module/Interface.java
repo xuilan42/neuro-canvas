@@ -46,6 +46,9 @@ public final class Interface extends Module {
     private final Setting visGlow = add(Setting.number("Visual glow", 0, 1, 0.7));
     private final Setting glassOpacity = add(Setting.number("Glass opacity", 0, 1, 0.6));
     private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
+    private final Setting guiSkin = add(Setting.bool("Custom Minecraft GUI", true));
+    private final Setting guiBackgrounds = add(Setting.bool("GUI backgrounds", true));
+    private final Setting guiBlur = add(Setting.number("GUI blur", 0, 2, 0.9));
     private final Setting glassThrough = add(Setting.bool("Effects through glass", true));
     private final Setting safeMode = add(Setting.bool("Safe mode", false));
     private final Setting sounds = add(Setting.bool("Sounds", true));
@@ -210,6 +213,10 @@ public final class Interface extends Module {
     public static float glassOpacity() { return instance == null ? 0.6f : instance.glassOpacity.f(); }
     /** Fog, particles and overlays are drawn through glass, ice and water as if they were not there (and glass does not count as a wall). */
     public static boolean glassThrough() { return instance == null || instance.glassThrough.on(); }
+    /** Minecraft's own screens take their look from the theme; the second switch is for the backgrounds. */
+    public static boolean guiSkin() { return instance != null && instance.guiSkin.on(); }
+    public static boolean guiBackgrounds() { return instance != null && instance.guiBackgrounds.on(); }
+    public static float guiBlur() { return instance == null ? 0f : instance.guiBlur.f(); }
     public static boolean shaderVisuals() { return instance == null || instance.shaderVis.on(); }
     public static float visualGlow() { return instance == null ? 0.7f : instance.visGlow.f(); }
     /** When on, world effects that the camera can see are not hidden by player and mob models. */

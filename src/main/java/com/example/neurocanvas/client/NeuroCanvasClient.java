@@ -108,6 +108,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
     public void onInitializeClient() {
         Path dir = FabricLoader.getInstance().getGameDir().resolve("neurocanvas");
         AccountClient.init(dir);
+        com.example.neurocanvas.gui.GuiSkin.init(dir);
         modules = new ModuleManager(dir.resolve("modules.json"));
         modules.register(new TargetEsp());
         modules.register(new JumpCircles());
