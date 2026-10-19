@@ -16,12 +16,6 @@ float edgeFade(float r) {
 float shapeMask(int shape, vec2 p) {
     float r = length(p);
     float a = atan(p.y, p.x);
-    if (shape == 8) {
-        // A soft puff of smoke: a round falloff whose edge is eaten away by a few overlapping waves.
-        float n = 0.5 + 0.22 * sin(p.x * 4.3 + 1.7) * sin(p.y * 3.9 - 0.6) + 0.18 * sin((p.x + p.y) * 6.1 + 2.4) + 0.1 * sin(p.x * 9.0 - p.y * 7.3);
-        float body = exp(-r * r * 3.4) * (0.55 + 0.9 * n);
-        return clamp(body, 0.0, 1.0) * (1.0 - smoothstep(0.62, 1.0, r));
-    }
     if (shape == 0) {
         float halo = exp(-r * r * 5.0);
         float core = exp(-r * r * 42.0);

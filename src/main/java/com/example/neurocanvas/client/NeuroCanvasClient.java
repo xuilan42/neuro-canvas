@@ -5,7 +5,6 @@ import static net.fabricmc.fabric.api.client.command.v2.ClientCommandManager.lit
 
 import com.example.neurocanvas.ai.AiConfig;
 import com.example.neurocanvas.gui.ClickGui;
-import com.example.neurocanvas.module.HandTrails;
 import com.example.neurocanvas.module.HitBubbles;
 import com.example.neurocanvas.module.HitColor;
 import com.example.neurocanvas.module.HitParticles;
@@ -132,7 +131,6 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new NorthernLights());
         modules.register(new ItemPhysics());
         modules.register(new BlockOverlay());
-        modules.register(new HandTrails());
         modules.register(new KillEffects());
         modules.register(new Predictions());
         modules.register(new CustomHitbox());

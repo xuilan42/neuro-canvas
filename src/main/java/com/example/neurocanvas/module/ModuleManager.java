@@ -195,6 +195,12 @@ public final class ModuleManager {
         return CODE_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(json);
     }
 
+    /** The share code of a saved preset (the same format as {@link #exportCode()}). */
+    public String presetCode(String name) throws IOException {
+        byte[] json = Files.readAllBytes(presetsDir().resolve(cleanName(name) + ".json"));
+        return CODE_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(json);
+    }
+
     public void importCode(String code) throws IOException {
         String c = code.trim();
         if (!c.startsWith(CODE_PREFIX) || c.length() > MAX_CODE_LENGTH) {

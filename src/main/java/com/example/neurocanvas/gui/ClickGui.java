@@ -1226,10 +1226,10 @@ public final class ClickGui extends Screen {
             y += 22;
         }
         if (m.entries() != null) {
-            com.example.neurocanvas.avatar.CosmeticPack.Type only = m.filter();
+            String only = m.filterFolder();
             int n = 0;
             for (com.example.neurocanvas.client.MarketClient.Entry e : m.entries()) {
-                if (only != null && !only.folder.equals(e.type())) {
+                if (only != null ? !only.equals(e.type()) : e.type().equals("configs")) {
                     continue;
                 }
                 rows.add(new MRow(M_CARD, y + (n / 2) * (MARKET_CARD_H + 8), MARKET_CARD_H, e.name(), null, e, n % 2));
@@ -1325,7 +1325,7 @@ public final class ClickGui extends Screen {
                 return t.label;
             }
         }
-        return folder;
+        return folder.equals("configs") ? "Config" : folder;
     }
 
     private int marketButtonW() {
@@ -1701,6 +1701,9 @@ public final class ClickGui extends Screen {
         int y4 = y3 + 32;
         out.add(new Btn("Upload: get short code", bx, y4, half, 24, this::cloudUpload, true));
         out.add(new Btn("Download: code from clipboard", bx + half + 8, y4, half, 24, this::cloudDownload, false));
+        int y5 = y4 + 32;
+        out.add(new Btn("Publish to Market", bx, y5, half, 24, this::publishConfig, true));
+        out.add(new Btn("Unpublish", bx + half + 8, y5, half, 24, this::unpublishConfig, false));
         return out;
     }
 
@@ -1747,6 +1750,64 @@ public final class ClickGui extends Screen {
         } catch (IOException e) {
             status = "Could not delete: " + e.getMessage();
         }
+    }
+
+    /** Puts the selected preset (or, with none selected, your current settings under the typed name) into the Market's Configs tab. */
+    private void publishConfig() {
+        String name;
+        String code;
+        try {
+            if (!selectedPreset.isEmpty()) {
+                name = selectedPreset;
+                code = NeuroCanvasClient.modules().presetCode(selectedPreset);
+            } else {
+                name = ModuleManager.cleanName(nameBox.text());
+                code = NeuroCanvasClient.modules().exportCode();
+            }
+        } catch (IOException e) {
+            status = "Could not read the preset: " + e.getMessage();
+            return;
+        }
+        if (name.isEmpty()) {
+            status = "Select a preset or type a name first";
+            return;
+        }
+        if (com.example.neurocanvas.client.SharedStore.find("configs", name) != null) {
+            status = "\"" + name + "\" is already in the Market (Unpublish it first to replace it)";
+            return;
+        }
+        com.google.gson.JsonObject o = new com.google.gson.JsonObject();
+        o.addProperty("code", code);
+        java.util.Map<String, byte[]> files = java.util.Map.of("config.json", o.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        String pub = name;
+        status = "Publishing \"" + pub + "\"...";
+        com.example.neurocanvas.client.CommunityClient.upload("configs", pub, "", files).whenComplete((shared, error) ->
+                client.execute(() -> {
+                    if (error != null) {
+                        status = "Could not publish: " + com.example.neurocanvas.client.MarketClient.reason(error);
+                        return;
+                    }
+                    com.example.neurocanvas.client.SharedStore.add(new com.example.neurocanvas.client.SharedStore.Item("configs", pub, shared.code(), shared.token()));
+                    status = "\"" + pub + "\" is in the Market (Configs tab, Source: Community)";
+                }));
+    }
+
+    private void unpublishConfig() {
+        String name = !selectedPreset.isEmpty() ? selectedPreset : ModuleManager.cleanName(nameBox.text());
+        com.example.neurocanvas.client.SharedStore.Item known = name.isEmpty() ? null : com.example.neurocanvas.client.SharedStore.find("configs", name);
+        if (known == null) {
+            status = "\"" + name + "\" is not published";
+            return;
+        }
+        com.example.neurocanvas.client.CommunityClient.remove(known.code(), known.token()).whenComplete((v, error) ->
+                client.execute(() -> {
+                    if (error != null) {
+                        status = "Could not remove: " + com.example.neurocanvas.client.MarketClient.reason(error);
+                        return;
+                    }
+                    com.example.neurocanvas.client.SharedStore.remove(known);
+                    status = "\"" + name + "\" is no longer in the Market";
+                }));
     }
 
     private void cloudUpload() {

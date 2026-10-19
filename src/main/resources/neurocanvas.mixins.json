@@ -16,7 +16,6 @@
     "PressableWidgetMixin",
     "ScreenMixin",
     "SliderWidgetMixin",
-    "SpriteContentsAccessor",
     "SplashOverlayMixin",
     "TabButtonWidgetMixin",
     "TextFieldWidgetMixin",

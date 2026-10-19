@@ -26,7 +26,7 @@ import net.minecraft.util.Identifier;
 /** The catalog of cosmetics on the project's server: one button downloads an item and puts it on. The list is drawn by the menu. */
 public final class Market extends Module {
     /** The tabs along the top of the market: everything, the six kinds of cosmetics, then packs from Modrinth. */
-    public static final String[] TABS = {"All", "Capes", "Wings", "Hats", "Outfits", "Emotes", "Graffiti", "Shaders", "Resource packs"};
+    public static final String[] TABS = {"All", "Capes", "Wings", "Hats", "Outfits", "Emotes", "Graffiti", "Configs", "Shaders", "Resource packs"};
     private static int kind;
     private final Setting source = add(Setting.choice("Source", 0, "Official", "Community"));
     private int loadedSource = -1;
@@ -125,6 +125,11 @@ public final class Market extends Module {
         Preview created = new Preview();
         created.type = e.type();
         previews.put(key, created);
+        if (e.type().equals("configs")) {
+            created.loading = false;
+            created.failed = true;
+            return created;
+        }
         if (previews.size() > MAX_PREVIEWS) {
             String oldest = previews.keySet().iterator().next();
             close(previews.remove(oldest));
@@ -246,9 +251,14 @@ public final class Market extends Module {
         return kind >= 1 && kind <= CosmeticPack.Type.values().length ? CosmeticPack.Type.values()[kind - 1] : null;
     }
 
+    /** The folder name of the kind the selected tab shows ("configs" for the config tab), or null for all. */
+    public String filterFolder() {
+        return kind == 7 ? "configs" : filter() == null ? null : filter().folder;
+    }
+
     /** The kind of pack the selected tab lists, or null when it lists cosmetics. */
     public ModrinthClient.Kind packKind() {
-        return kind == 7 ? ModrinthClient.Kind.SHADER : kind == 8 ? ModrinthClient.Kind.RESOURCEPACK : null;
+        return kind == 8 ? ModrinthClient.Kind.SHADER : kind == 9 ? ModrinthClient.Kind.RESOURCEPACK : null;
     }
 
     // ---- packs from Modrinth ------------------------------------------------------------------------
@@ -573,6 +583,10 @@ public final class Market extends Module {
                 return;
             }
         }
+        if (e.type().equals("configs")) {
+            getConfig(e, key);
+            return;
+        }
         String have = MarketClient.installedName(e, wardrobe);
         status = (have != null ? "Putting on " : "Downloading ") + e.name() + "...";
         (have != null ? java.util.concurrent.CompletableFuture.completedFuture(have) : MarketClient.install(e, wardrobe)).whenComplete((name, error) ->
@@ -594,8 +608,44 @@ public final class Market extends Module {
                 }));
     }
 
+    /** Applies someone's shared config. Your current settings are saved as a preset first, so nothing is lost. */
+    private void getConfig(MarketClient.Entry e, String key) {
+        status = "Downloading " + e.name() + "...";
+        java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                Map<String, byte[]> files = MarketClient.fetch(e);
+                byte[] data = files.get("config.json");
+                if (data == null) {
+                    throw new IOException("the config has no data");
+                }
+                return com.google.gson.JsonParser.parseString(new String(data, StandardCharsets.UTF_8)).getAsJsonObject().get("code").getAsString();
+            } catch (IOException | InterruptedException | RuntimeException ex) {
+                throw new java.util.concurrent.CompletionException(ex);
+            }
+        }).whenComplete((code, error) -> MinecraftClient.getInstance().execute(() -> {
+            synchronized (busy) {
+                busy.remove(key);
+            }
+            if (error != null) {
+                status = "Could not get " + e.name() + ": " + MarketClient.reason(error);
+                return;
+            }
+            try {
+                String backup = ModuleManager.cleanName("Before " + e.name());
+                NeuroCanvasClient.modules().savePreset(backup);
+                NeuroCanvasClient.modules().importCode(code);
+                status = e.name() + " is applied (your old settings: preset \"" + backup + "\")";
+            } catch (IOException ex) {
+                status = "Could not apply " + e.name() + ": " + ex.getMessage();
+            }
+        }));
+    }
+
     @Override
     public void tickAlways(MinecraftClient mc) {
+        if (kind == 7 && source.index() == 0) {
+            source.set(1);
+        }
         if (loadedSource >= 0 && loadedSource != source.index() && !loading) {
             entries = null;
             closePreviews();

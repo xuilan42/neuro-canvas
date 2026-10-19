@@ -56,6 +56,9 @@ public final class MarketClient {
     }
 
     private static boolean knownType(String type) {
+        if (type.equals("configs")) {
+            return true;
+        }
         for (CosmeticPack.Type t : CosmeticPack.Type.values()) {
             if (t.folder.equals(type)) {
                 return true;

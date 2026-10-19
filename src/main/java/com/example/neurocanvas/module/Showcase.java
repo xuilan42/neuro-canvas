@@ -215,7 +215,7 @@ public final class Showcase extends Module {
             shareAll.set(0);
             for (CosmeticModule c : wornModules()) {
                 if (refOf(c, c.wornName()) == null) {
-                    c.shareSelected(mc);
+                    c.shareWorn(mc);
                 }
             }
         }

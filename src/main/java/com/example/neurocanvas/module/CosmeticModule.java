@@ -176,19 +176,55 @@ public abstract class CosmeticModule extends Module {
 
     protected void tickCosmetic(MinecraftClient mc) { }
 
-    /** Uploads every item chosen in this module's slots that is not shared yet, and copies the code of the last one. */
-    public void shareSelected(MinecraftClient mc) {
-        boolean any = false;
+    /** Every item of this kind in the wardrobe, once, in the order the slots list them. */
+    private List<String> allItems() {
+        List<String> names = new ArrayList<>();
         for (Worn w : worn) {
-            String name = w.setting.option();
-            if (!name.equals(Worn.NONE)) {
-                any = true;
-                shareItem(mc, name);
+            for (String n : w.setting.options) {
+                if (!n.equals(Worn.NONE) && !names.contains(n)) {
+                    names.add(n);
+                }
             }
         }
-        if (!any) {
-            say("Pick an item to share first");
+        return names;
+    }
+
+    private boolean isWorn(String name) {
+        for (Worn w : worn) {
+            if (w.setting.option().equals(name)) {
+                return true;
+            }
         }
+        return false;
+    }
+
+    /** Uploads the items worn in this module's slots without asking (for the Showcase's "share all"). */
+    public void shareWorn(MinecraftClient mc) {
+        for (Worn w : worn) {
+            String n = w.setting.option();
+            if (!n.equals(Worn.NONE)) {
+                shareItem(mc, n);
+            }
+        }
+    }
+
+    /** Asks which items to upload (the ones you are wearing are ticked), then uploads those that are not shared yet. */
+    public void shareSelected(MinecraftClient mc) {
+        List<com.example.neurocanvas.gui.ItemPickerScreen.Row> rows = new ArrayList<>();
+        for (String n : allItems()) {
+            boolean shared = com.example.neurocanvas.client.SharedStore.find(type.folder, n) != null;
+            rows.add(new com.example.neurocanvas.gui.ItemPickerScreen.Row(n, shared ? "shared" : isWorn(n) ? "worn" : "", !shared && isWorn(n)));
+        }
+        if (rows.isEmpty()) {
+            say("Nothing to share: the wardrobe has no items of this kind");
+            return;
+        }
+        mc.setScreen(new com.example.neurocanvas.gui.ItemPickerScreen(mc.currentScreen, "Share " + name,
+                "Tick what to upload to the Market (Community)", "Share", rows, names -> {
+                    for (String n : names) {
+                        shareItem(MinecraftClient.getInstance(), n);
+                    }
+                }));
     }
 
     private void shareItem(MinecraftClient mc, String name) {
@@ -220,27 +256,39 @@ public abstract class CosmeticModule extends Module {
     }
 
     private void unshareSelected() {
-        boolean any = false;
-        for (Worn w : worn) {
-            String name = w.setting.option();
-            com.example.neurocanvas.client.SharedStore.Item known = name.equals(Worn.NONE) ? null : com.example.neurocanvas.client.SharedStore.find(type.folder, name);
-            if (known == null) {
-                continue;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        List<com.example.neurocanvas.gui.ItemPickerScreen.Row> rows = new ArrayList<>();
+        for (String n : allItems()) {
+            if (com.example.neurocanvas.client.SharedStore.find(type.folder, n) != null) {
+                rows.add(new com.example.neurocanvas.gui.ItemPickerScreen.Row(n, isWorn(n) ? "worn" : "", isWorn(n)));
             }
-            any = true;
-            com.example.neurocanvas.client.CommunityClient.remove(known.code(), known.token()).whenComplete((v, error) ->
-                    MinecraftClient.getInstance().execute(() -> {
-                        if (error != null) {
-                            say("Could not remove \"" + name + "\": " + com.example.neurocanvas.client.MarketClient.reason(error));
-                            return;
-                        }
-                        com.example.neurocanvas.client.SharedStore.remove(known);
-                        say("\"" + name + "\" is no longer shared");
-                    }));
         }
-        if (!any) {
-            say("None of the picked items is shared");
+        if (rows.isEmpty()) {
+            say("None of your " + name + " items is shared");
+            return;
         }
+        mc.setScreen(new com.example.neurocanvas.gui.ItemPickerScreen(mc.currentScreen, "Unshare " + name,
+                "Tick what to take down from the Market", "Unshare", rows, names -> {
+                    for (String n : names) {
+                        unshareItem(n);
+                    }
+                }));
+    }
+
+    private void unshareItem(String name) {
+        com.example.neurocanvas.client.SharedStore.Item known = com.example.neurocanvas.client.SharedStore.find(type.folder, name);
+        if (known == null) {
+            return;
+        }
+        com.example.neurocanvas.client.CommunityClient.remove(known.code(), known.token()).whenComplete((v, error) ->
+                MinecraftClient.getInstance().execute(() -> {
+                    if (error != null) {
+                        say("Could not remove \"" + name + "\": " + com.example.neurocanvas.client.MarketClient.reason(error));
+                        return;
+                    }
+                    com.example.neurocanvas.client.SharedStore.remove(known);
+                    say("\"" + name + "\" is no longer shared");
+                }));
     }
 
     // ---- helpers for drawing ----------------------------------------------------------------
