@@ -18,6 +18,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
             "Ash", "Embers", "Shatter", "Confetti", "Black hole", "Fireworks", "Tornado", "Steam", "Petals", "Rain", "Shockwave", "Beam",
             "Voxels", "Melt", "Ice", "Bubbles", "Random"));
     private final Setting whose = add(Setting.choice("Deaths", 0, "My kills", "Players", "Everyone"));
+    private final Setting debug = add(Setting.bool("Debug (chat)", false));
     private final Setting natural = add(Setting.bool("Natural colours", true));
     private final Setting count = add(Setting.number("Count", 4, 200, 30));
     private final Setting size = add(Setting.number("Size", 0.04, 0.5, 0.14));
@@ -41,6 +42,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
     @Override
     public void onKill(LivingEntity e) {
         if (enabled && seen.putIfAbsent(e.getId(), e.getWorld().getTime()) == null) {
+            trace(e, "your kill (death signal)");
             play(e);
         }
     }
@@ -55,6 +57,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
         }
         net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
         if (mc.player != null && e.squaredDistanceTo(mc.player) <= 64 * 64 && seen.putIfAbsent(e.getId(), e.getWorld().getTime()) == null) {
+            trace(e, "death signal from the server");
             play(e);
         }
     }
@@ -85,6 +88,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
                 hurtAt.put(e.getId(), now);
             }
             if (e.isDead() && seen.putIfAbsent(e.getId(), now) == null) {
+                trace(e, "health reached zero");
                 play(e);
             }
         }
@@ -94,6 +98,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
             Long hurt = hurtAt.get(w.getKey());
             if (!current.containsKey(w.getKey()) && e.isRemoved() && hurt != null && now - hurt < 30
                     && e.squaredDistanceTo(mc.player) < 28 * 28 && seen.putIfAbsent(w.getKey(), now) == null) {
+                trace(e, "removed right after a hit");
                 play(e);
             }
         }
@@ -193,6 +198,14 @@ public final class KillEffects extends Module implements WorldState.CombatListen
             zs[i] = e.getZ() + (random.nextDouble() - 0.5) * jitter * 2;
         }
         bolts.add(new Bolt(xs, ys, zs, System.currentTimeMillis()));
+    }
+
+    /** With Debug on, says in chat which signal started the effect and how long after the hit it came. */
+    private void trace(LivingEntity e, String how) {
+        if (debug.on() && net.minecraft.client.MinecraftClient.getInstance().player != null) {
+            net.minecraft.client.MinecraftClient.getInstance().player.sendMessage(
+                    net.minecraft.text.Text.literal("[KillEffects] " + e.getName().getString() + ": " + how), false);
+        }
     }
 
     private double rnd() {
