@@ -196,6 +196,20 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
         openGui = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding("key.neurocanvas.gui", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.misc"));
+        net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
+            if (screen instanceof ClickGui || screen instanceof net.minecraft.client.gui.screen.ChatScreen
+                    || screen instanceof net.minecraft.client.gui.screen.option.KeybindsScreen) {
+                return;
+            }
+            net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents.allowKeyPress(screen).register((s, key, scancode, mods) -> {
+                if (key != KeyBindingHelper.getBoundKeyOf(openGui).getCode() || s.getFocused() instanceof net.minecraft.client.gui.widget.TextFieldWidget
+                        || s instanceof com.example.neurocanvas.gui.HudEditor) {
+                    return true;
+                }
+                mc.setScreen(new ClickGui(s));
+                return false;
+            });
+        });
         ClientTickEvents.END_CLIENT_TICK.register(mc -> {
             state.tick(mc);
             pollKeybinds(mc);

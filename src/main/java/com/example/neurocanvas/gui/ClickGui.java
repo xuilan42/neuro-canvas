@@ -77,8 +77,25 @@ public final class ClickGui extends Screen {
     private float listIn = 1f;
     private float selY = Float.NaN;
 
+    private net.minecraft.client.gui.screen.Screen parent;
+
     public ClickGui() {
         super(Text.literal("NeuroCanvas"));
+    }
+
+    /** Opened over another screen (the title menu, a pause menu); closing returns to it. */
+    public ClickGui(net.minecraft.client.gui.screen.Screen parent) {
+        this();
+        this.parent = parent;
+    }
+
+    @Override
+    public void close() {
+        if (client != null && parent != null) {
+            client.setScreen(parent);
+        } else {
+            super.close();
+        }
     }
 
     @Override
