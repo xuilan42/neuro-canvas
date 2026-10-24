@@ -98,6 +98,38 @@
         0.4,
         1.0
       ]
+    },
+    {
+      "name": "Brightness",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "Stars",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "Meteors",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.25
+      ]
+    },
+    {
+      "name": "Turn",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
     }
   ]
 }

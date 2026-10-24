@@ -130,6 +130,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new ColorGrading());
         modules.register(new ScreenPulse());
         modules.register(new CustomSky());
+        modules.register(new com.example.neurocanvas.module.Ambience());
         modules.register(new NorthernLights());
         modules.register(new ItemPhysics());
         modules.register(new BlockOverlay());
@@ -197,8 +198,11 @@ public class NeuroCanvasClient implements ClientModInitializer {
         openGui = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding("key.neurocanvas.gui", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.misc"));
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
-            if (screen instanceof ClickGui || screen instanceof net.minecraft.client.gui.screen.ChatScreen
-                    || screen instanceof net.minecraft.client.gui.screen.option.KeybindsScreen) {
+            if (screen instanceof net.minecraft.client.gui.screen.ChatScreen) {
+                modules.get(com.example.neurocanvas.module.ViewModel.class).hookChat(screen);
+                return;
+            }
+            if (screen instanceof ClickGui || screen instanceof net.minecraft.client.gui.screen.option.KeybindsScreen) {
                 return;
             }
             net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents.allowKeyPress(screen).register((s, key, scancode, mods) -> {

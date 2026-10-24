@@ -12,12 +12,6 @@ public final class CustomSky extends Module {
     private final Setting rainbowSpeed = add(Setting.number("Rainbow speed", 0.1, 5, 1));
     private final Setting horizon = add(Setting.color("Horizon color", 0.85));
     private final Setting horizonBlend = add(Setting.number("Horizon gradient", 0, 1, 0.5));
-    private final Setting skyEffect = add(Setting.choice("Sky effect", 0, "None", "Space", "Black hole"));
-    private final Setting holeSize = add(Setting.number("Black hole size", 0.05, 0.4, 0.16));
-    private final Setting holeYaw = add(Setting.number("Black hole direction", 0, 360, 40));
-    private final Setting holeHeight = add(Setting.number("Black hole height", -10, 80, 22));
-    private final Setting nebula1 = add(Setting.color("Nebula color 1", 0.74));
-    private final Setting nebula2 = add(Setting.color("Nebula color 2", 0.58));
     private final Setting sunset = add(Setting.bool("Sunset glow", false));
 
     public CustomSky() {
@@ -54,10 +48,6 @@ public final class CustomSky extends Module {
     private float[] horizonColor(net.minecraft.client.world.ClientWorld world, net.minecraft.client.render.Camera camera, float tickDelta) {
         Vec3d skyNow = world.getSkyColor(camera.getPos(), tickDelta);
         float bright = Math.max(0.2f, Math.min(1f, world.getSkyBrightness(tickDelta) * 0.8f + 0.2f));
-        if (skyEffect.index() != 0) {
-            // Space is black at the horizon too, so the far terrain fades into it instead of into a blue haze.
-            return new float[] {0.012f, 0.015f, 0.035f};
-        }
         Vec3d target = lerp(skyNow, rgb(horizon.argb()).multiply(bright), horizonBlend.value);
         return new float[] {(float) target.x, (float) target.y, (float) target.z};
     }
@@ -83,65 +73,5 @@ public final class CustomSky extends Module {
 
     public Vec3d cloudColor(Vec3d vanilla) {
         return lerp(vanilla, rgb(clouds.argb()), cloudStrength.value);
-    }
-
-    private static final org.joml.Matrix4f INV = new org.joml.Matrix4f();
-    private static final org.joml.Matrix3f ROT = new org.joml.Matrix3f();
-
-    /** Draws the procedural night sky over the vanilla one (called when the game has just drawn its own sky; the world is drawn after it). */
-    public void drawSky(org.joml.Matrix4f projection, net.minecraft.client.render.Camera camera) {
-        if (skyEffect.index() == 0 || !active(camera) || !Interface.shaderVisuals()) {
-            return;
-        }
-        net.minecraft.client.gl.ShaderProgram p = com.example.neurocanvas.fx.Shaders.get("neuro_sky");
-        net.minecraft.client.world.ClientWorld world = net.minecraft.client.MinecraftClient.getInstance().world;
-        if (p == null || world == null) {
-            return;
-        }
-        set(p, "Mode", skyEffect.index() == 2 ? 1f : 2f);
-        set(p, "HoleSize", holeSize.f());
-        set(p, "NcGameTime", (float) (System.currentTimeMillis() % 1_000_000L / 1000.0));
-        double yaw = Math.toRadians(holeYaw.value);
-        double pitch = Math.toRadians(holeHeight.value);
-        net.minecraft.client.gl.GlUniform dir = p.getUniform("HoleDir");
-        if (dir != null) {
-            dir.set((float) (Math.sin(yaw) * Math.cos(pitch)), (float) Math.sin(pitch), (float) (-Math.cos(yaw) * Math.cos(pitch)));
-        }
-        color(p, "Color1", nebula1.argb());
-        color(p, "Color2", nebula2.argb());
-        net.minecraft.client.gl.GlUniform inv = p.getUniform("InvProjMat");
-        if (inv != null) {
-            inv.set(INV.set(projection).invert());
-        }
-        net.minecraft.client.gl.GlUniform rot = p.getUniform("CamRot");
-        if (rot != null) {
-            rot.set(ROT.set(camera.getRotation()));
-        }
-        com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
-        com.mojang.blaze3d.systems.RenderSystem.disableBlend();
-        com.mojang.blaze3d.systems.RenderSystem.setShader(() -> p);
-        net.minecraft.client.render.BufferBuilder b = net.minecraft.client.render.Tessellator.getInstance().getBuffer();
-        b.begin(net.minecraft.client.render.VertexFormat.DrawMode.QUADS, net.minecraft.client.render.VertexFormats.POSITION);
-        b.vertex(-1, -1, 0).next();
-        b.vertex(1, -1, 0).next();
-        b.vertex(1, 1, 0).next();
-        b.vertex(-1, 1, 0).next();
-        net.minecraft.client.render.Tessellator.getInstance().draw();
-        com.mojang.blaze3d.systems.RenderSystem.enableDepthTest();
-        com.example.neurocanvas.fx.Shaders.finish();
-    }
-
-    private static void set(net.minecraft.client.gl.ShaderProgram p, String name, float v) {
-        net.minecraft.client.gl.GlUniform u = p.getUniform(name);
-        if (u != null) {
-            u.set(v);
-        }
-    }
-
-    private static void color(net.minecraft.client.gl.ShaderProgram p, String name, int c) {
-        net.minecraft.client.gl.GlUniform u = p.getUniform(name);
-        if (u != null) {
-            u.set(((c >> 16) & 0xFF) / 255f, ((c >> 8) & 0xFF) / 255f, (c & 0xFF) / 255f);
-        }
     }
 }

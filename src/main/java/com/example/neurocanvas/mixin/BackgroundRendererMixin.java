@@ -28,6 +28,10 @@ public abstract class BackgroundRendererMixin {
         if (sky.enabled && !(fog.enabled && fog.overridesColor())) {
             sky.applyFogColor(camera, tickDelta);
         }
+        com.example.neurocanvas.module.Ambience ambience = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Ambience.class);
+        if (ambience.fogOn(camera) && !(fog.enabled && fog.overridesColor())) {
+            ambience.applyFogColor();
+        }
         if (fogType == BackgroundRenderer.FogType.FOG_TERRAIN
                 && camera.getSubmersionType() == net.minecraft.client.render.CameraSubmersionType.NONE
                 && NeuroCanvasClient.modules().get(VolumetricFog.class).replacesVanillaFog()) {
@@ -49,6 +53,10 @@ public abstract class BackgroundRendererMixin {
         com.example.neurocanvas.module.CustomSky sky = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.CustomSky.class);
         if (sky.enabled && !(fog.enabled && fog.overridesColor())) {
             sky.applyClearColor(camera, tickDelta);
+        }
+        com.example.neurocanvas.module.Ambience ambience = NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Ambience.class);
+        if (ambience.fogOn(camera) && !(fog.enabled && fog.overridesColor())) {
+            ambience.applyClearColor();
         }
     }
 }
