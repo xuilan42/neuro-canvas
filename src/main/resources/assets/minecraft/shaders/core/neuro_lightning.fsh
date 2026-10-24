@@ -9,6 +9,16 @@ in vec2 uv;
 in vec4 vertexColor;
 out vec4 fragColor;
 
+// Colour goes toward white where the light is intense (a neon tube is white in the middle and coloured at its edge); a little dither hides banding.
+vec3 neon(vec3 col, float a) {
+    return mix(col, vec3(1.0), clamp(a * a * 0.7, 0.0, 1.0));
+}
+
+float dither() {
+    return (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+}
+
+
 float hash(vec2 p) {
     return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -48,6 +58,7 @@ void main() {
     }
     float flicker = 0.3 + 0.7 * vnoise(vec2(t * 20.0, 3.1));
     float fade = exp(-pow(abs(p.y), 4.0) * 2.5);
+    bloom += exp(-length(p * vec2(1.4, 0.7)) * 3.0) * 0.16;
     bloom *= flicker * fade;
     hot *= flicker * fade;
     vec3 col = mix(vertexColor.rgb, Color2, 0.5 + 0.5 * p.y);
@@ -56,5 +67,5 @@ void main() {
     if (a < 0.003) {
         discard;
     }
-    fragColor = vec4(min(col * Brightness, vec3(1.0)), clamp(a, 0.0, 1.0));
+    fragColor = vec4(min(neon(col, a) * Brightness, vec3(1.0)), clamp(a + dither(), 0.0, 1.0));
 }

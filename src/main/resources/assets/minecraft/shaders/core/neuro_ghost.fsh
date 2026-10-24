@@ -31,5 +31,5 @@ void main() {
     vec3 rgb = mix(tex.rgb, mono, 0.75);
     rgb = mix(rgb, Color2, clamp(rim, 0.0, 1.0));
     float a = (rim + 0.07) * (0.3 + 0.7 * scan) * Alpha;
-    fragColor = vec4(min(rgb * Brightness, vec3(1.0)), clamp(a, 0.0, 1.0));
+    fragColor = vec4(min(rgb * Brightness, vec3(1.0)), clamp(a + (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0, 0.0, 1.0));
 }

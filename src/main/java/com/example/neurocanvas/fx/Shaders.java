@@ -27,6 +27,7 @@ public final class Shaders {
         KNOWN.put("neuro_ui", VertexFormats.POSITION);
         KNOWN.put("neuro_bg", VertexFormats.POSITION);
         KNOWN.put("neuro_marker", VertexFormats.POSITION_TEXTURE_COLOR);
+        KNOWN.put("neuro_glow", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_ring", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_lightning", VertexFormats.POSITION_TEXTURE_COLOR);
         KNOWN.put("neuro_crystal", VertexFormats.POSITION_TEXTURE_COLOR);

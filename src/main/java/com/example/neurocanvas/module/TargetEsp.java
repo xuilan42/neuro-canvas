@@ -10,6 +10,7 @@ public final class TargetEsp extends EffectModule {
     private final Setting depth = add(Setting.choice("Depth", 0, "Around the body", "Over everything"));
     private final Setting thickness = add(Setting.number("Thickness", 0.3, 4, 1));
     private final Setting brightness = add(Setting.number("Brightness", 0.3, 3, 1));
+    private final Setting ringMotion = add(Setting.choice("Neon ring motion", 1, "At the feet", "Sweeps the body"));
 
     public TargetEsp() {
         super("TargetESP", Category.COMBAT, "Effect on the entity you hit: ring, ghost orbs, crystals, halo and more", true, 0.97, 0.08, 0.8, 1.0, 12);
@@ -34,6 +35,7 @@ public final class TargetEsp extends EffectModule {
     public EffectSpec phantomSpec() {
         fill(current, EffectSpec.Type.TARGET_RING);
         current.thickness = thickness.f();
+        current.variant = ringMotion.index();
         return current;
     }
 

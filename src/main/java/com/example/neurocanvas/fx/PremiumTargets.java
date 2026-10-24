@@ -113,22 +113,55 @@ public final class PremiumTargets {
         return true;
     }
 
-    // ---- Neon Ring: two broken rings lying at the feet, turning against each other -------------------------
+    // ---- Neon Ring: a broken ring that sweeps up and down the body leaving a fading wake, a second one at the feet, light on the ground ----
+
+    private static final int WAKE = 5;
 
     private static boolean ring(RenderEnv env, EffectSpec s, LivingEntity t, double x, double y, double z, float time) {
         ShaderProgram p = Shaders.targetProgram("neuro_ring", s.speed, s.color2, time);
         if (p == null) {
             return false;
         }
-        BufferBuilder b = begin(p);
         float w = Math.max(t.getWidth(), 0.4f) * sizeScale(s);
-        for (int i = 0; i < 2; i++) {
-            float k = i == 0 ? 1.5f : 1.15f;
-            Matrix4f m = WORK.set(env.view()).translate((float) x, (float) (y + 0.1 + i * 0.03), (float) z).rotateX(90.0f * DEG).scale(w * k, w * k, 1.0f);
-            unitQuad(b, m, s.color1, s.alpha * (i == 0 ? 1f : 0.7f), i == 1);
+        glowPool(env, s, x, y, z, w * 2.4f, 0.4f, time);
+        p = Shaders.targetProgram("neuro_ring", s.speed, s.color2, time);
+        BufferBuilder b = begin(p);
+        // The one at the feet, turning the other way.
+        Matrix4f m = WORK.set(env.view()).translate((float) x, (float) (y + 0.06), (float) z).rotateX(90.0f * DEG).scale(w * 1.15f, w * 1.15f, 1.0f);
+        unitQuad(b, m, s.color1, s.alpha * 0.7f, true);
+        int n = s.variant == 1 ? WAKE : 1;
+        double reach = Math.max(0.2, t.getHeight() * 0.92);
+        for (int k = 0; k < n; k++) {
+            double phase = s.variant == 1 ? 0.5 + 0.5 * Math.sin((time - k * 1.7f) * 0.09f * s.speed) : 0.0;
+            float fade = (float) Math.pow(1.0 - k / (double) n, 1.7);
+            m = WORK.set(env.view()).translate((float) x, (float) (y + 0.1 + phase * reach), (float) z).rotateX(90.0f * DEG).scale(w * 1.5f, w * 1.5f, 1.0f);
+            unitQuad(b, m, s.color1, s.alpha * fade, false);
         }
         finish();
         return true;
+    }
+
+    /** A soft round light lying on the ground (or, with {@code upright}, facing the camera): the light the effect throws around itself. */
+    private static void glowPool(RenderEnv env, EffectSpec s, double x, double y, double z, float size, float alpha, float time) {
+        ShaderProgram g = Shaders.targetProgram("neuro_glow", s.speed, s.color2, time);
+        if (g == null) {
+            return;
+        }
+        BufferBuilder b = begin(g);
+        Matrix4f m = WORK.set(env.view()).translate((float) x, (float) (y + 0.04), (float) z).rotateX(90.0f * DEG).scale(size, size, 1.0f);
+        unitQuad(b, m, s.color1, s.alpha * alpha, false);
+        finish();
+    }
+
+    private static void glowBillboard(RenderEnv env, EffectSpec s, double x, double y, double z, float size, float alpha, float time) {
+        ShaderProgram g = Shaders.targetProgram("neuro_glow", s.speed, s.color2, time);
+        if (g == null) {
+            return;
+        }
+        BufferBuilder b = begin(g);
+        Matrix4f m = billboard(env, x, y, z).scale(size, size, size);
+        unitQuad(b, m, s.color1, s.alpha * alpha, false);
+        finish();
     }
 
     // ---- Crystal Prism: a spinning octahedron over the head, glass inside and a neon halo outside ----------
@@ -152,7 +185,10 @@ public final class PremiumTargets {
             return false;
         }
         float k = 0.4f * sizeScale(s);
-        Matrix4f m = WORK.set(env.view()).translate((float) x, (float) (y + t.getHeight() + 0.7 + Math.sin(time * 0.1) * 0.2), (float) z)
+        double cy = y + t.getHeight() + 0.7 + Math.sin(time * 0.1) * 0.2;
+        glowBillboard(env, s, x, cy, z, 1.3f * sizeScale(s), 0.5f, time);
+        glow = Shaders.targetProgram("neuro_crystal", s.speed, s.color2, time);
+        Matrix4f m = WORK.set(env.view()).translate((float) x, (float) cy, (float) z)
                 .rotateY(time * 5.0f * DEG).rotateX(45.0f * DEG).scale(k, k, k);
 
         // The body: faces add up so it reads as glass; it writes depth so its own faces sort correctly.

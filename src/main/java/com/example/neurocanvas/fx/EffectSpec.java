@@ -14,6 +14,8 @@ public final class EffectSpec {
     public float alpha = 0.8f;
     /** Line and ring thickness multiplier (1 = default). */
     public float thickness = 1f;
+    /** Style variant chosen in the module (for the ring: 0 stays at the feet, 1 sweeps up and down the body). */
+    public int variant;
 
     public void clamp() {
         if (type == null) type = Type.TARGET_RING;
