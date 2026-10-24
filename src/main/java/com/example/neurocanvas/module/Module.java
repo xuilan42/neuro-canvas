@@ -42,6 +42,32 @@ public abstract class Module {
         return null;
     }
 
+    /** Set by modules that draw HUD elements (see {@link #hudSize()}). */
+    private Setting hudSize;
+
+    /** Gives the module a "HUD size" setting; call it from the constructor of a module that draws a HUD element. */
+    protected final void hudSize() {
+        if (hudSize == null) {
+            hudSize = add(Setting.number("HUD size", 0.5, 2, 1));
+        }
+    }
+
+    public final boolean hasHud() {
+        return hudSize != null;
+    }
+
+    /** How big this module's HUD is drawn: its own size times the global HUD scale. */
+    public final float hudScale() {
+        return hudSize == null ? 1f : hudSize.f() * Interface.globalHudScale();
+    }
+
+    /** Changes the module's own HUD size (the HUD editor's wheel); stays between 0.5 and 2. */
+    public final void adjustHudSize(double delta) {
+        if (hudSize != null) {
+            hudSize.value = Math.max(hudSize.min, Math.min(hudSize.max, Math.round((hudSize.value + delta) * 20) / 20.0));
+        }
+    }
+
     protected Setting add(Setting s) {
         settings.add(s);
         return s;

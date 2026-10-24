@@ -30,6 +30,7 @@ public final class DamageFeed extends Module implements WorldState.CombatListene
 
     public DamageFeed() {
         super("DamageFeed", Category.HUD, "Log of damage dealt and taken", false);
+        hudSize();
         WorldState.addCombatListener(this);
     }
 

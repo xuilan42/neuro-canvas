@@ -27,6 +27,7 @@ public final class TotemCounter extends Module {
 
     public TotemCounter() {
         super("TotemCounter", Category.HUD, "Number of totems in your inventory", false);
+        hudSize();
     }
 
     private static int count(MinecraftClient mc) {

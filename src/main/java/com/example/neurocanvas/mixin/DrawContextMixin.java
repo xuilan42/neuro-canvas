@@ -20,4 +20,19 @@ public abstract class DrawContextMixin {
             ci.cancel();
         }
     }
+
+    /** While a module draws a scaled HUD element it must see a screen that is 1/scale as big; the matrix scales what it draws back up. */
+    @Inject(method = "getScaledWindowWidth", at = @At("RETURN"), cancellable = true, require = 0)
+    private void neurocanvas$width(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Integer> cir) {
+        if (com.example.neurocanvas.module.HudLayout.current != 1f) {
+            cir.setReturnValue(Math.round(cir.getReturnValue() / com.example.neurocanvas.module.HudLayout.current));
+        }
+    }
+
+    @Inject(method = "getScaledWindowHeight", at = @At("RETURN"), cancellable = true, require = 0)
+    private void neurocanvas$height(org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable<Integer> cir) {
+        if (com.example.neurocanvas.module.HudLayout.current != 1f) {
+            cir.setReturnValue(Math.round(cir.getReturnValue() / com.example.neurocanvas.module.HudLayout.current));
+        }
+    }
 }

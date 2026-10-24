@@ -31,6 +31,7 @@ public final class CombatNotifier extends Module implements WorldState.CombatLis
 
     public CombatNotifier() {
         super("CombatNotifier", Category.HUD, "Cards for kills, used totems and broken armor", false);
+        hudSize();
         WorldState.addCombatListener(this);
     }
 

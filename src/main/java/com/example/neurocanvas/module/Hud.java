@@ -16,6 +16,7 @@ public final class Hud extends Module {
 
     public Hud() {
         super("HUD", Category.HUD, "Watermark and module list (move them in Configs > Edit HUD layout)", true);
+        hudSize();
     }
 
     @Override

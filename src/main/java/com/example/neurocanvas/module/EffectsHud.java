@@ -27,6 +27,7 @@ public final class EffectsHud extends Module {
 
     public EffectsHud() {
         super("EffectsHUD", Category.HUD, "Potion effects with icons and timers", false);
+        hudSize();
     }
 
     public boolean hidesVanilla() {

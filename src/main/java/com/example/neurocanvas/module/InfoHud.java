@@ -34,6 +34,7 @@ public final class InfoHud extends Module {
 
     public InfoHud() {
         super("InfoHUD", Category.HUD, "Session time, clock, facing direction, biome and game time", false);
+        hudSize();
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> joinedAt = 0);
     }
 

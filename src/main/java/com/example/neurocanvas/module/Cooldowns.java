@@ -29,6 +29,7 @@ public final class Cooldowns extends Module {
 
     public Cooldowns() {
         super("Cooldowns", Category.HUD, "Cooldown timers of ender pearls, apples, chorus fruit and more", false);
+        hudSize();
         track("Ender pearl", Items.ENDER_PEARL, true);
         track("Golden apple", Items.GOLDEN_APPLE, true);
         track("Enchanted golden apple", Items.ENCHANTED_GOLDEN_APPLE, true);

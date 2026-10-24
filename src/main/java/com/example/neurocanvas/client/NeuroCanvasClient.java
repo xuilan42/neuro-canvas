@@ -61,6 +61,7 @@ import com.example.neurocanvas.module.ViewModel;
 import com.example.neurocanvas.module.VolumetricFog;
 import com.example.neurocanvas.module.Zoom;
 import com.example.neurocanvas.module.WorldState;
+import com.example.neurocanvas.module.HudLayout;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import java.io.IOException;
@@ -450,8 +451,27 @@ public class NeuroCanvasClient implements ClientModInitializer {
         HudRenderCallback.EVENT.register((ctx, tickDelta) -> {
             MinecraftClient mc = MinecraftClient.getInstance();
             for (Module m : modules.all()) {
-                if (m.enabled) {
+                if (!m.enabled) {
+                    continue;
+                }
+                float scale = m.hudScale();
+                if (scale == 1f) {
+                    HudLayout.currentOwner = m.hasHud() ? m : null;
                     m.renderHud(ctx, mc);
+                    HudLayout.currentOwner = null;
+                    continue;
+                }
+                // The module lays itself out on a screen that is 1/scale as big (see DrawContextMixin), and the matrix scales the result back up.
+                ctx.getMatrices().push();
+                ctx.getMatrices().scale(scale, scale, 1f);
+                HudLayout.current = scale;
+                HudLayout.currentOwner = m;
+                try {
+                    m.renderHud(ctx, mc);
+                } finally {
+                    HudLayout.current = 1f;
+                    HudLayout.currentOwner = null;
+                    ctx.getMatrices().pop();
                 }
             }
         });

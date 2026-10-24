@@ -36,6 +36,7 @@ public final class CombatStats extends Module implements WorldState.CombatListen
 
     public CombatStats() {
         super("CombatStats", Category.HUD, "CPS, combo and hit counter", false);
+        hudSize();
         WorldState.addCombatListener(this);
     }
 

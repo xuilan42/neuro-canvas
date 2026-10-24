@@ -51,6 +51,7 @@ public final class Interface extends Module {
     private final Setting guiWidgets = add(Setting.bool("GUI buttons and fields", true));
     private final Setting guiLoading = add(Setting.bool("GUI loading screen", true));
     private final Setting guiBgStyle = add(Setting.choice("GUI background style", 0, "Aurora", "Gradient", "Mesh", "Curtains", "Smoke", "Stars", "Synthwave", "Bokeh", "Metaballs", "Cells", "Dots", "Stripes", "Waves"));
+    private final Setting hudScale = add(Setting.number("HUD scale", 0.5, 2, 1));
     private final Setting guiTitle = add(Setting.bool("GUI title screen", true));
     private final Setting guiHud = add(Setting.bool("GUI hotbar and HUD", true));
     private final Setting guiBlur = add(Setting.number("GUI blur", 0, 2, 0.9));
@@ -225,6 +226,8 @@ public final class Interface extends Module {
     public static boolean guiLoading() { return instance != null && instance.guiLoading.on(); }
     /** 0 = the classic aurora, 1 = plain gradient, 2.. = the styles of neuro_bg (index - 1). */
     public static int guiBgStyle() { return instance == null ? 0 : instance.guiBgStyle.index(); }
+    /** The size of all HUD elements of the mod, on top of each module's own "HUD size". */
+    public static float globalHudScale() { return instance == null ? 1f : instance.hudScale.f(); }
     public static boolean guiTitle() { return instance != null && instance.guiTitle.on(); }
     public static boolean guiHud() { return instance != null && instance.guiHud.on(); }
     public static float guiBlur() { return instance == null ? 0f : instance.guiBlur.f(); }

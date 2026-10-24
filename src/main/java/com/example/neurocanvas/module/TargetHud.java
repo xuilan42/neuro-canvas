@@ -36,6 +36,7 @@ public final class TargetHud extends Module {
 
     public TargetHud() {
         super("TargetHUD", Category.HUD, "Face, name and health of the entity you hit", true);
+        hudSize();
     }
 
     @Override

@@ -37,6 +37,7 @@ public final class PerformanceHud extends Module {
 
     public PerformanceHud() {
         super("PerformanceHUD", Category.HUD, "FPS, ping, memory, CPU, coordinates and speed", false);
+        hudSize();
     }
 
     @Override

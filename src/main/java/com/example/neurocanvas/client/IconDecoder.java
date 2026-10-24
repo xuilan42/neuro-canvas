@@ -27,6 +27,23 @@ public final class IconDecoder {
         return ImageIO.read(new ByteArrayInputStream(data));
     }
 
+    /** @return size x size ARGB pixels: the middle square of the picture (a wide video thumbnail loses its sides), smoothly scaled */
+    public static int[] decodeCover(byte[] data, int size) throws IOException {
+        BufferedImage src = read(data);
+        if (src == null || src.getWidth() < 2 || src.getHeight() < 2 || src.getWidth() > MAX_SIDE || src.getHeight() > MAX_SIDE) {
+            throw new IOException("not a usable picture");
+        }
+        int side = Math.min(src.getWidth(), src.getHeight());
+        int sx = (src.getWidth() - side) / 2;
+        int sy = (src.getHeight() - side) / 2;
+        BufferedImage out = new BufferedImage(size, size, BufferedImage.TYPE_INT_ARGB);
+        java.awt.Graphics2D g = out.createGraphics();
+        g.setRenderingHint(java.awt.RenderingHints.KEY_INTERPOLATION, java.awt.RenderingHints.VALUE_INTERPOLATION_BICUBIC);
+        g.drawImage(src, 0, 0, size, size, sx, sy, sx + side, sy + side, null);
+        g.dispose();
+        return out.getRGB(0, 0, size, size, null, 0, size);
+    }
+
     /** @return size x size ARGB pixels, the picture scaled down (or up) to fit, centred, with transparent margins */
     public static int[] decode(byte[] data, int size) throws IOException {
         BufferedImage src = read(data);

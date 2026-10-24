@@ -1,6 +1,10 @@
 package com.example.neurocanvas.module;
 
+import com.example.neurocanvas.client.LyricsClient;
+import com.example.neurocanvas.client.NowPlaying;
 import com.example.neurocanvas.fx.EffectDraw;
+import com.example.neurocanvas.gui.Theme;
+import com.example.neurocanvas.gui.Ui;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -13,6 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
+import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.texture.NativeImage;
+import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.util.Identifier;
 import net.minecraft.client.render.BufferBuilder;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.entity.player.PlayerEntity;
@@ -78,7 +86,12 @@ public final class WorldLyrics extends Module {
         float age, life;
     }
 
-    private final Setting song = add(Setting.choice("Song", 0, "(none)"));
+    private static final HudLayout.Element PLAYER = HudLayout.register("musicplayer", "Music player", false, 0.006, 0.6);
+
+    private final Setting source = add(Setting.choice("Source", 0, "Browser / player (automatic)", "Songs folder"));
+    private final Setting offset = add(Setting.number("Lyrics offset (s)", -5, 5, 0));
+    private final Setting showPlayer = add(Setting.bool("Show player", true));
+    private final Setting song = add(Setting.choice("Song (songs folder)", 0, "(none)"));
     private final Setting layout = add(Setting.choice("Layout", 2, "Float around", "Ring", "Stage"));
     private final Setting letters = add(Setting.choice("Letters", 1, "Plain", "Wave", "Typewriter", "Rainbow wave"));
     private final Setting gap = add(Setting.number("Seconds per line", 1, 10, 3.5));
@@ -94,6 +107,8 @@ public final class WorldLyrics extends Module {
     private final Setting glow = add(Setting.bool("Glow", true));
     private final Setting glowStrength = add(Setting.number("Glow strength", 0.2, 3, 1));
     private final Setting walls = add(Setting.bool("Through walls", true));
+    private final Setting copyScript = add(Setting.button("Copy browser script"));
+    private final Setting openScript = add(Setting.button("Open browser script file"));
     private final Setting restart = add(Setting.button("Restart song"));
     private final Setting openFolder = add(Setting.button("Open songs folder"));
     private final Setting rescan = add(Setting.button("Reload songs"));
@@ -115,6 +130,159 @@ public final class WorldLyrics extends Module {
     public WorldLyrics(Path dir) {
         super("WorldLyrics", Category.WORLD, "Lines of a song in the 3D world around you, in time with the music (songs are in neurocanvas/lyrics)", false);
         this.folder = dir.resolve("lyrics");
+        this.scriptFile = dir.resolve("neurocanvas-nowplaying.user.js");
+        hudSize();
+    }
+
+    // ---- the music the browser or the system player is playing ----------------------------------------------
+
+    private static final String WAITING = "waiting";
+    private static final String LOOKING = "looking";
+    private static final String SYNCED = "synced";
+    private static final String SPREAD = "spread";
+    private static final String MISSING = "missing";
+
+    private final Path scriptFile;
+    private boolean wasLive;
+    private String liveKey = "";
+    private String liveStatus = WAITING;
+    private String artKey = "";
+    private Identifier artId;
+
+    private void pollLive(MinecraftClient mc) {
+        NowPlaying.Track t = NowPlaying.current();
+        String key = t == null ? "" : t.key();
+        if (key.equals(liveKey)) {
+            return;
+        }
+        liveKey = key;
+        cues.clear();
+        floaters.clear();
+        timed = true;
+        lastIndex = -1;
+        releaseArt(mc);
+        if (t == null) {
+            liveStatus = WAITING;
+            return;
+        }
+        liveStatus = LOOKING;
+        LyricsClient.find(t).whenComplete((found, error) -> mc.execute(() -> {
+            if (!key.equals(liveKey)) {
+                return;
+            }
+            if (error != null || found == null) {
+                liveStatus = MISSING;
+                return;
+            }
+            cues.clear();
+            for (LyricsClient.Line l : found.lines()) {
+                cues.add(new Cue(l.time(), l.text()));
+            }
+            lastIndex = -1;
+            liveStatus = found.synced() ? SYNCED : SPREAD;
+        }));
+        loadCover(mc, t);
+    }
+
+    private void releaseArt(MinecraftClient mc) {
+        artKey = "";
+        if (artId != null) {
+            mc.getTextureManager().destroyTexture(artId);
+            artId = null;
+        }
+    }
+
+    /** Covers come only from https hosts with a real name (never an address on this computer or the local network) or from a file the player wrote. */
+    private static boolean coverAllowed(String url) {
+        try {
+            java.net.URI u = java.net.URI.create(url);
+            if ("file".equals(u.getScheme())) {
+                String path = u.getPath() == null ? "" : u.getPath().toLowerCase();
+                return path.endsWith(".png") || path.endsWith(".jpg") || path.endsWith(".jpeg") || path.endsWith(".webp");
+            }
+            String host = u.getHost();
+            return "https".equals(u.getScheme()) && u.getUserInfo() == null && host != null && host.contains(".") && !host.matches("[0-9.]+")
+                    && !host.contains(":") && !host.endsWith(".local") && !host.endsWith(".internal") && !host.endsWith(".lan");
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    private static final java.net.http.HttpClient COVER_HTTP = java.net.http.HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(6)).build();
+
+    private void loadCover(MinecraftClient mc, NowPlaying.Track t) {
+        String key = t.key();
+        artKey = key;
+        if (t.art().isEmpty() || !coverAllowed(t.art())) {
+            return;
+        }
+        java.util.concurrent.CompletableFuture.supplyAsync(() -> {
+            try {
+                byte[] data;
+                if (t.art().startsWith("file:")) {
+                    Path f = Path.of(java.net.URI.create(t.art()));
+                    if (Files.size(f) > 3_000_000) {
+                        return null;
+                    }
+                    data = Files.readAllBytes(f);
+                } else {
+                    java.net.http.HttpResponse<java.io.InputStream> r = COVER_HTTP.send(
+                            java.net.http.HttpRequest.newBuilder(java.net.URI.create(t.art())).timeout(java.time.Duration.ofSeconds(10)).GET().build(),
+                            java.net.http.HttpResponse.BodyHandlers.ofInputStream());
+                    if (r.statusCode() != 200) {
+                        return null;
+                    }
+                    data = r.body().readNBytes(3_000_001);
+                    if (data.length > 3_000_000) {
+                        return null;
+                    }
+                }
+                return com.example.neurocanvas.client.IconDecoder.decodeCover(data, 128);
+            } catch (IOException | RuntimeException e) {
+                return null;
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
+        }).thenAccept(px -> mc.execute(() -> {
+            if (px == null || !key.equals(artKey)) {
+                return;
+            }
+            NativeImage img = new NativeImage(128, 128, false);
+            for (int y = 0; y < 128; y++) {
+                for (int x = 0; x < 128; x++) {
+                    int argb = px[y * 128 + x];
+                    img.setColor(x, y, (argb & 0xFF00FF00) | ((argb & 0xFF) << 16) | ((argb >> 16) & 0xFF));
+                }
+            }
+            NativeImageBackedTexture tex = new NativeImageBackedTexture(img);
+            tex.setFilter(true, false);
+            Identifier id = new Identifier("neurocanvas", "nowplaying/" + java.util.UUID.randomUUID());
+            mc.getTextureManager().registerTexture(id, tex);
+            if (artId != null) {
+                mc.getTextureManager().destroyTexture(artId);
+            }
+            artId = id;
+        }));
+    }
+
+    /** The browser script is a file inside the mod; it is also written next to the settings so it can be opened or installed from there. */
+    private String scriptText() {
+        try (java.io.InputStream in = WorldLyrics.class.getResourceAsStream("/neurocanvas-nowplaying.user.js")) {
+            return in == null ? "" : new String(in.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "";
+        }
+    }
+
+    private void writeScript() {
+        try {
+            Files.createDirectories(scriptFile.getParent());
+            Files.writeString(scriptFile, scriptText(), StandardCharsets.UTF_8);
+        } catch (IOException ignored) {
+            // The copy to the clipboard still works.
+        }
     }
 
     // ---- songs ------------------------------------------------------------------------------------------------
@@ -231,17 +399,48 @@ public final class WorldLyrics extends Module {
             writeSamples();
             net.minecraft.util.Util.getOperatingSystem().open(folder.toFile());
         }
-        String want = song.option();
-        if (!want.equals(loadedSong)) {
-            loadSong(want);
+        if (copyScript.on()) {
+            copyScript.set(0);
+            writeScript();
+            mc.keyboard.setClipboard(scriptText());
+            if (mc.player != null) {
+                mc.player.sendMessage(net.minecraft.text.Text.literal("[WorldLyrics] The browser script is copied. In Tampermonkey (or Violentmonkey) create a "
+                        + "new script and paste it, then play music in the browser."), false);
+            }
         }
-        if (restart.on()) {
-            restart.set(0);
-            restartClock();
+        if (openScript.on()) {
+            openScript.set(0);
+            writeScript();
+            net.minecraft.util.Util.getOperatingSystem().open(scriptFile.toFile());
         }
-        if (enabled && !wasOn) {
-            restartClock();
+        boolean live = source.index() == 0;
+        if (live != wasLive) {
+            wasLive = live;
+            loadedSong = "\u0000";
+            liveKey = "\u0000";
+            cues.clear();
+            floaters.clear();
+            timed = live;
         }
+        if (live) {
+            if (enabled) {
+                NowPlaying.start();
+                pollLive(mc);
+            }
+        } else {
+            String want = song.option();
+            if (!want.equals(loadedSong)) {
+                loadSong(want);
+            }
+            if (restart.on()) {
+                restart.set(0);
+                restartClock();
+            }
+            if (enabled && !wasOn) {
+                restartClock();
+            }
+        }
+        restart.set(0);
         wasOn = enabled;
         if (mc.world == null) {
             floaters.clear();
@@ -264,14 +463,21 @@ public final class WorldLyrics extends Module {
         }
         double dt = MathHelper.clamp(env.t() - lastT, 0.0, 0.1);
         lastT = env.t();
-        elapsed += dt;
-        double len = total();
-        if (elapsed >= len) {
-            if (!loop.on()) {
+        if (source.index() == 0) {
+            if (NowPlaying.current() == null) {
                 return;
             }
-            elapsed -= len;
-            lastIndex = -1;
+            elapsed = NowPlaying.position() + offset.value;
+        } else {
+            elapsed += dt;
+            double len = total();
+            if (elapsed >= len) {
+                if (!loop.on()) {
+                    return;
+                }
+                elapsed -= len;
+                lastIndex = -1;
+            }
         }
         int idx = -1;
         for (int i = 0; i < cues.size(); i++) {
@@ -426,5 +632,66 @@ public final class WorldLyrics extends Module {
             }
         }
         tr.draw(s, x, y, ((int) (MathHelper.clamp(a, 0f, 1f) * 255) << 24) | (rgb | 0x303030) & 0xFFFFFF, false, WORK, TEXT, layer, 0, 0xF000F0);
+    }
+
+    // ---- the player card on the HUD ---------------------------------------------------------------------------
+
+    private static String clock(double seconds) {
+        int t = (int) Math.max(0, seconds);
+        return (t / 60) + ":" + (t % 60 < 10 ? "0" : "") + (t % 60);
+    }
+
+    @Override
+    public void renderHud(DrawContext ctx, MinecraftClient mc) {
+        if (!showPlayer.on() || source.index() != 0 || mc.options.hudHidden) {
+            return;
+        }
+        NowPlaying.Track t = NowPlaying.current();
+        Theme th = Interface.theme();
+        int sw = ctx.getScaledWindowWidth();
+        int sh = ctx.getScaledWindowHeight();
+        PLAYER.w = 214;
+        PLAYER.h = 54;
+        int x = PLAYER.x(sw);
+        int y = PLAYER.y(sh);
+        Ui.surface(ctx, x, y, PLAYER.w, PLAYER.h, 8, th.panel());
+        TextRenderer tr = mc.textRenderer;
+        if (t == null) {
+            Ui.text(ctx, tr, "Waiting for music...", x + 10, y + 12, th.text());
+            Ui.text(ctx, tr, tr.trimToWidth("Play something in the browser or a player", PLAYER.w - 20), x + 10, y + 26, th.dim());
+            Ui.text(ctx, tr, tr.trimToWidth("(Copy browser script in the module's settings)", PLAYER.w - 20), x + 10, y + 38, th.dim());
+            return;
+        }
+        int cover = 42;
+        if (artId != null) {
+            Ui.texturedRoundUv(ctx, x + 6, y + 6, cover, cover, 7, mc.getTextureManager().getTexture(artId).getGlId(), 0f, 0f, 1f, 1f);
+        } else {
+            Ui.roundRect(ctx, x + 6, y + 6, cover, cover, 7, Ui.alpha(th.accent() & 0xFFFFFF, 0.3f));
+            Ui.textCentered(ctx, tr, t.title().substring(0, 1).toUpperCase(), x + 6 + cover / 2, y + 6 + cover / 2 - 4, th.text());
+        }
+        int tx = x + cover + 14;
+        int tw = PLAYER.w - cover - 24;
+        Ui.text(ctx, tr, tr.trimToWidth(t.title(), tw), tx, y + 8, th.text());
+        Ui.text(ctx, tr, tr.trimToWidth(t.artist().isEmpty() ? t.source() : t.artist(), tw), tx, y + 20, th.accent());
+        double pos = NowPlaying.position();
+        double dur = t.duration();
+        int barY = y + 33;
+        Ui.roundRect(ctx, tx, barY, tw, 3, 1, Ui.alpha(0xFFFFFF, 0.15f));
+        if (dur > 0) {
+            int fill = (int) (tw * MathHelper.clamp(pos / dur, 0.0, 1.0));
+            Ui.roundRect(ctx, tx, barY, Math.max(3, fill), 3, 1, th.accent());
+        }
+        String time = clock(pos) + (dur > 0 ? " / " + clock(dur) : "") + (t.playing() ? "" : "  ||");
+        Ui.text(ctx, tr, time, tx, y + 40, th.dim());
+        String status = switch (liveStatus) {
+            case LOOKING -> "looking for lyrics...";
+            case SYNCED -> "";
+            case SPREAD -> "lyrics: not timed";
+            case MISSING -> "no lyrics found";
+            default -> "";
+        };
+        if (!status.isEmpty()) {
+            Ui.text(ctx, tr, status, x + PLAYER.w - 8 - Ui.width(tr, status), y + 40, th.dim());
+        }
     }
 }

@@ -11,6 +11,10 @@ import java.util.Map;
 public final class HudLayout {
     private static final Map<String, Element> ELEMENTS = new LinkedHashMap<>();
 
+    /** While a module draws its HUD these are its scale and the module itself (1 and null otherwise); elements note them when they are placed. */
+    public static float current = 1f;
+    public static Module currentOwner;
+
     public static final class Element {
         public final String id;
         public final String label;
@@ -26,6 +30,9 @@ public final class HudLayout {
         public double fy;
         public int w = 60;
         public int h = 14;
+        /** The scale this element was last drawn with, and the module that drew it (the HUD editor shows and changes both). */
+        public float scale = 1f;
+        public Module owner;
 
         private Element(String id, String label, boolean right, double fx, double fy) {
             this.id = id;
@@ -39,12 +46,21 @@ public final class HudLayout {
             this.ay = 0;
         }
 
+        private void note() {
+            if (currentOwner != null) {
+                scale = current;
+                owner = currentOwner;
+            }
+        }
+
         public int x(int screenW) {
+            note();
             int px = (int) Math.round(fx * screenW) - (ax == 1 ? w / 2 : ax == 2 ? w : 0);
             return Math.max(0, Math.min(Math.max(0, screenW - w), px));
         }
 
         public int y(int screenH) {
+            note();
             int py = (int) Math.round(fy * screenH) - (ay == 1 ? h / 2 : ay == 2 ? h : 0);
             return Math.max(0, Math.min(Math.max(0, screenH - h), py));
         }
