@@ -18,4 +18,14 @@ public abstract class WorldRendererMixin {
             ci.cancel();
         }
     }
+
+    /** The game has drawn its own sky; CustomSky's space and black hole replace it (the world is drawn afterwards). */
+    @Inject(method = "renderSky(Lnet/minecraft/client/util/math/MatrixStack;Lorg/joml/Matrix4f;FLnet/minecraft/client/render/Camera;ZLjava/lang/Runnable;)V",
+            at = @At("RETURN"), require = 0)
+    private void neurocanvas$sky(net.minecraft.client.util.math.MatrixStack matrices, org.joml.Matrix4f projectionMatrix, float tickDelta,
+                                 net.minecraft.client.render.Camera camera, boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
+        if (NeuroCanvasClient.modules() != null) {
+            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.CustomSky.class).drawSky(projectionMatrix, camera);
+        }
+    }
 }

@@ -35,6 +35,7 @@
     "PlayerEntityModelMixin",
     "CapeFeatureRendererMixin",
     "GameRendererMixin",
+    "GlintProgramMixin",
     "HeldItemRendererMixin",
     "HotbarMixin",
     "HudPanelsMixin",

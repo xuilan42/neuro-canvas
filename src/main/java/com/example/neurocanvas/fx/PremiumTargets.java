@@ -155,10 +155,22 @@ public final class PremiumTargets {
         }
     }
 
-    /** Where crystal i is, camera-relative, and the matrix that places and turns it (the result is in WORK). */
-    private static Matrix4f crystalMatrix(RenderEnv env, int i, int n, double x, double cy, double z, double r, float time, float speed, float k) {
-        double a = i * Math.PI * 2 / n + time * 0.045 * speed;
-        return WORK.set(env.view()).translate((float) (x + Math.cos(a) * r), (float) cy, (float) (z + Math.sin(a) * r))
+    /** Rows of crystals at fixed heights (a fraction of the body height); neighbouring rows turn the opposite way. */
+    private static final float[] ROW_HEIGHT = {0.1f, 0.42f, 0.75f, 1.08f};
+
+    private static int perRow(EffectSpec s) {
+        return Math.max(3, Math.min(s.count / 4, 6));
+    }
+
+    /** The matrix that places and turns crystal i (the result is in WORK). Heights stay fixed; only the angle moves. */
+    private static Matrix4f crystalMatrix(RenderEnv env, LivingEntity t, int i, int perRow, double x, double y, double z, float time, EffectSpec s, float k) {
+        int row = i / perRow;
+        int j = i % perRow;
+        double dir = (row & 1) == 0 ? 1.0 : -1.0;
+        double radius = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.5 - 0.12 * Math.abs(row - 1.5)) * sizeScale(s);
+        double a = j * Math.PI * 2 / perRow + row * 0.8 + dir * time * 0.045 * s.speed;
+        double cy = y + t.getHeight() * ROW_HEIGHT[row];
+        return WORK.set(env.view()).translate((float) (x + Math.cos(a) * radius), (float) cy, (float) (z + Math.sin(a) * radius))
                 .rotateY((time * 7.0f + i * 57.0f) * DEG).rotateX(20.0f * DEG).scale(k, k, k);
     }
 
@@ -167,19 +179,18 @@ public final class PremiumTargets {
         if (halo == null) {
             return false;
         }
-        int n = Math.max(3, Math.min(s.count / 2, 10));
-        float k = 0.11f * sizeScale(s);
-        double r = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.45) * sizeScale(s);
-        double cy = y + t.getHeight() * 0.6;
+        int per = perRow(s);
+        int total = per * ROW_HEIGHT.length;
+        float k = 0.09f * sizeScale(s);
 
         ShaderProgram g = Shaders.targetProgram("neuro_glow", s.speed, s.color2, time);
         if (g != null) {
             BufferBuilder b = begin(g);
-            for (int i = 0; i < n; i++) {
-                crystalMatrix(env, i, n, x, cy, z, r, time, s.speed, 1f);
+            for (int i = 0; i < total; i++) {
+                crystalMatrix(env, t, i, per, x, y, z, time, s, 1f);
                 float gx = WORK.m30(), gy = WORK.m31(), gz = WORK.m32();
                 Matrix4f m = billboard(env, 0, 0, 0).setTranslation(gx, gy, gz).scale(k * 3.4f, k * 3.4f, k * 3.4f);
-                unitQuad(b, m, blend(s.color1, s.color2, i / (float) n), s.alpha * 0.5f, false);
+                unitQuad(b, m, blend(s.color1, s.color2, (i % per) / (float) per), s.alpha * 0.45f, false);
             }
             finish();
         }
@@ -189,9 +200,9 @@ public final class PremiumTargets {
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferBuilder b = Tessellator.getInstance().getBuffer();
         b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-        for (int i = 0; i < n; i++) {
-            Matrix4f m = crystalMatrix(env, i, n, x, cy, z, r, time, s.speed, k);
-            int col = blend(s.color1, s.color2, i / (float) n);
+        for (int i = 0; i < total; i++) {
+            Matrix4f m = crystalMatrix(env, t, i, per, x, y, z, time, s, k);
+            int col = blend(s.color1, s.color2, (i % per) / (float) per);
             for (int f = 0; f < OCTA_FACES.length; f++) {
                 octaFace(b, m, f, blend(col, s.color2, f / 14f), f < 4 ? 1f : 0.65f, 0.6f * s.alpha, false);
             }
@@ -201,9 +212,9 @@ public final class PremiumTargets {
         // Halos: a little larger, on top, without writing depth.
         RenderSystem.depthMask(false);
         b = begin(halo);
-        for (int i = 0; i < n; i++) {
-            HALO.set(crystalMatrix(env, i, n, x, cy, z, r, time, s.speed, k * 1.12f));
-            int col = blend(s.color1, s.color2, i / (float) n);
+        for (int i = 0; i < total; i++) {
+            HALO.set(crystalMatrix(env, t, i, per, x, y, z, time, s, k * 1.12f));
+            int col = blend(s.color1, s.color2, (i % per) / (float) per);
             for (int f = 0; f < OCTA_FACES.length; f++) {
                 octaFace(b, HALO, f, col, 1f, s.alpha, true);
             }
@@ -227,13 +238,13 @@ public final class PremiumTargets {
             return false;
         }
         GlUniform seed = p.getUniform("Seed");
-        int n = Math.max(3, Math.min(s.count / 3, 6));
+        int n = Math.max(8, Math.min(s.count, 16));
         float k = sizeScale(s);
-        double r = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.4) * k;
+        double r = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.55) * k;
         float halfH = Math.max(t.getHeight(), 1.0f) * 0.62f * k;
-        float halfW = 0.5f * k;
+        float halfW = (float) (Math.PI * r / n) * 1.25f;
         for (int i = 0; i < n; i++) {
-            double a = i * Math.PI * 2 / n + time * 0.02 * s.speed;
+            double a = i * Math.PI * 2 / n + time * 0.015 * s.speed;
             double bx = x + Math.cos(a) * r;
             double bz = z + Math.sin(a) * r;
             if (seed != null) {

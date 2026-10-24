@@ -1,0 +1,103 @@
+{
+  "vertex": "neuro_sky",
+  "fragment": "neuro_sky",
+  "attributes": [
+    "Position"
+  ],
+  "samplers": [],
+  "uniforms": [
+    {
+      "name": "InvProjMat",
+      "type": "matrix4x4",
+      "count": 16,
+      "values": [
+        1.0,
+        0,
+        0,
+        0,
+        0,
+        1.0,
+        0,
+        0,
+        0,
+        0,
+        1.0,
+        0,
+        0,
+        0,
+        0,
+        1.0
+      ]
+    },
+    {
+      "name": "CamRot",
+      "type": "matrix3x3",
+      "count": 9,
+      "values": [
+        1.0,
+        0,
+        0,
+        0,
+        1.0,
+        0,
+        0,
+        0,
+        1.0
+      ]
+    },
+    {
+      "name": "NcGameTime",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.0
+      ]
+    },
+    {
+      "name": "Mode",
+      "type": "float",
+      "count": 1,
+      "values": [
+        1.0
+      ]
+    },
+    {
+      "name": "HoleSize",
+      "type": "float",
+      "count": 1,
+      "values": [
+        0.16
+      ]
+    },
+    {
+      "name": "HoleDir",
+      "type": "float",
+      "count": 3,
+      "values": [
+        0.6,
+        0.35,
+        -0.7
+      ]
+    },
+    {
+      "name": "Color1",
+      "type": "float",
+      "count": 3,
+      "values": [
+        0.45,
+        0.2,
+        0.9
+      ]
+    },
+    {
+      "name": "Color2",
+      "type": "float",
+      "count": 3,
+      "values": [
+        0.15,
+        0.4,
+        1.0
+      ]
+    }
+  ]
+}

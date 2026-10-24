@@ -33,8 +33,10 @@ public abstract class HeldItemRendererMixin {
         Arm arm = hand == Hand.MAIN_HAND ? player.getMainArm() : player.getMainArm().getOpposite();
         float side = arm == Arm.RIGHT ? 1f : -1f;
         float swing = hand == player.preferredHand ? player.getHandSwingProgress(tickDelta) : 0f;
+        ViewModel view = NeuroCanvasClient.modules().get(ViewModel.class);
+        view.offset(matrices, hand, side);
         NeuroCanvasClient.modules().get(SwingAnimation.class).apply(matrices, hand, swing, side);
-        NeuroCanvasClient.modules().get(ViewModel.class).apply(matrices, hand, side);
+        view.shape(matrices, hand, side);
     }
 
     @Inject(method = "renderFirstPersonItem", at = @At("RETURN"), require = 0)
