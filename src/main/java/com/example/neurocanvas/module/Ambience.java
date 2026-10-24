@@ -20,7 +20,7 @@ import org.joml.Matrix4f;
  * the sky now and then, and the distant terrain fades into the colour of the sky's horizon instead of a blue haze.
  */
 public final class Ambience extends Module {
-    private static final String[] STYLES = {"Space", "Black hole", "Aurora", "Synthwave", "Dusk", "Meteor shower"};
+    private static final String[] STYLES = {"Space", "Black hole", "Aurora", "Synthwave", "Dusk", "Meteor shower", "Milky Way", "Eclipse", "Planet", "Nebula"};
     private static final Matrix4f INV = new Matrix4f();
     private static final Matrix3f ROT = new Matrix3f();
 
@@ -32,12 +32,12 @@ public final class Ambience extends Module {
     private final Setting meteors = add(Setting.number("Shooting stars", 0, 1, 0.25));
     private final Setting turn = add(Setting.bool("Sky turns with the time", true));
     private final Setting fogFollows = add(Setting.bool("Fog follows the sky", true));
-    private final Setting holeSize = add(Setting.number("Black hole size", 0.05, 0.4, 0.16));
-    private final Setting sunYaw = add(Setting.number("Hole / sun direction", 0, 360, 40));
-    private final Setting sunHeight = add(Setting.number("Black hole height", -10, 80, 22));
+    private final Setting holeSize = add(Setting.number("Hole / planet size", 0.05, 0.4, 0.16));
+    private final Setting sunYaw = add(Setting.number("Hole / sun / planet direction", 0, 360, 40));
+    private final Setting sunHeight = add(Setting.number("Hole / planet height", -10, 80, 22));
 
     public Ambience() {
-        super("Ambience", Category.WORLD, "A sky of your own: space, a black hole, northern lights, synthwave, dusk or a meteor shower", false);
+        super("Ambience", Category.WORLD, "A sky of your own: space, a black hole, northern lights, synthwave, dusk, meteors, the Milky Way, an eclipse, a ringed planet or a nebula", false);
         color1.setArgb(0xFF7A3DDC);
         color2.setArgb(0xFF3D8BFF);
     }
@@ -59,6 +59,7 @@ public final class Ambience extends Module {
         return switch (style.index()) {
             case 3 -> new float[] {rgb(c2, 16) * 0.5f * b, rgb(c2, 8) * 0.5f * b, rgb(c2, 0) * 0.5f * b};
             case 4 -> new float[] {rgb(c2, 16) * 0.55f * b, rgb(c2, 8) * 0.45f * b, rgb(c2, 0) * 0.4f * b};
+            case 7 -> new float[] {0.05f + rgb(c2, 16) * 0.06f, 0.035f + rgb(c2, 8) * 0.04f, 0.04f + rgb(c2, 0) * 0.04f};
             case 2 -> new float[] {0.01f + rgb(c1, 16) * 0.05f, 0.02f + rgb(c2, 8) * 0.05f, 0.035f + rgb(c2, 0) * 0.05f};
             default -> new float[] {0.012f + rgb(c1, 16) * 0.03f, 0.015f + rgb(c1, 8) * 0.03f, 0.035f + rgb(c1, 0) * 0.04f};
         };

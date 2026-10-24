@@ -1,6 +1,6 @@
 #version 150
 
-// The procedural sky of the Ambience module. Mode: 0 space, 1 black hole, 2 aurora, 3 synthwave, 4 dusk, 5 meteor shower. Every pixel turns
+// The procedural sky of the Ambience module. Mode: 0 space, 1 black hole, 2 aurora, 3 synthwave, 4 dusk, 5 meteor shower, 6 Milky Way, 7 eclipse, 8 planet, 9 nebula. Every pixel turns
 // into a direction in the world, so the sky stays where it is when the player turns; the background turns slowly with the time of day.
 uniform mat4 InvProjMat;
 uniform mat3 CamRot;
@@ -64,6 +64,21 @@ float fbm2(vec2 p) {
     return v;
 }
 
+// The colour of a glowing body of the given temperature in kelvin (a well known curve fit), brightest channel near 1.
+vec3 blackbody(float kelvin) {
+    float t = clamp(kelvin, 1000.0, 40000.0) / 100.0;
+    float r = t <= 66.0 ? 1.0 : 1.292936 * pow(max(t - 60.0, 1.0), -0.1332047);
+    float g = t <= 66.0 ? 0.390082 * log(t) - 0.631841 : 1.129891 * pow(max(t - 60.0, 1.0), -0.0755148);
+    float b = t >= 66.0 ? 1.0 : (t <= 19.0 ? 0.0 : 0.543207 * log(max(t - 10.0, 1.0)) - 1.196254);
+    return clamp(vec3(r, g, b), 0.0, 1.0);
+}
+
+// A soft layer of airglow and haze that hugs the horizon.
+vec3 horizonGlow(vec3 d, vec3 tint) {
+    float h = clamp(d.y, 0.0, 1.0);
+    return tint * exp(-h * 9.0) * 0.22 + vec3(0.02, 0.03, 0.05) * exp(-h * 3.0);
+}
+
 // Two layers of stars; each cell may hold one, with a tiny glow that twinkles. Stars is the density (0 = none).
 vec3 stars(vec3 d, float t) {
     vec3 col = vec3(0.0);
@@ -77,7 +92,8 @@ vec3 stars(vec3 d, float t) {
         float dist = length(f - off);
         float s = step(1.0 - (l == 0 ? 0.06 : 0.035) * Stars, h) * exp(-dist * dist * (l == 0 ? 140.0 : 260.0));
         s *= 0.65 + 0.35 * sin(t * 2.5 + h * 60.0);
-        vec3 tint = mix(vec3(0.75, 0.85, 1.0), vec3(1.0, 0.85, 0.65), hash13(id + 9.0));
+        float tk = hash13(id + 9.0);
+        vec3 tint = blackbody(mix(3200.0, 11000.0, tk * tk) + step(0.97, tk) * 12000.0);
         col += tint * s * (l == 0 ? 1.6 : 0.9);
     }
     return col;
@@ -144,9 +160,10 @@ vec3 aurora(vec3 d, float t) {
     for (int k = 0; k < 3; k++) {
         float fk = float(k);
         float n = fbm2(vec2(u.x * 0.7 + t * 0.02 * (fk + 1.0), fk * 9.0 + u.y * 0.15));
-        float curtain = exp(-pow((u.y - 0.9 - fk * 0.6 + (n - 0.5) * 2.4) * 1.9, 2.0));
+        float x = u.y - 0.9 - fk * 0.6 + (n - 0.5) * 2.4;
+        float curtain = x < 0.0 ? exp(-pow(x * 3.4, 2.0)) : exp(-x * 2.1);
         float rays = 0.55 + 0.45 * vnoise2(vec2(u.x * 16.0 + fk * 5.0, t * 0.5));
-        vec3 c = mix(Color1, Color2, clamp(n * 1.4 + fk * 0.15, 0.0, 1.0));
+        vec3 c = mix(mix(Color1, Color2, clamp(x * 1.6 + 0.6, 0.0, 1.0)), vec3(0.95, 0.2, 0.3), clamp(x * 1.2 - 0.3, 0.0, 1.0) * 0.55);
         acc += c * curtain * rays * (0.95 - fk * 0.22);
     }
     return acc * (1.0 - exp(-d.y * 9.0)) * 1.5;
@@ -188,6 +205,89 @@ vec3 dusk(vec3 d, float t) {
     return col;
 }
 
+
+// A real night sky: the galactic band with dark lanes and a bright bulge, thousands of faint stars inside it.
+vec3 milkyWay(vec3 d, float t) {
+    vec3 gn = normalize(vec3(0.7, 0.5, -0.5));
+    float gp = dot(d, gn);
+    float band = exp(-gp * gp * 28.0);
+    vec3 gc = normalize(cross(gn, vec3(0.0, 1.0, 0.2)));
+    float bulge = exp(-pow(acos(clamp(dot(d, gc), -1.0, 1.0)) * 1.6, 2.0));
+    float dens = fbm3(d * 5.0 + 3.0) * 0.8 + fbm3(d * 12.0) * 0.35;
+    float lane = 1.0 - 0.85 * clamp((fbm3(d * 9.0 + 11.0) - 0.45) * 3.0, 0.0, 1.0) * band;
+    vec3 col = mix(vec3(0.6, 0.7, 1.0), vec3(1.0, 0.85, 0.65), clamp(bulge * 1.4, 0.0, 1.0)) * band * (0.25 + dens) * lane * (0.55 + 1.3 * bulge);
+    col += vec3(0.9, 0.9, 1.0) * pow(hash13(floor(d * 260.0)), 40.0) * band * 1.2;
+    return vec3(0.003, 0.005, 0.012) + col * (0.5 + 0.5 * mix(Color1, Color2, 0.5)) + stars(d, t);
+}
+
+// A total eclipse: a black disc, the thin bright edge of the sun and a corona of streamers, with a sunset glow all around the horizon.
+vec3 eclipse(vec3 d, float t) {
+    vec3 S = normalize(HoleDir);
+    float ang = acos(clamp(dot(d, S), -1.0, 1.0));
+    float R = HoleSize * 0.5;
+    vec3 T = normalize(cross(S, vec3(0.0, 1.0, 0.0)));
+    vec3 B = cross(S, T);
+    float az = atan(dot(d, B), dot(d, T));
+    float streamers = 0.55 + 0.45 * fbm2(vec2(az * 3.0 + t * 0.02, ang * 9.0));
+    float corona = exp(-max(ang - R, 0.0) / (R * 1.1)) * streamers;
+    float ring = exp(-abs(ang - R * 1.03) * 260.0 / max(R * 4.0, 0.1));
+    float disc = exp(-pow(ang / R, 24.0));
+    vec3 sky = mix(Color2 * 0.28, vec3(0.008, 0.012, 0.03), pow(clamp(d.y, 0.0, 1.0), 0.4));
+    sky += vec3(1.0, 0.45, 0.2) * exp(-abs(d.y) * 9.0) * 0.4;
+    vec3 col = sky + (mix(vec3(1.0), Color2, 0.35) * corona * 1.5 + vec3(1.0, 0.95, 0.85) * ring * 2.4) * (1.0 - disc);
+    return col * (1.0 - disc) + stars(d, t) * 0.5 * (1.0 - disc);
+}
+
+// A ringed planet and a moon hanging in dark space; HoleSize is the planet's size, HoleDir its place.
+vec3 planet(vec3 d, float t) {
+    vec3 C = normalize(HoleDir);
+    vec3 T = normalize(cross(C, vec3(0.0, 1.0, 0.0)));
+    vec3 B = cross(C, T);
+    vec3 col = space(turnDir(d), t) * 0.6;
+    float rp = HoleSize * 1.15;
+    vec2 q = vec2(dot(d, T), dot(d, B));
+    float tilt = 0.45;
+    vec2 qr = vec2(q.x * cos(tilt) - q.y * sin(tilt), q.x * sin(tilt) + q.y * cos(tilt));
+    float r = length(q) / rp;
+    vec3 L = normalize(vec3(-0.6, 0.45, 0.65));
+    if (dot(d, C) > 0.0) {
+        if (r < 1.0) {
+            vec3 n = vec3(q / rp, sqrt(max(1.0 - r * r, 0.0)));
+            float diffuse = clamp(dot(n, L), 0.0, 1.0);
+            float bands = 0.5 + 0.5 * sin(n.y * 16.0 + fbm2(n.xy * 4.0) * 3.5);
+            vec3 surface = mix(Color1, Color2, bands) * (0.06 + 1.1 * diffuse);
+            col = surface + mix(Color2, vec3(1.0), 0.5) * exp(-(1.0 - r) * 14.0) * (0.25 + 0.7 * diffuse);
+        } else {
+            col += mix(Color2, vec3(1.0), 0.5) * exp(-(r - 1.0) * 22.0) * 0.45;
+        }
+        float ringR = length(vec2(qr.x, qr.y / 0.24)) / rp;
+        float ringBody = exp(-pow((ringR - 1.85) / 0.45, 2.0)) * (0.55 + 0.45 * sin(ringR * 38.0));
+        float visible = qr.y < 0.0 ? 1.0 : (r < 1.0 ? 0.0 : 1.0);
+        col = mix(col, mix(vec3(0.85, 0.78, 0.65), Color2, 0.3) * (0.45 + 0.6 * clamp(dot(vec3(0.0, 1.0, 0.0), L) + 0.5, 0.0, 1.0)), clamp(ringBody * visible * 0.85, 0.0, 1.0));
+    }
+    vec3 M = normalize(C + T * HoleSize * 2.3 + B * HoleSize * 0.9);
+    float am = acos(clamp(dot(d, M), -1.0, 1.0));
+    float rm = HoleSize * 0.32;
+    if (am < rm) {
+        vec2 mq = vec2(dot(d, T) - dot(M, T), dot(d, B) - dot(M, B)) / rm;
+        vec3 n = vec3(mq, sqrt(max(1.0 - dot(mq, mq), 0.0)));
+        float crater = 0.75 + 0.25 * fbm2(mq * 5.0);
+        col = vec3(0.78, 0.76, 0.72) * crater * (0.04 + 1.2 * clamp(dot(n, L), 0.0, 1.0));
+    }
+    return col;
+}
+
+// Gas clouds twisted by noise, with hot knots; a sky made of nebula.
+vec3 nebulaSky(vec3 d, float t) {
+    vec3 q = d * 2.2;
+    vec3 w = vec3(fbm3(q + vec3(0.0, t * 0.004, 0.0)), fbm3(q + 5.2), fbm3(q + 9.1));
+    float n = fbm3(q * 1.8 + 2.5 * w);
+    float n2 = fbm3(q * 3.5 - 1.7 * w + 7.0);
+    vec3 col = mix(Color1, Color2, clamp(n2 * 1.3, 0.0, 1.0)) * pow(clamp(n * 1.15 - 0.12, 0.0, 1.0), 2.6) * 1.5;
+    col += vec3(1.0, 0.75, 0.55) * pow(clamp(n * n2 * 2.0 - 0.5, 0.0, 1.0), 3.0) * 0.8;
+    return vec3(0.004, 0.005, 0.014) + col + stars(d, t) * 0.9;
+}
+
 void main() {
     vec4 v = InvProjMat * vec4(uv * 2.0 - 1.0, 1.0, 1.0);
     vec3 d = normalize(CamRot * normalize(v.xyz / v.w));
@@ -215,10 +315,13 @@ void main() {
         float rr = length(qd) / rs;
         float heat = 1.1;
         float swirl = 0.65 + 0.7 * fbm2(vec2(atan(qd.y, qd.x) * 2.5 + t * 0.5, rr * 4.0));
-        float disk = exp(-max(rr - 1.0, 0.0) * heat) * (1.0 - exp(-max(rr - 0.85, 0.0) * 14.0)) * exp(-pow(rr / 3.6, 6.0));
-        float doppler = 1.0 + 0.75 * qr.x / (length(qr) + 1e-4);
-        vec3 hot = mix(vec3(1.0, 0.92, 0.75), vec3(1.0, 0.36, 0.06), clamp((rr - 1.0) / 2.2, 0.0, 1.0));
-        vec3 emit = hot * disk * swirl * doppler * 2.2;
+        float disk = exp(-max(rr - 1.0, 0.0) * heat) * (1.0 - exp(-max(rr - 0.45, 0.0) * 14.0)) * exp(-pow(rr / 3.6, 6.0));
+        // The gas cools as r^(-3/4) from the inner edge, and the side moving toward us is shifted bluer and much brighter.
+        float beta = 0.32 * qr.x / (length(qr) + 1e-4);
+        float g = 1.0 / (1.0 - beta);
+        vec3 hot = blackbody(10500.0 * pow(max(rr, 1.0), -0.75) * g);
+        vec3 emit = hot * disk * swirl * pow(g, 3.0) * 1.3;
+        emit = 1.0 - exp(-emit * 1.4);
 
         // The far side of the disk bent over and under the hole, and the thin photon ring right at its edge.
         float arc = exp(-abs(length(q) / rs - 1.28) * 4.5) * exp(-pow(abs(qr.x) / (rs * 1.7), 3.0));
@@ -227,18 +330,28 @@ void main() {
         emit += vec3(1.0, 0.85, 0.6) * photon * 1.4;
 
         float shadow = exp(-pow(ang / (rs * 0.72), 12.0));
-        col = col * (1.0 - shadow) + emit * (1.0 - shadow * 0.95);
+        // The near half of the disk passes in front of the shadow; the far half is hidden by it.
+        float hidden = qr.y < 0.0 ? 0.0 : shadow * 0.95;
+        col = col * (1.0 - shadow) + emit * (1.0 - hidden);
         col += hot * exp(-ang / rs * 1.6) * 0.12;
     } else if (mode == 2) {
-        col = space(turnDir(d), t) * 0.7 + aurora(d, t) + meteors(d, t, Meteors);
+        col = space(turnDir(d), t) * 0.7 + aurora(d, t) + horizonGlow(d, Color2 * 0.5) + meteors(d, t, Meteors);
     } else if (mode == 3) {
         col = synth(d, t) + meteors(d, t, Meteors);
     } else if (mode == 4) {
         col = dusk(d, t) + meteors(d, t, Meteors);
     } else if (mode == 5) {
         col = space(turnDir(d), t) + meteors(d, t, max(Meteors, 1.0));
+    } else if (mode == 6) {
+        col = milkyWay(turnDir(d), t) + horizonGlow(d, mix(Color1, Color2, 0.5) * 0.6) + meteors(d, t, Meteors);
+    } else if (mode == 7) {
+        col = eclipse(d, t) + meteors(d, t, Meteors * 0.3);
+    } else if (mode == 8) {
+        col = planet(d, t) + meteors(d, t, Meteors);
+    } else if (mode == 9) {
+        col = nebulaSky(turnDir(d), t) + meteors(d, t, Meteors);
     } else {
-        col = space(turnDir(d), t) + meteors(d, t, Meteors);
+        col = space(turnDir(d), t) + horizonGlow(d, mix(Color1, Color2, 0.5) * 0.5) + meteors(d, t, Meteors);
     }
     float dither = (hash12(gl_FragCoord.xy) - 0.5) / 255.0;
     fragColor = vec4(col * Brightness + dither, 1.0);
