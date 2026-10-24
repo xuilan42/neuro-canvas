@@ -68,21 +68,59 @@ public final class WorldLyrics extends Module {
             this.text = text;
         }
 
-        /** Widths of the text up to each letter, so letters can be placed one by one and still sit where the whole line would put them. */
+        /** Where each word starts (as a letter index) and how far into the line, 0..1 by letters, it is sung; every letter knows its word. */
+        int[] wordStart;
+        float[] wordFrac;
+        int[] wordOf;
+
+        /** Widths of the text up to each letter, so letters and words can be placed one by one and still sit where the whole line would put them. */
         void measure(TextRenderer tr) {
-            if (prefix == null) {
-                prefix = new float[text.length() + 1];
-                for (int i = 0; i <= text.length(); i++) {
-                    prefix[i] = tr.getWidth(text.substring(0, i));
+            if (prefix != null) {
+                return;
+            }
+            prefix = new float[text.length() + 1];
+            for (int i = 0; i <= text.length(); i++) {
+                prefix[i] = tr.getWidth(text.substring(0, i));
+            }
+            width = prefix[text.length()];
+            List<Integer> starts = new ArrayList<>();
+            wordOf = new int[text.length()];
+            boolean inWord = false;
+            int letters = 0;
+            for (int i = 0; i < text.length(); i++) {
+                if (text.charAt(i) == ' ') {
+                    inWord = false;
+                    wordOf[i] = Math.max(0, starts.size() - 1);
+                    continue;
                 }
-                width = prefix[text.length()];
+                if (!inWord) {
+                    inWord = true;
+                    starts.add(i);
+                }
+                wordOf[i] = starts.size() - 1;
+                letters++;
+            }
+            wordStart = new int[starts.size()];
+            wordFrac = new float[starts.size()];
+            int before = 0;
+            for (int k = 0; k < starts.size(); k++) {
+                wordStart[k] = starts.get(k);
+                wordFrac[k] = letters == 0 ? 0f : before / (float) letters;
+                int end = wordStart[k];
+                while (end < text.length() && text.charAt(end) != ' ') {
+                    end++;
+                    before++;
+                }
             }
         }
     }
 
     private static final class Floater {
         Cue cue;
+        int index;
         double x, y, z;
+        /** The way it faces, fixed when it appears: toward where you stood. */
+        double face;
         float age, life;
     }
 
@@ -93,6 +131,8 @@ public final class WorldLyrics extends Module {
     private final Setting showPlayer = add(Setting.bool("Show player", true));
     private final Setting song = add(Setting.choice("Song (songs folder)", 0, "(none)"));
     private final Setting layout = add(Setting.choice("Layout", 2, "Float around", "Ring", "Stage"));
+    private final Setting reveal = add(Setting.choice("Reveal", 1, "Whole line", "Word by word"));
+    private final Setting facing = add(Setting.choice("Facing", 0, "Fixed in the world", "Toward the camera"));
     private final Setting letters = add(Setting.choice("Letters", 1, "Plain", "Wave", "Typewriter", "Rainbow wave"));
     private final Setting gap = add(Setting.number("Seconds per line", 1, 10, 3.5));
     private final Setting loop = add(Setting.bool("Loop", true));
@@ -497,7 +537,7 @@ public final class WorldLyrics extends Module {
             lastIndex = idx;
             sinceCue = 0;
             if (idx >= 0 && layout.index() == 0) {
-                spawnFloater(p, mc.textRenderer, cues.get(idx));
+                spawnFloater(p, idx);
             }
         }
         sinceCue += dt;
@@ -515,16 +555,37 @@ public final class WorldLyrics extends Module {
         com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
     }
 
-    private void spawnFloater(PlayerEntity p, TextRenderer tr, Cue cue) {
+    private void spawnFloater(PlayerEntity p, int index) {
         Floater f = new Floater();
-        f.cue = cue;
+        f.cue = cues.get(index);
+        f.index = index;
         double a = random.nextDouble() * Math.PI * 2;
         double r = 1.0 + Math.sqrt(random.nextDouble()) * Math.max(0.3, distance.value - 1.0);
         f.x = p.getX() + Math.cos(a) * r;
         f.z = p.getZ() + Math.sin(a) * r;
         f.y = p.getY() + 0.5 + random.nextDouble() * 2.5 + height.value * 0.3;
         f.life = (float) (life.value * (0.85 + 0.3 * random.nextDouble()));
+        // Its front looks at where the player is now; it stays that way however the player turns or walks.
+        f.face = Math.atan2(p.getX() - f.x, p.getZ() - f.z);
         floaters.add(f);
+    }
+
+    /** How long the line is sung, in seconds: from its time to the next line's. */
+    private float lineSeconds(int j) {
+        double next = j + 1 < cues.size() ? timeOf(j + 1) : timeOf(j) + (timed ? 4.0 : gap.value);
+        return (float) MathHelper.clamp(next - timeOf(j), 0.8, 8.0);
+    }
+
+    /** How much of line j is out (0..1): lines before the current one are complete, the current one fills in as it is sung, the next ones wait. */
+    private float progressOf(int j, int idx) {
+        boolean timedReveal = reveal.index() == 1 || letters.index() == 2;
+        if (!timedReveal || j < idx) {
+            return 1f;
+        }
+        if (j > idx) {
+            return 0f;
+        }
+        return MathHelper.clamp((float) ((elapsed - timeOf(j)) / (lineSeconds(j) * 0.9)), 0f, 1f);
     }
 
     private void drawFloaters(RenderEnv env, TextRenderer tr, double dt) {
@@ -537,8 +598,11 @@ public final class WorldLyrics extends Module {
             }
             float t = f.age / f.life;
             float a = MathHelper.clamp(t / 0.15f, 0f, 1f) * MathHelper.clamp((1f - t) / 0.3f, 0f, 1f);
-            drawLine(env, tr, f.cue, f.x - env.cam().x, f.y + f.age * rise.value - env.cam().y, f.z - env.cam().z, size.f(), a * alpha.f(),
-                    MathHelper.clamp(f.age / 1.2f, 0f, 1f), t);
+            boolean timedReveal = reveal.index() == 1 || letters.index() == 2;
+            float sec = lineSeconds(f.index);
+            float shown = timedReveal ? MathHelper.clamp(f.age / (sec * 0.9f), 0f, 1f) : 1f;
+            drawLine(env, tr, f.cue, f.x - env.cam().x, f.y + f.age * rise.value - env.cam().y, f.z - env.cam().z, f.face, size.f(), a * alpha.f(),
+                    shown, sec, t);
         }
     }
 
@@ -549,6 +613,11 @@ public final class WorldLyrics extends Module {
 
     private static double dirZ(double yawDeg) {
         return Math.cos(Math.toRadians(yawDeg));
+    }
+
+    /** The angle (around the vertical axis) that makes the front of a text face the player when the text stands in the direction of yawDeg from them. */
+    private static double faceBack(double yawDeg) {
+        return Math.PI - Math.toRadians(yawDeg);
     }
 
     private void drawRing(RenderEnv env, TextRenderer tr, Vec3d pos, int idx) {
@@ -564,8 +633,7 @@ public final class WorldLyrics extends Module {
             float a = MathHelper.clamp(1f - near * 0.4f, 0f, 1f);
             float sc = size.f() * (1f - 0.18f * Math.min(near, 1.5f));
             drawLine(env, tr, cues.get(j), pos.x + dirX(yaw) * r - env.cam().x, pos.y + 1.2 + height.value - env.cam().y,
-                    pos.z + dirZ(yaw) * r - env.cam().z, sc, a * alpha.f(), j == idx ? MathHelper.clamp((float) (sinceCue / 1.2), 0f, 1f) : 1f,
-                    j == idx ? 0f : 0.7f);
+                    pos.z + dirZ(yaw) * r - env.cam().z, faceBack(yaw), sc, a * alpha.f(), progressOf(j, idx), lineSeconds(j), j == idx ? 0f : 0.7f);
         }
     }
 
@@ -581,8 +649,8 @@ public final class WorldLyrics extends Module {
             float near = (float) Math.abs(slot - 1.0);
             float a = MathHelper.clamp(1f - near * 0.55f, 0f, 1f);
             float sc = size.f() * (1.35f - 0.4f * Math.min(near, 1.5f));
-            drawLine(env, tr, cues.get(j), cx - env.cam().x, baseY - (slot - 1.0) * lineH - env.cam().y, cz - env.cam().z, sc, a * alpha.f(),
-                    j == idx ? MathHelper.clamp((float) (sinceCue / 1.0), 0f, 1f) : 1f, j == idx ? 0f : 0.7f);
+            drawLine(env, tr, cues.get(j), cx - env.cam().x, baseY - (slot - 1.0) * lineH - env.cam().y, cz - env.cam().z, faceBack(anchorYaw), sc,
+                    a * alpha.f(), progressOf(j, idx), lineSeconds(j), j == idx ? 0f : 0.7f);
         }
     }
 
@@ -594,39 +662,83 @@ public final class WorldLyrics extends Module {
     }
 
     /**
-     * One line of text turned to face the camera, upright like a name tag. {@code reveal} (0..1) is how much of it is written so far (for the
-     * typewriter), {@code tone} (0..1) picks the colour between the two.
+     * One line of text, upright. By default it stands in the world with a fixed front (yawRad, around the vertical axis), so turning the camera
+     * only changes how you see it, like a sign; with "Toward the camera" it turns to you like a name tag. {@code reveal} (0..1) is how much of
+     * the line is out: with word by word the words come one after another in the time the line is sung ({@code lineSec} seconds), each fading
+     * in and rising a little, the latest one bright. {@code tone} (0..1) picks the colour between the two.
      */
-    private void drawLine(RenderEnv env, TextRenderer tr, Cue cue, double rx, double ry, double rz, float scale, float a, float reveal, float tone) {
+    private void drawLine(RenderEnv env, TextRenderer tr, Cue cue, double rx, double ry, double rz, double yawRad, float scale, float a, float reveal,
+                          float lineSec, float tone) {
         if (a < 0.02f) {
             return;
         }
-        WORK.set(env.view()).translate((float) rx, (float) ry, (float) rz).rotate(env.mc().gameRenderer.getCamera().getRotation())
-                .scale(-scale, -scale, scale);
+        WORK.set(env.view()).translate((float) rx, (float) ry, (float) rz);
+        if (facing.index() == 1) {
+            WORK.rotate(env.mc().gameRenderer.getCamera().getRotation());
+        } else {
+            WORK.rotateY((float) yawRad);
+        }
+        WORK.scale(-scale, -scale, scale);
         TextRenderer.TextLayerType layer = walls.on() ? TextRenderer.TextLayerType.SEE_THROUGH : TextRenderer.TextLayerType.NORMAL;
         int c1 = color1.argb() & 0xFFFFFF;
         int c2 = color2.argb() & 0xFFFFFF;
         float g = glowStrength.f();
         int mode = letters.index();
+        boolean byWord = reveal() && cue.wordStart.length > 0;
         float x0 = -cue.width / 2f;
         double t = env.t();
-        if (mode == 0 || cue.text.length() < 2) {
-            int rgb = mix(c1, c2, tone);
-            paint(tr, cue.text, x0, 0f, rgb, a, g, layer, 8);
+        int n = cue.text.length();
+
+        if (!byWord && (mode == 0 || n < 2)) {
+            paint(tr, cue.text, x0, 0f, mix(c1, c2, tone), a, g, layer, 8);
             return;
         }
-        int n = cue.text.length();
-        int shown = mode == 2 ? Math.round(n * reveal) : n;
+        // The word that was reached last: it is the one being sung.
+        int current = -1;
+        for (int k = 0; k < cue.wordStart.length; k++) {
+            if (reveal >= cue.wordFrac[k]) {
+                current = k;
+            }
+        }
+        if (byWord && mode == 0) {
+            for (int k = 0; k <= current; k++) {
+                float fade = MathHelper.clamp((reveal - cue.wordFrac[k]) * lineSec / 0.25f, 0f, 1f);
+                int start = cue.wordStart[k];
+                int end = start;
+                while (end < n && cue.text.charAt(end) != ' ') {
+                    end++;
+                }
+                int rgb = k == current ? mix(mix(c1, c2, tone), 0xFFFFFF, 0.45f * (1f - fade * 0.5f)) : mix(c1, c2, tone);
+                paint(tr, cue.text.substring(start, end), x0 + cue.prefix[start], (1f - fade) * 3f, rgb, a * fade, g, layer, 8);
+            }
+            return;
+        }
+        int shown = mode == 2 && !byWord ? Math.round(n * reveal) : n;
         for (int i = 0; i < shown; i++) {
             char ch = cue.text.charAt(i);
             if (ch == ' ') {
                 continue;
             }
-            float dy = mode == 2 ? 0f : (float) Math.sin(t * 3.2 + i * 0.55) * 1.8f;
+            float fade = 1f;
+            int word = cue.wordOf[i];
+            if (byWord) {
+                if (reveal < cue.wordFrac[word]) {
+                    continue;
+                }
+                fade = MathHelper.clamp((reveal - cue.wordFrac[word]) * lineSec / 0.25f, 0f, 1f);
+            }
+            float dy = (mode == 2 ? 0f : (float) Math.sin(t * 3.2 + i * 0.55) * 1.8f) + (1f - fade) * 3f;
             int rgb = mode == 3 ? (java.awt.Color.HSBtoRGB((float) ((i * 0.045 + t * 0.2) % 1.0), 0.65f, 1f) & 0xFFFFFF)
                     : mix(c1, c2, MathHelper.clamp(tone + i / (float) n * 0.6f, 0f, 1f));
-            paint(tr, String.valueOf(ch), x0 + cue.prefix[i], dy, rgb, a, g, layer, 4);
+            if (byWord && word == current) {
+                rgb = mix(rgb, 0xFFFFFF, 0.4f);
+            }
+            paint(tr, String.valueOf(ch), x0 + cue.prefix[i], dy, rgb, a * fade, g, layer, 4);
         }
+    }
+
+    private boolean reveal() {
+        return reveal.index() == 1;
     }
 
     private void paint(TextRenderer tr, String s, float x, float y, int rgb, float a, float g, TextRenderer.TextLayerType layer, int copies) {

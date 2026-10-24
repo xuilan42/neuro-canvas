@@ -79,7 +79,7 @@ public final class Ambience extends Module {
     }
 
     /** Draws the sky over the game's own (called right after it); the world is drawn on top afterwards. */
-    public void drawSky(Matrix4f projection, Camera camera) {
+    public void drawSky(Matrix4f projection, Matrix4f view, Camera camera) {
         if (!active(camera) || !Interface.shaderVisuals()) {
             return;
         }
@@ -109,7 +109,8 @@ public final class Ambience extends Module {
         }
         GlUniform rot = p.getUniform("CamRot");
         if (rot != null) {
-            rot.set(ROT.set(camera.getRotation()));
+            // The view matrix is what the game applies to the world; its transpose turns a direction on the screen into a direction in the world.
+            rot.set(ROT.set(view).transpose());
         }
         RenderSystem.disableDepthTest();
         RenderSystem.disableBlend();

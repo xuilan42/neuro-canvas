@@ -25,7 +25,7 @@ public abstract class WorldRendererMixin {
     private void neurocanvas$sky(net.minecraft.client.util.math.MatrixStack matrices, org.joml.Matrix4f projectionMatrix, float tickDelta,
                                  net.minecraft.client.render.Camera camera, boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
         if (NeuroCanvasClient.modules() != null) {
-            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Ambience.class).drawSky(projectionMatrix, camera);
+            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Ambience.class).drawSky(projectionMatrix, matrices.peek().getPositionMatrix(), camera);
         }
     }
 }

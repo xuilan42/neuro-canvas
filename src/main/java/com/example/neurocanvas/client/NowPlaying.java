@@ -72,13 +72,19 @@ public final class NowPlaying {
         return p;
     }
 
-    private static void update(Track t, boolean fromBrowser) {
+    static void update(Track t, boolean fromBrowser) {
         long now = System.currentTimeMillis();
         if (!fromBrowser && now - browserStamp < FRESH_MS) {
             return;
         }
         if (fromBrowser) {
             browserStamp = now;
+        }
+        if (t.position() < 0) {
+            // The player does not say where it is in the track: count the time while it plays, from the start of the track.
+            Track old = track;
+            double estimate = old != null && old.key().equals(t.key()) && now - stamp < FRESH_MS ? position() : 0;
+            t = new Track(t.title(), t.artist(), t.album(), t.art(), estimate, t.duration(), t.playing(), t.source());
         }
         track = t;
         stamp = now;
@@ -184,7 +190,7 @@ public final class NowPlaying {
             return null;
         }
         JsonElement playing = o.get("playing");
-        return new Track(title, clip(str(o, "artist"), 120), clip(str(o, "album"), 120), clip(str(o, "art"), 600), Math.max(0, num(o, "position")),
+        return new Track(title, clip(str(o, "artist"), 120), clip(str(o, "album"), 120), clip(str(o, "art"), 600), num(o, "position"),
                 num(o, "duration"), playing == null || playing.isJsonNull() || playing.getAsBoolean(), clip(str(o, "source"), 60));
     }
 
@@ -234,7 +240,7 @@ public final class NowPlaying {
             return null;
         }
         return new Track(clip(f[2].strip(), 200), clip(f[1].strip(), 120), clip(f[3].strip(), 120), clip(f[6].strip(), 600),
-                Math.max(0, number(f[4], timeDivisor)), number(f[5], timeDivisor), f[0].strip().equalsIgnoreCase("Playing"), f[7].strip());
+                number(f[4], timeDivisor), number(f[5], timeDivisor), f[0].strip().equalsIgnoreCase("Playing"), f[7].strip());
     }
 
     static void pollPlayers() {
