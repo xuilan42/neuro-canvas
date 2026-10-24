@@ -52,7 +52,7 @@ public final class GhostLayer {
         EffectSpec s = NeuroCanvasClient.modules().get(TargetEsp.class).phantomSpec();
         float td = mc.getTickDelta();
         Vec3d cam = mc.gameRenderer.getCamera().getPos();
-        set(p, "Time", target.age + td);
+        Shaders.gameTime(p, target.age + td);
         set(p, "FeetY", (float) (net.minecraft.util.math.MathHelper.lerp(td, target.lastRenderY, target.getY()) - cam.y));
         set(p, "Alpha", s.alpha);
         rgb(p, "Color1", s.color1);

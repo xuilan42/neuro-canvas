@@ -491,8 +491,9 @@ public class NeuroCanvasClient implements ClientModInitializer {
         Vec3d cam = ctx.camera().getPos();
         MatrixStack matrices = ctx.matrixStack();
         matrices.push();
+        org.joml.Matrix4f viewOnly = new org.joml.Matrix4f(matrices.peek().getPositionMatrix());
         matrices.translate(-cam.x, -cam.y, -cam.z);
-        RenderEnv env = new RenderEnv(matrices.peek().getPositionMatrix(), ctx.tickDelta(),
+        RenderEnv env = new RenderEnv(matrices.peek().getPositionMatrix(), viewOnly, cam, ctx.tickDelta(),
                 (System.currentTimeMillis() % 1_000_000L) / 1000.0, ctx.camera().getYaw(), ctx.camera().getPitch(), mc, state);
 
         RenderSystem.enableBlend();

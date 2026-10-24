@@ -1,6 +1,6 @@
 #version 150
 
-uniform float Time;
+uniform float NcGameTime;
 uniform float Speed;
 uniform float Brightness;
 uniform vec3 Color2;
@@ -33,18 +33,18 @@ float fbm(vec2 p) {
 
 void main() {
     vec2 p = uv * 2.0 - 1.0;
-    float t = Time * 0.05 * Speed;
+    float t = NcGameTime * 0.05 * Speed;
     float bloom = 0.0;
     float hot = 0.0;
     for (int i = 0; i < 3; i++) {
         float fi = float(i);
-        float amp = 0.3 / (1.0 + fi * 0.5);
-        float offset = (fbm(vec2(p.y * 5.0 + fi * 17.3, t * 10.0 + fi * 3.7)) - 0.5) * 2.0 * amp;
-        float spread = (i == 0 ? 0.0 : (i == 1 ? 0.32 : -0.36)) * p.y;
+        float amp = 0.2 / (1.0 + fi * 0.4);
+        float offset = (fbm(vec2(p.y * 3.0 + fi * 17.3, t * 15.0 + fi * 3.7)) - 0.5) * 2.0 * amp;
+        float spread = (i == 0 ? 0.0 : (i == 1 ? 0.3 : -0.34)) * p.y;
         float lineDist = abs(p.x - offset - spread);
         float w = i == 0 ? 1.0 : 0.55;
-        bloom += (exp(-lineDist * 40.0) + exp(-lineDist * 10.0) * 0.2) * w;
-        hot += exp(-lineDist * 150.0) * w;
+        bloom += (exp(-lineDist * 50.0) + exp(-lineDist * 12.0) * 0.18) * w;
+        hot += exp(-lineDist * 160.0) * w;
     }
     float flicker = 0.3 + 0.7 * vnoise(vec2(t * 20.0, 3.1));
     float fade = exp(-pow(abs(p.y), 4.0) * 2.5);

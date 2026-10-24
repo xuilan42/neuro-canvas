@@ -1,6 +1,7 @@
 package com.example.neurocanvas.fx;
 
 import com.example.neurocanvas.module.RenderEnv;
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.gl.GlUniform;
 import net.minecraft.client.gl.ShaderProgram;
@@ -26,18 +27,21 @@ public final class TargetStyles {
      *               (and walls hide it too): particles really fly around the target. false: drawn over everything the camera can see.
      */
     public static void draw(int style, boolean around, RenderEnv env, EffectSpec s, Vec3d p, float h) {
+        // One state for every style: additive light that does not write depth, so overlapping glow never darkens what is behind it.
+        RenderSystem.enableBlend();
+        RenderSystem.depthMask(false);
+        RenderSystem.blendFunc(GlStateManager.SrcFactor.SRC_ALPHA, GlStateManager.DstFactor.ONE);
+        RenderSystem.disableCull();
         if (around) {
             RenderSystem.enableDepthTest();
-            RenderSystem.depthMask(false);
         } else {
             Depth.state(Depth.over(env.mc(), p.add(0, h * 0.5, 0)));
         }
         try {
             drawStyle(style, env, s, p, h);
         } finally {
-            if (around) {
-                RenderSystem.depthMask(true);
-            }
+            RenderSystem.depthMask(true);
+            RenderSystem.defaultBlendFunc();
         }
     }
 

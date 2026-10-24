@@ -25,7 +25,11 @@ public abstract class EffectModule extends Module {
     }
 
     protected EffectSpec spec(EffectSpec.Type type) {
-        EffectSpec s = new EffectSpec();
+        return fill(new EffectSpec(), type);
+    }
+
+    /** Writes the module's current settings into an existing spec (no allocation, for per-frame use). */
+    protected EffectSpec fill(EffectSpec s, EffectSpec.Type type) {
         s.type = type;
         s.color1 = hue1.argb() & 0xFFFFFF;
         s.color2 = hue2.argb() & 0xFFFFFF;

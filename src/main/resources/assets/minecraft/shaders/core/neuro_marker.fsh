@@ -1,6 +1,6 @@
 #version 150
 
-uniform float Time;
+uniform float NcGameTime;
 uniform float Speed;
 uniform float Brightness;
 uniform vec3 Color2;
@@ -17,10 +17,9 @@ float sdBox(vec2 p, vec2 b) {
 }
 
 void main() {
-    vec2 p = uv * 2.0 - 1.0;
-    float t = Time * 0.05 * Speed;
-    float conv = 0.5 + 0.5 * sin(t * 3.0);
-    vec2 halfSize = Box * (1.0 - 0.14 * conv);
+    float t = NcGameTime * 0.05 * Speed;
+    vec2 p = (uv * 2.0 - 1.0) * (1.0 + sin(t * 5.0) * 0.05);
+    vec2 halfSize = Box;
     float frame = abs(sdBox(p, halfSize)) - 0.02;
     float crossD = min(abs(p.x), abs(p.y));
     float cutoff = min(halfSize.x, halfSize.y) * 0.5;

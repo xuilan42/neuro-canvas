@@ -83,7 +83,7 @@
       ]
     },
     {
-      "name": "Time",
+      "name": "NcGameTime",
       "type": "float",
       "count": 1,
       "values": [

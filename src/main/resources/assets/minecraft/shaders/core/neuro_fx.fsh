@@ -19,14 +19,14 @@ void main() {
     float a;
     if (mode == 0) {
         float s = abs(uv.y);
-        float core = 1.0 - smoothstep(Params.x * 0.55, Params.x, s);
-        float h = max(s - Params.x * 0.55, 0.0) / max(1.0 - Params.x * 0.55, 0.0001);
-        float halo = exp(-h * h * 9.0) * (1.0 - smoothstep(0.7, 1.0, s)) * Glow;
+        float w = max(Params.x, 0.001);
+        float core = clamp((w - s) / max(fwidth(s), 1e-4) + 0.5, 0.0, 1.0);
+        float halo = exp(-max(s - w * 0.55, 0.0) * 18.0) * Glow;
         a = clamp(core + halo * 0.55, 0.0, 1.0);
         rgb = rgb * (0.85 + 0.6 * core);
     } else if (mode == 1) {
         float e = min(min(uv.x, 1.0 - uv.x), min(uv.y, 1.0 - uv.y));
-        float rim = 1.0 - smoothstep(0.0, 0.18, e);
+        float rim = exp(-e * 14.0);
         float scan = 0.5 + 0.5 * sin(uv.y * 7.0 - Time * 1.5);
         a = 0.85 + 1.2 * rim * Glow + 0.1 * scan;
         rgb = rgb * (1.0 + 0.5 * rim * Glow);
@@ -34,15 +34,16 @@ void main() {
         float r = length(uv);
         float d = abs(r - Params.y);
         float t = max(Params.x, 0.001);
-        float band = 1.0 - smoothstep(0.0, t, d);
-        float core = 1.0 - smoothstep(0.0, t * 0.4, d);
+        float q = d / t;
+        float band = exp(-q * q * 1.4);
+        float core = exp(-q * q * 8.0);
         float halo = exp(-d / (t * 1.5)) * Glow;
-        a = clamp(band * 0.8 + core * 0.5 + halo * 0.3, 0.0, 1.0) * (1.0 - smoothstep(0.96, 1.0, r));
+        a = clamp(band * 0.8 + core * 0.5 + halo * 0.3, 0.0, 1.0) * exp(-pow(r, 16.0) * 6.0);
         float ang = atan(uv.y, uv.x);
         rgb = mix(rgb, Color2, 0.5 + 0.5 * sin(ang * 2.0 + Time * Params.z));
     } else {
         float s = abs(uv.y);
-        a = 1.0 - smoothstep(0.35, 1.0, s);
+        a = exp(-pow(s, 2.5) * 6.0);
         rgb = rgb * (0.9 + 0.4 * (1.0 - s));
     }
     a *= vertexColor.a;

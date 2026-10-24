@@ -28,18 +28,20 @@ public final class TargetEsp extends EffectModule {
         return style.index() == 13;
     }
 
+    /** Reused every frame: the render loop allocates nothing. */
+    private final EffectSpec current = new EffectSpec();
+
     public EffectSpec phantomSpec() {
-        EffectSpec spec = spec(EffectSpec.Type.TARGET_RING);
-        spec.thickness = thickness.f();
-        return spec;
+        fill(current, EffectSpec.Type.TARGET_RING);
+        current.thickness = thickness.f();
+        return current;
     }
 
     @Override
     public void renderWorld(RenderEnv env) {
         LivingEntity target = env.state().target;
         if (target != null) {
-            EffectSpec spec = spec(EffectSpec.Type.TARGET_RING);
-            spec.thickness = thickness.f();
+            EffectSpec spec = phantomSpec();
             com.example.neurocanvas.fx.Shaders.setScale(brightness.f());
             try {
                 TargetStyles.draw(style.index(), depth.index() == 0, env, spec, EffectDraw.lerpPos(target, env.tickDelta()), target.getHeight());

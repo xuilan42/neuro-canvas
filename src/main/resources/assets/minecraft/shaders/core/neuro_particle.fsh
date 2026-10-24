@@ -10,7 +10,12 @@ in vec4 vertexColor;
 out vec4 fragColor;
 
 float edgeFade(float r) {
-    return 1.0 - smoothstep(0.88, 1.0, r);
+    return exp(-pow(r, 14.0) * 6.0);
+}
+
+// Coverage of a pixel from a signed distance (negative inside), about one pixel of softness.
+float aa(float d) {
+    return clamp(0.5 - d / max(fwidth(d), 1e-4), 0.0, 1.0);
 }
 
 float shapeMask(int shape, vec2 p) {
@@ -28,7 +33,7 @@ float shapeMask(int shape, vec2 p) {
         vec2 inner = 0.42 * vec2(cos(0.6283185), sin(0.6283185));
         vec2 e = inner - tip;
         vec2 n = normalize(vec2(e.y, -e.x));
-        return (1.0 - smoothstep(-0.045, 0.045, dot(q - tip, n))) * (0.85 + 0.15 * (1.0 - smoothstep(0.0, 0.6, r)));
+        return aa(dot(q - tip, n)) * (0.85 + 0.15 * exp(-r * r * 6.0));
     }
     if (shape == 2) {
         vec2 q = abs(p);
@@ -37,33 +42,32 @@ float shapeMask(int shape, vec2 p) {
         return clamp(flare + core * 0.8, 0.0, 1.0) * edgeFade(r);
     }
     if (shape == 3) {
-        return (1.0 - smoothstep(0.8, 0.98, r));
+        return aa(r - 0.9);
     }
     if (shape == 4) {
-        return (1.0 - smoothstep(0.05, 0.17, abs(r - 0.72))) * 1.0;
+        float d = abs(r - 0.72);
+        return clamp(aa(d - 0.06) + exp(-d * 16.0) * 0.5, 0.0, 1.0) * edgeFade(r);
     }
     if (shape == 5) {
         float d = abs(p.x) * 0.9 + abs(p.y) * 1.1;
-        float body = (1.0 - smoothstep(0.82, 0.92, d));
-        return body * (0.75 + 0.25 * (1.0 - smoothstep(0.0, 0.7, d)));
+        return aa(d - 0.87) * (0.75 + 0.25 * exp(-d * d * 4.0));
     }
     if (shape == 6) {
         vec2 h = vec2(p.x * 1.4, p.y * 1.4 + 0.2);
         float q = h.x * h.x + h.y * h.y - 1.0;
         float f = q * q * q - h.x * h.x * h.y * h.y * h.y;
-        // fwidth turns the implicit value into roughly one pixel of edge softness everywhere along the outline.
         float soft = clamp(0.5 - f / max(fwidth(f), 1e-5), 0.0, 1.0);
-        return soft * (0.85 + 0.15 * (1.0 - smoothstep(0.0, 0.9, r)));
+        return soft * (0.85 + 0.15 * exp(-r * r * 3.0));
     }
     float af = abs(mod(a + 0.5235988, 1.0471976) - 0.5235988);
     vec2 l = r * vec2(cos(af), sin(af));
-    float arm = (1.0 - smoothstep(0.02, 0.075, l.y)) * step(l.x, 0.95);
+    float arm = aa(l.y - 0.05) * step(l.x, 0.95);
     vec2 dir = vec2(0.5, 0.8660254);
     vec2 v1 = l - vec2(0.38, 0.0);
-    float b1 = (1.0 - smoothstep(0.015, 0.06, length(v1 - dir * clamp(dot(v1, dir), 0.0, 0.3))));
+    float b1 = aa(length(v1 - dir * clamp(dot(v1, dir), 0.0, 0.3)) - 0.04);
     vec2 v2 = l - vec2(0.62, 0.0);
-    float b2 = (1.0 - smoothstep(0.015, 0.06, length(v2 - dir * clamp(dot(v2, dir), 0.0, 0.2))));
-    float hub = (1.0 - smoothstep(0.08, 0.16, r));
+    float b2 = aa(length(v2 - dir * clamp(dot(v2, dir), 0.0, 0.2)) - 0.04);
+    float hub = aa(r - 0.12);
     return clamp(arm + b1 + b2 + hub, 0.0, 1.0);
 }
 

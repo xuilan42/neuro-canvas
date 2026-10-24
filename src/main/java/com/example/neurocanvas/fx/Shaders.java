@@ -47,6 +47,36 @@ public final class Shaders {
 
     private Shaders() { }
 
+    /**
+     * The animation clock of the shaders drawn by TargetESP, in game ticks (entity age plus tick delta), so it follows the server's tick rate and
+     * not the frame rate. It is not called GameTime: the game owns that uniform and overwrites it on every draw.
+     */
+    public static void gameTime(ShaderProgram p, float ticks) {
+        net.minecraft.client.gl.GlUniform u = p.getUniform("NcGameTime");
+        if (u != null) {
+            u.set(ticks);
+        }
+    }
+
+    /** A compiled target shader with its clock, speed, second colour and brightness set; null when shader visuals are off or it cannot be built. */
+    public static ShaderProgram targetProgram(String name, float speed, int color2, float ticks) {
+        ShaderProgram p = com.example.neurocanvas.module.Interface.shaderVisuals() ? get(name) : null;
+        if (p == null) {
+            return null;
+        }
+        gameTime(p, ticks);
+        net.minecraft.client.gl.GlUniform sp = p.getUniform("Speed");
+        if (sp != null) {
+            sp.set(speed);
+        }
+        net.minecraft.client.gl.GlUniform c2 = p.getUniform("Color2");
+        if (c2 != null) {
+            c2.set(((color2 >> 16) & 0xFF) / 255f, ((color2 >> 8) & 0xFF) / 255f, (color2 & 0xFF) / 255f);
+        }
+        applyBrightness(p);
+        return p;
+    }
+
     /** A module that has its own Brightness setting sets it here while it draws, and 1 afterwards. */
     public static void setScale(float s) {
         scale = s;

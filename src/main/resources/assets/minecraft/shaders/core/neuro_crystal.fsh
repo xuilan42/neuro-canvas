@@ -1,6 +1,6 @@
 #version 150
 
-uniform float Time;
+uniform float NcGameTime;
 uniform float Speed;
 uniform float Brightness;
 uniform vec3 Color2;

@@ -1,6 +1,6 @@
 #version 150
 
-uniform float Time;
+uniform float NcGameTime;
 uniform float Speed;
 uniform float Brightness;
 uniform vec3 Color2;
@@ -11,7 +11,7 @@ out vec4 fragColor;
 
 void main() {
     vec2 p = uv * 2.0 - 1.0;
-    float t = Time * 0.05 * Speed;
+    float t = NcGameTime * 0.05 * Speed;
     float ring = abs(length(p) - 0.62);
     float c = cos(t * 2.0);
     float s = sin(t * 2.0);
