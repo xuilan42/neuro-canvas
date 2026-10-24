@@ -47,6 +47,7 @@
     "ItemEntityRendererMixin",
     "KeyBindingMixin",
     "LivingEntityMixin",
+    "LivingEntityRendererMixin",
     "MinecraftClientMixin",
     "MouseMixin",
     "ParticleManagerMixin",

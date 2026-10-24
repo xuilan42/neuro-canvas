@@ -23,6 +23,17 @@ public final class TargetEsp extends EffectModule {
         settings.add(3, brightness);
     }
 
+    /** The Phantom style is drawn by a render layer while the entity itself is drawn, not in the world pass. */
+    public boolean phantomOn() {
+        return style.index() == 13;
+    }
+
+    public EffectSpec phantomSpec() {
+        EffectSpec spec = spec(EffectSpec.Type.TARGET_RING);
+        spec.thickness = thickness.f();
+        return spec;
+    }
+
     @Override
     public void renderWorld(RenderEnv env) {
         LivingEntity target = env.state().target;

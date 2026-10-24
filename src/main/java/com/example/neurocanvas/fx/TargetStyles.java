@@ -14,7 +14,8 @@ import org.joml.Matrix4f;
 /** The looks of TargetESP: every style is drawn around the target from the time and a few settings, no state is kept. */
 public final class TargetStyles {
     public static final String[] NAMES = {
-        "Ring", "Ghost", "Points", "Rhomb", "Crystals", "Helix", "Pulse", "Spiral", "Halo", "Pyramid", "Marker"};
+        "Ring", "Ghost", "Points", "Rhomb", "Crystals", "Helix", "Pulse", "Spiral", "Halo", "Pyramid", "Marker",
+        "Neon Marker", "Neon Ring", "Phantom", "Crystal Prism", "Lightning"};
 
     private static final int GLOW = 0, DOT = 3, RING = 4, DIAMOND = 5;
 
@@ -52,6 +53,11 @@ public final class TargetStyles {
             case 8 -> halo(env, s, p, h);
             case 9 -> pyramid(env, s, p, h);
             case 10 -> marker(env, s, p, h);
+            case 11, 12, 13, 14, 15 -> {
+                if (!PremiumTargets.draw(style - 11, env, s)) {
+                    EffectDraw.targetRing(env, s, p, h);
+                }
+            }
             default -> EffectDraw.targetRing(env, s, p, h);
         }
     }

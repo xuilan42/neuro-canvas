@@ -15,6 +15,7 @@
       "com.example.neurocanvas.client.NeuroCanvasClient"
     ]
   },
+  "accessWidener": "neurocanvas.accesswidener",
   "mixins": [
     "neurocanvas.mixins.json"
   ],
