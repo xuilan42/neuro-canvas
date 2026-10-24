@@ -48,11 +48,9 @@ public final class NowPlaying {
         Thread server = new Thread(NowPlaying::serve, "neurocanvas-nowplaying-http");
         server.setDaemon(true);
         server.start();
-        if (System.getProperty("os.name", "").toLowerCase().contains("linux")) {
-            Thread poll = new Thread(NowPlaying::pollPlayers, "neurocanvas-nowplaying-mpris");
-            poll.setDaemon(true);
-            poll.start();
-        }
+        Thread poll = new Thread(NowPlaying::pollPlayers, "neurocanvas-nowplaying-system");
+        poll.setDaemon(true);
+        poll.start();
     }
 
     /** The current track, or null when nothing has reported for a few seconds. */
@@ -194,66 +192,52 @@ public final class NowPlaying {
         return s.length() > max ? s.substring(0, max) : s;
     }
 
-    // ---- the system side: media players that speak MPRIS, asked through playerctl ----------------------------
+    // ---- the system side: what the media players of the operating system say (see PlayerBackends) ------------------
 
-    private static void pollPlayers() {
-        boolean missing = false;
-        while (!missing) {
-            try {
-                Process p = new ProcessBuilder("playerctl", "-a", "metadata", "--format",
-                        "{{status}}\t{{artist}}\t{{title}}\t{{album}}\t{{position}}\t{{mpris:length}}\t{{mpris:artUrl}}\t{{playerName}}")
-                        .redirectErrorStream(false).start();
-                String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                p.waitFor(2, TimeUnit.SECONDS);
-                p.destroy();
-                Track best = null;
-                for (String line : out.split("\n")) {
-                    Track t = parsePlayerLine(line);
-                    if (t != null && (best == null || t.playing() && !best.playing())) {
-                        best = t;
-                    }
-                }
-                if (best != null) {
-                    update(best, false);
-                }
-                Thread.sleep(1000);
-            } catch (IOException e) {
-                missing = true;
-                LOG.info("Now playing: playerctl is not installed, only the browser script can tell what plays");
-            } catch (InterruptedException e) {
-                return;
-            }
-        }
+    private static volatile String backendName = "not started";
+    private static volatile String backendError = "";
+
+    static void backend(String name) {
+        backendName = name;
+        backendError = "";
     }
 
-    static Track parsePlayerLine(String line) {
-        String[] f = line.split("\t", -1);
-        if (f.length < 8 || f[2].isBlank()) {
-            return null;
-        }
-        double position = parseMicros(f[4]);
-        double duration = parseMicros(f[5]);
-        return new Track(clip(f[2].strip(), 200), clip(f[1].strip(), 120), clip(f[3].strip(), 120), clip(f[6].strip(), 600), Math.max(0, position),
-                duration, f[0].equalsIgnoreCase("Playing"), f[7].strip());
+    static void backend(String name, String error) {
+        backendName = name;
+        backendError = error == null ? "" : error;
     }
 
-    private static double parseMicros(String s) {
+    /** One line for the player of the system: which way of asking is used and what went wrong, if anything. */
+    public static String describe() {
+        long browserAge = browserStamp == 0 ? -1 : (System.currentTimeMillis() - browserStamp) / 1000;
+        Track t = current();
+        return "system: " + System.getProperty("os.name") + ", system player: " + backendName + (backendError.isEmpty() ? "" : " (" + backendError + ")")
+                + ", browser script: " + (browserAge < 0 ? "never heard" : browserAge + " s ago")
+                + ", now: " + (t == null ? "nothing" : t.source() + (t.playing() ? " playing" : " paused"));
+    }
+
+    static double number(String s, double divisor) {
         try {
-            return Long.parseLong(s.strip()) / 1_000_000.0;
+            return Double.parseDouble(s.strip().replace(',', '.')) / divisor;
         } catch (NumberFormatException e) {
             return -1;
         }
     }
 
-    /** For tests and diagnostics: every line playerctl printed, parsed. */
-    static List<Track> parseAll(String output) {
-        List<Track> out = new ArrayList<>();
-        for (String line : output.split("\n")) {
-            Track t = parsePlayerLine(line);
-            if (t != null) {
-                out.add(t);
-            }
+    /**
+     * One line from a system player: status, artist, title, album, position, length, picture, player, separated by tabs. The two times are in
+     * units of {@code timeDivisor} per second (a million for playerctl, 1 for the Windows and macOS scripts); a missing value is -1.
+     */
+    static Track parseFields(String line, double timeDivisor) {
+        String[] f = line.split("\t", -1);
+        if (f.length < 8 || f[2].isBlank()) {
+            return null;
         }
-        return out;
+        return new Track(clip(f[2].strip(), 200), clip(f[1].strip(), 120), clip(f[3].strip(), 120), clip(f[6].strip(), 600),
+                Math.max(0, number(f[4], timeDivisor)), number(f[5], timeDivisor), f[0].strip().equalsIgnoreCase("Playing"), f[7].strip());
+    }
+
+    static void pollPlayers() {
+        PlayerBackends.run(t -> update(t, false));
     }
 }

@@ -107,6 +107,7 @@ public final class WorldLyrics extends Module {
     private final Setting glow = add(Setting.bool("Glow", true));
     private final Setting glowStrength = add(Setting.number("Glow strength", 0.2, 3, 1));
     private final Setting walls = add(Setting.bool("Through walls", true));
+    private final Setting detectInfo = add(Setting.button("Music detection info"));
     private final Setting copyScript = add(Setting.button("Copy browser script"));
     private final Setting openScript = add(Setting.button("Open browser script file"));
     private final Setting restart = add(Setting.button("Restart song"));
@@ -398,6 +399,13 @@ public final class WorldLyrics extends Module {
             openFolder.set(0);
             writeSamples();
             net.minecraft.util.Util.getOperatingSystem().open(folder.toFile());
+        }
+        if (detectInfo.on()) {
+            detectInfo.set(0);
+            NowPlaying.start();
+            if (mc.player != null) {
+                mc.player.sendMessage(net.minecraft.text.Text.literal("[WorldLyrics] " + NowPlaying.describe()), false);
+            }
         }
         if (copyScript.on()) {
             copyScript.set(0);
