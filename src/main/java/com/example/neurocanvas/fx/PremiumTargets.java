@@ -50,7 +50,6 @@ public final class PremiumTargets {
         double z = MathHelper.lerp(td, target.lastRenderZ, target.getZ()) - env.cam().z;
         float time = target.age + td;
         return switch (style) {
-            case 0 -> marker(env, s, target, x, y, z, time);
             case 1 -> ring(env, s, target, x, y, z, time);
             case 3 -> crystal(env, s, target, x, y, z, time);
             case 4 -> lightning(env, s, target, x, y, z, time);
@@ -88,29 +87,6 @@ public final class PremiumTargets {
     private static Matrix4f billboard(RenderEnv env, double x, double y, double z) {
         Quaternionf rot = env.mc().gameRenderer.getCamera().getRotation();
         return WORK.set(env.view()).translate((float) x, (float) y, (float) z).rotate(rot);
-    }
-
-    // ---- Neon Marker: four corner brackets, the frame pulses in scale --------------------------------------
-
-    private static boolean marker(RenderEnv env, EffectSpec s, LivingEntity t, double x, double y, double z, float time) {
-        ShaderProgram p = Shaders.targetProgram("neuro_marker", s.speed, s.color2, time);
-        if (p == null) {
-            return false;
-        }
-        float k = sizeScale(s);
-        float hx = (t.getWidth() * 0.5f + 0.35f) * k;
-        float hy = (t.getHeight() * 0.5f + 0.3f) * k;
-        float big = Math.max(hx, hy);
-        float size = big / 0.55f;
-        GlUniform box = p.getUniform("Box");
-        if (box != null) {
-            box.set(hx / big * 0.55f, hy / big * 0.55f);
-        }
-        BufferBuilder b = begin(p);
-        Matrix4f m = billboard(env, x, y + t.getHeight() * 0.5, z).scale(size, size, size);
-        unitQuad(b, m, s.color1, s.alpha, false);
-        finish();
-        return true;
     }
 
     // ---- Neon Ring: a broken ring that sweeps up and down the body leaving a fading wake, a second one at the feet, light on the ground ----
@@ -164,7 +140,7 @@ public final class PremiumTargets {
         finish();
     }
 
-    // ---- Crystal Prism: a spinning octahedron over the head, glass inside and a neon halo outside ----------
+    // ---- Orbiting Crystals: small spinning crystals circling the target at a fixed height ------------------------------------
 
     private static void octaFace(BufferBuilder b, Matrix4f m, int f, int rgb, float k, float a, boolean uv) {
         float r = ((rgb >> 16) & 0xFF) / 255f * k, g = ((rgb >> 8) & 0xFF) / 255f * k, bl = (rgb & 0xFF) / 255f * k;
@@ -179,34 +155,58 @@ public final class PremiumTargets {
         }
     }
 
+    /** Where crystal i is, camera-relative, and the matrix that places and turns it (the result is in WORK). */
+    private static Matrix4f crystalMatrix(RenderEnv env, int i, int n, double x, double cy, double z, double r, float time, float speed, float k) {
+        double a = i * Math.PI * 2 / n + time * 0.045 * speed;
+        return WORK.set(env.view()).translate((float) (x + Math.cos(a) * r), (float) cy, (float) (z + Math.sin(a) * r))
+                .rotateY((time * 7.0f + i * 57.0f) * DEG).rotateX(20.0f * DEG).scale(k, k, k);
+    }
+
     private static boolean crystal(RenderEnv env, EffectSpec s, LivingEntity t, double x, double y, double z, float time) {
-        ShaderProgram glow = Shaders.targetProgram("neuro_crystal", s.speed, s.color2, time);
-        if (glow == null) {
+        ShaderProgram halo = Shaders.targetProgram("neuro_crystal", s.speed, s.color2, time);
+        if (halo == null) {
             return false;
         }
-        float k = 0.4f * sizeScale(s);
-        double cy = y + t.getHeight() + 0.7 + Math.sin(time * 0.1) * 0.2;
-        glowBillboard(env, s, x, cy, z, 1.3f * sizeScale(s), 0.5f, time);
-        glow = Shaders.targetProgram("neuro_crystal", s.speed, s.color2, time);
-        Matrix4f m = WORK.set(env.view()).translate((float) x, (float) cy, (float) z)
-                .rotateY(time * 5.0f * DEG).rotateX(45.0f * DEG).scale(k, k, k);
+        int n = Math.max(3, Math.min(s.count / 2, 10));
+        float k = 0.11f * sizeScale(s);
+        double r = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.45) * sizeScale(s);
+        double cy = y + t.getHeight() * 0.6;
 
-        // The body: faces add up so it reads as glass; it writes depth so its own faces sort correctly.
+        ShaderProgram g = Shaders.targetProgram("neuro_glow", s.speed, s.color2, time);
+        if (g != null) {
+            BufferBuilder b = begin(g);
+            for (int i = 0; i < n; i++) {
+                crystalMatrix(env, i, n, x, cy, z, r, time, s.speed, 1f);
+                float gx = WORK.m30(), gy = WORK.m31(), gz = WORK.m32();
+                Matrix4f m = billboard(env, 0, 0, 0).setTranslation(gx, gy, gz).scale(k * 3.4f, k * 3.4f, k * 3.4f);
+                unitQuad(b, m, blend(s.color1, s.color2, i / (float) n), s.alpha * 0.5f, false);
+            }
+            finish();
+        }
+
+        // Bodies: faces add up so each reads as glass; they write depth so their own faces sort correctly.
         RenderSystem.depthMask(true);
         RenderSystem.setShader(GameRenderer::getPositionColorProgram);
         BufferBuilder b = Tessellator.getInstance().getBuffer();
         b.begin(VertexFormat.DrawMode.QUADS, VertexFormats.POSITION_COLOR);
-        for (int f = 0; f < OCTA_FACES.length; f++) {
-            octaFace(b, m, f, blend(s.color1, s.color2, f / 7f), f < 4 ? 1f : 0.65f, 0.55f * s.alpha, false);
+        for (int i = 0; i < n; i++) {
+            Matrix4f m = crystalMatrix(env, i, n, x, cy, z, r, time, s.speed, k);
+            int col = blend(s.color1, s.color2, i / (float) n);
+            for (int f = 0; f < OCTA_FACES.length; f++) {
+                octaFace(b, m, f, blend(col, s.color2, f / 14f), f < 4 ? 1f : 0.65f, 0.6f * s.alpha, false);
+            }
         }
         Tessellator.getInstance().draw();
 
-        // The halo: a little larger, on top, without writing depth.
+        // Halos: a little larger, on top, without writing depth.
         RenderSystem.depthMask(false);
-        HALO.set(m).scale(1.1f, 1.1f, 1.1f);
-        b = begin(glow);
-        for (int f = 0; f < OCTA_FACES.length; f++) {
-            octaFace(b, HALO, f, s.color1, 1f, s.alpha, true);
+        b = begin(halo);
+        for (int i = 0; i < n; i++) {
+            HALO.set(crystalMatrix(env, i, n, x, cy, z, r, time, s.speed, k * 1.12f));
+            int col = blend(s.color1, s.color2, i / (float) n);
+            for (int f = 0; f < OCTA_FACES.length; f++) {
+                octaFace(b, HALO, f, col, 1f, s.alpha, true);
+            }
         }
         finish();
         return true;
@@ -219,20 +219,33 @@ public final class PremiumTargets {
         return (r << 16) | (g << 8) | bl;
     }
 
-    // ---- Lightning: three jittering bolts in a tall billboard around the target -----------------------------
+    // ---- Lightning: upright bolts standing around the target, each with its own seed so they flash at different moments ----------
 
     private static boolean lightning(RenderEnv env, EffectSpec s, LivingEntity t, double x, double y, double z, float time) {
         ShaderProgram p = Shaders.targetProgram("neuro_lightning", s.speed, s.color2, time);
         if (p == null) {
             return false;
         }
-        BufferBuilder b = begin(p);
+        GlUniform seed = p.getUniform("Seed");
+        int n = Math.max(3, Math.min(s.count / 3, 6));
         float k = sizeScale(s);
-        float w = Math.max(t.getWidth(), 0.6f) * 2.0f * k;
-        float h = t.getHeight() * 0.75f * k + 0.3f;
-        Matrix4f m = billboard(env, x, y + t.getHeight() * 0.5, z).scale(w, h, w);
-        unitQuad(b, m, s.color1, s.alpha, false);
-        finish();
+        double r = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.4) * k;
+        float halfH = Math.max(t.getHeight(), 1.0f) * 0.62f * k;
+        float halfW = 0.5f * k;
+        for (int i = 0; i < n; i++) {
+            double a = i * Math.PI * 2 / n + time * 0.02 * s.speed;
+            double bx = x + Math.cos(a) * r;
+            double bz = z + Math.sin(a) * r;
+            if (seed != null) {
+                seed.set(i * 1.618f);
+            }
+            BufferBuilder b = begin(p);
+            // Upright: only turned around the vertical axis, toward the camera.
+            Matrix4f m = WORK.set(env.view()).translate((float) bx, (float) (y + t.getHeight() * 0.5), (float) bz)
+                    .rotateY((float) Math.atan2(-bx, -bz)).scale(halfW, halfH, halfW);
+            unitQuad(b, m, s.color1, s.alpha, false);
+            finish();
+        }
         return true;
     }
 }

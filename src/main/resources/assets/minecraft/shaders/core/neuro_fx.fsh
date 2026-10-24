@@ -18,7 +18,7 @@ void main() {
     vec3 rgb = vertexColor.rgb;
     float a;
     if (mode == 0) {
-        float s = abs(uv.y);
+        float s = length(uv);
         float w = max(Params.x, 0.001);
         float core = clamp((w - s) / max(fwidth(s), 1e-4) + 0.5, 0.0, 1.0);
         float halo = exp(-max(s - w * 0.55, 0.0) * 18.0) * Glow;

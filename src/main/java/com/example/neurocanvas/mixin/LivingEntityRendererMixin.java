@@ -19,7 +19,11 @@ public abstract class LivingEntityRendererMixin {
             return;
         }
         try {
-            RenderLayer layer = GhostLayer.forEntity(entity, ((LivingEntityRenderer<LivingEntity, ?>) (Object) this).getTexture(entity));
+            net.minecraft.util.Identifier texture = ((LivingEntityRenderer<LivingEntity, ?>) (Object) this).getTexture(entity);
+            RenderLayer layer = com.example.neurocanvas.fx.ModelFx.override(entity, texture);
+            if (layer == null) {
+                layer = GhostLayer.forEntity(entity, texture);
+            }
             if (layer != null) {
                 cir.setReturnValue(layer);
             }

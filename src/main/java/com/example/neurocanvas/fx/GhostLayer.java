@@ -30,6 +30,16 @@ public final class GhostLayer {
         if (!esp.enabled || !esp.phantomOn() || Shaders.get("neuro_ghost") == null) {
             return null;
         }
+        return layer(texture);
+    }
+
+    /** The values the hologram shader uses when a model is drawn by {@link ModelFx} instead of as the target. */
+    public record State(float ticks, float feetY, float alpha, int color1, int color2) { }
+
+    static State override;
+
+    /** The hologram layer for a texture (created once per texture). */
+    public static RenderLayer layer(Identifier texture) {
         return LAYERS.computeIfAbsent(texture, t -> RenderLayer.of("neurocanvas_phantom", VertexFormats.POSITION_COLOR_TEXTURE_OVERLAY_LIGHT_NORMAL,
                 VertexFormat.DrawMode.QUADS, 1536, true, true,
                 RenderLayer.MultiPhaseParameters.builder()
@@ -44,6 +54,16 @@ public final class GhostLayer {
     /** Chosen when the layer starts drawing: puts this frame's values into the shader. */
     private static ShaderProgram program() {
         ShaderProgram p = Shaders.get("neuro_ghost");
+        State o = override;
+        if (p != null && o != null) {
+            Shaders.gameTime(p, o.ticks());
+            set(p, "FeetY", o.feetY());
+            set(p, "Alpha", o.alpha());
+            rgb(p, "Color1", o.color1());
+            rgb(p, "Color2", o.color2());
+            Shaders.applyBrightness(p);
+            return p;
+        }
         MinecraftClient mc = MinecraftClient.getInstance();
         LivingEntity target = NeuroCanvasClient.state().target;
         if (p == null || target == null || mc.gameRenderer == null) {

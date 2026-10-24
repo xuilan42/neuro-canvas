@@ -748,44 +748,37 @@ public final class GuiSkin {
         }
     }
 
-    /** Our logo and name instead of the Mojang logo. Returns true when it drew them. */
-    public static boolean titleLogo(DrawContext ctx, float alpha) {
+    /** Our logo and name, small, under the game's own logo (which the title screen still draws). */
+    public static void titleBadge(DrawContext ctx, float alpha) {
         if (!titleOn()) {
-            return false;
+            return;
         }
         try {
             loadLogo();
             if (!splashLogoOk) {
-                return false;
+                return;
             }
             MinecraftClient mc = MinecraftClient.getInstance();
             Theme th = Interface.theme();
             int w = ctx.getScaledWindowWidth();
             int h = ctx.getScaledWindowHeight();
-            int s = Math.max(36, Math.min(64, (int) (h * 0.14f)));
+            int s = Math.max(10, Math.min(16, (int) (h * 0.026f)));
             String name = "Neuro Canvas";
-            float k = s / 22f;
-            int tw = (int) (mc.textRenderer.getWidth(name) * k);
-            int gap = s / 3;
+            int tw = mc.textRenderer.getWidth(name);
+            int gap = 5;
             int x = (w - (s + gap + tw)) / 2;
-            int y = Math.max(8, (int) (h / 4f + 22 - s) / 2 + 6);
+            int y = Math.min(88, h / 4 + 44 - s);
             int accent = th.accent() & 0xFFFFFF;
             com.mojang.blaze3d.systems.RenderSystem.enableBlend();
             com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
-            Ui.glow(ctx, x, y, s, s, s / 4, accent, 0.55f * alpha, 20f);
+            Ui.glow(ctx, x, y, s, s, s / 4, accent, 0.45f * alpha, 8f);
             ctx.setShaderColor(1f, 1f, 1f, alpha);
             ctx.drawTexture(SPLASH_LOGO, x, y, s, s, 0f, 0f, 512, 512, 512, 512);
             ctx.setShaderColor(1f, 1f, 1f, 1f);
-            ctx.getMatrices().push();
-            ctx.getMatrices().translate(x + s + gap, y + (s - 8 * k) / 2f, 0);
-            ctx.getMatrices().scale(k, k, 1f);
             int a = Math.max(4, (int) (alpha * 255)) << 24;
-            ctx.drawTextWithShadow(mc.textRenderer, name, 0, 0, a | 0xFFFFFF);
-            ctx.getMatrices().pop();
-            return true;
+            ctx.drawTextWithShadow(mc.textRenderer, name, x + s + gap, y + (s - 8) / 2, a | 0xFFFFFF);
         } catch (Throwable e) {
             broke("title", e);
-            return false;
         }
     }
 

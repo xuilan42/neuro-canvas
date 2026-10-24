@@ -17,9 +17,8 @@ public abstract class TitleScreenMixin {
     @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/LogoDrawer;draw(Lnet/minecraft/client/gui/DrawContext;IF)V"), require = 0)
     private void neurocanvas$logo(LogoDrawer drawer, DrawContext context, int width, float alpha, Operation<Void> original) {
         GuiSkin.titlePanorama(context);
-        if (!GuiSkin.titleLogo(context, alpha)) {
-            original.call(drawer, context, width, alpha);
-        }
+        original.call(drawer, context, width, alpha);
+        GuiSkin.titleBadge(context, alpha);
     }
 
     @WrapOperation(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screen/SplashTextRenderer;render(Lnet/minecraft/client/gui/DrawContext;ILnet/minecraft/client/font/TextRenderer;I)V"), require = 0)

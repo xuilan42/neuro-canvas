@@ -16,7 +16,7 @@ import org.joml.Matrix4f;
 public final class TargetStyles {
     public static final String[] NAMES = {
         "Ring", "Ghost", "Points", "Rhomb", "Crystals", "Helix", "Pulse", "Spiral", "Halo", "Pyramid", "Marker",
-        "Neon Marker", "Neon Ring", "Phantom", "Crystal Prism", "Lightning"};
+        "Neon Ring", "Phantom", "Orbiting Crystals", "Lightning"};
 
     private static final int GLOW = 0, DOT = 3, RING = 4, DIAMOND = 5;
 
@@ -57,8 +57,13 @@ public final class TargetStyles {
             case 8 -> halo(env, s, p, h);
             case 9 -> pyramid(env, s, p, h);
             case 10 -> marker(env, s, p, h);
-            case 11, 12, 13, 14, 15 -> {
-                if (!PremiumTargets.draw(style - 11, env, s)) {
+            case 11, 13, 14 -> {
+                if (!PremiumTargets.draw(style - 10, env, s)) {
+                    EffectDraw.targetRing(env, s, p, h);
+                }
+            }
+            case 12 -> {
+                if (Shaders.get("neuro_ghost") == null) {
                     EffectDraw.targetRing(env, s, p, h);
                 }
             }

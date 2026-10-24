@@ -26,7 +26,7 @@ public final class TargetEsp extends EffectModule {
 
     /** The Phantom style is drawn by a render layer while the entity itself is drawn, not in the world pass. */
     public boolean phantomOn() {
-        return style.index() == 13;
+        return style.index() == 12;
     }
 
     /** Reused every frame: the render loop allocates nothing. */

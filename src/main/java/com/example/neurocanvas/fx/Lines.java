@@ -65,8 +65,20 @@ public final class Lines {
         double hb = half(Math.sqrt((x2 - cam.x) * (x2 - cam.x) + (y2 - cam.y) * (y2 - cam.y) + (z2 - cam.z) * (z2 - cam.z)));
         fx.vertex(x1 + sx * ha, y1 + sy * ha, z1 + sz * ha, 0f, 1f, argb);
         fx.vertex(x1 - sx * ha, y1 - sy * ha, z1 - sz * ha, 0f, -1f, argb);
-        fx.vertex(x2 - sx * hb, y2 - sy * hb, z2 - sz * hb, 1f, -1f, argb);
-        fx.vertex(x2 + sx * hb, y2 + sy * hb, z2 + sz * hb, 1f, 1f, argb);
+        fx.vertex(x2 - sx * hb, y2 - sy * hb, z2 - sz * hb, 0f, -1f, argb);
+        fx.vertex(x2 + sx * hb, y2 + sy * hb, z2 + sz * hb, 0f, 1f, argb);
+        // Rounded ends: a half square past each end point; the shader fades by the distance from the end point, so the tip is a half disc.
+        double ln = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        double ux = dx / ln, uy = dy / ln, uz = dz / ln;
+        cap(x2, y2, z2, sx, sy, sz, ux, uy, uz, hb, argb);
+        cap(x1, y1, z1, sx, sy, sz, -ux, -uy, -uz, ha, argb);
+    }
+
+    private void cap(double x, double y, double z, double sx, double sy, double sz, double ux, double uy, double uz, double h, int argb) {
+        fx.vertex(x + sx * h, y + sy * h, z + sz * h, 0f, 1f, argb);
+        fx.vertex(x - sx * h, y - sy * h, z - sz * h, 0f, -1f, argb);
+        fx.vertex(x - sx * h + ux * h, y - sy * h + uy * h, z - sz * h + uz * h, 1f, -1f, argb);
+        fx.vertex(x + sx * h + ux * h, y + sy * h + uy * h, z + sz * h + uz * h, 1f, 1f, argb);
     }
 
     public void line(double x1, double y1, double z1, double x2, double y2, double z2, int argb) {
