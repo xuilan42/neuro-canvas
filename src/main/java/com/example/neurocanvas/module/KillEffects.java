@@ -16,7 +16,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
 
     private final Setting style = add(Setting.choice("Style", 0, "Burst", "Souls", "Lightning", "All",
             "Ash", "Embers", "Shatter", "Confetti", "Black hole", "Fireworks", "Tornado", "Steam", "Petals", "Rain", "Shockwave", "Beam",
-            "Voxels", "Melt", "Ice", "Bubbles", "Random"));
+            "Voxels", "Melt", "Ice", "Bubbles", "Cubes", "Hologram", "Implode", "Random"));
     private final Setting whose = add(Setting.choice("Deaths", 0, "My kills", "Players", "Everyone"));
     private final Setting debug = add(Setting.bool("Debug (chat)", false));
     private final Setting natural = add(Setting.bool("Natural colours", true));
@@ -28,6 +28,9 @@ public final class KillEffects extends Module implements WorldState.CombatListen
     private final Setting alpha = add(Setting.number("Alpha", 0.05, 1, 0.95));
 
     private final FxParticles fx = new FxParticles(3000);
+    private final com.example.neurocanvas.fx.KillModels models = new com.example.neurocanvas.fx.KillModels();
+    private final com.example.neurocanvas.fx.EffectSpec modelColors = new com.example.neurocanvas.fx.EffectSpec();
+    private boolean instantShards;
     private final List<Bolt> bolts = new ArrayList<>();
     private final Random random = new Random();
     private double lastT;
@@ -112,11 +115,20 @@ public final class KillEffects extends Module implements WorldState.CombatListen
 
     private void play(LivingEntity e) {
         int s = style.index();
-        if (s == 20) {
-            s = random.nextInt(20);
+        if (s == 23) {
+            s = random.nextInt(23);
             if (s == 3) {
                 s = 4;
             }
+        }
+        // The effects that change the dead body itself keep its model; without the shader they fall back to particles.
+        if ((s == 18 || s >= 20 && s <= 22) && com.example.neurocanvas.fx.KillModels.possible()) {
+            models.attach(fx);
+            models.start(e, s == 18 ? com.example.neurocanvas.fx.KillModels.ICE : s - 20 + 1);
+            return;
+        }
+        if (s == 20 || s == 21 || s == 22) {
+            s = s == 20 ? 16 : s == 21 ? 15 : 8;
         }
         if (s >= 4) {
             extra(s, e);
@@ -208,6 +220,10 @@ public final class KillEffects extends Module implements WorldState.CombatListen
         }
     }
 
+    private static boolean mcWorldGone() {
+        return net.minecraft.client.MinecraftClient.getInstance().world == null;
+    }
+
     private double rnd() {
         return random.nextDouble();
     }
@@ -296,7 +312,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
                 boolean ice = s == 18;
                 for (int i = 0; i < n * 3; i++) {
                     FxParticles.P p = inBody(e);
-                    p.life = ice ? -0.55f : 0f;
+                    p.life = ice && !instantShards ? -0.55f : 0f;
                     outward(p, e, 3.2, 2.4);
                     p.gravity = 14f;
                     p.drag = 0.4f;
@@ -312,7 +328,7 @@ public final class KillEffects extends Module implements WorldState.CombatListen
                 if (ice) {
                     for (int i = 0; i < n; i++) {
                         FxParticles.P p = inBody(e);
-                        p.life = -0.55f;
+                        p.life = instantShards ? 0f : -0.55f;
                         p.size *= 1.6f;
                         p.alpha *= 0.6f;
                         p.vy = 0.3 + rnd() * 0.5;
@@ -610,6 +626,25 @@ public final class KillEffects extends Module implements WorldState.CombatListen
         float dt = (float) Math.max(0, Math.min(0.1, env.t() - lastT));
         lastT = env.t();
         fx.update(dt);
+        if (mcWorldGone()) {
+            models.clear();
+        }
+        if (models.busy()) {
+            modelColors.color1 = color1.argb() & 0xFFFFFF;
+            modelColors.color2 = color2.argb() & 0xFFFFFF;
+            models.render(env, dt, modelColors, (x, y, z) -> base(x, y, z), (st, e, pos) -> {
+                if (st == com.example.neurocanvas.fx.KillModels.ICE) {
+                    instantShards = true;
+                    try {
+                        extra(18, e);
+                    } finally {
+                        instantShards = false;
+                    }
+                } else if (st == com.example.neurocanvas.fx.KillModels.IMPLODE) {
+                    extra(14, e);
+                }
+            });
+        }
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
         fx.render(env);

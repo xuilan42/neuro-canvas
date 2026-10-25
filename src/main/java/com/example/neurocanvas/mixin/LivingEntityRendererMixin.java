@@ -31,4 +31,15 @@ public abstract class LivingEntityRendererMixin {
             // Keep the game's own layer.
         }
     }
+
+    /** A creature whose death is replaced by an effect is not drawn by the game while the effect plays. */
+    @Inject(method = "render(Lnet/minecraft/entity/LivingEntity;FFLnet/minecraft/client/util/math/MatrixStack;Lnet/minecraft/client/render/VertexConsumerProvider;I)V",
+            at = @At("HEAD"), cancellable = true, require = 0)
+    private void neurocanvas$hideBody(LivingEntity entity, float yaw, float tickDelta, net.minecraft.client.util.math.MatrixStack matrices,
+                                      net.minecraft.client.render.VertexConsumerProvider vertexConsumers, int light,
+                                      org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        if (com.example.neurocanvas.fx.ModelFx.hidden(entity)) {
+            ci.cancel();
+        }
+    }
 }

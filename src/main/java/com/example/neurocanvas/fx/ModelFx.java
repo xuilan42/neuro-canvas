@@ -28,6 +28,33 @@ public final class ModelFx {
     }
 
     private static Look current;
+    private static boolean drawing;
+    private static final java.util.Map<Integer, Long> HIDDEN = new java.util.HashMap<>();
+
+    /** Hides the real body of a creature (its own death animation) for a while, so a copy drawn by us replaces it. */
+    public static void hide(LivingEntity e, long millis) {
+        HIDDEN.put(e.getId(), System.currentTimeMillis() + millis);
+    }
+
+    public static void show(LivingEntity e) {
+        HIDDEN.remove(e.getId());
+    }
+
+    /** True while the renderer must skip this creature (used by the renderer hook). */
+    public static boolean hidden(LivingEntity e) {
+        if (drawing || HIDDEN.isEmpty()) {
+            return false;
+        }
+        Long until = HIDDEN.get(e.getId());
+        if (until == null) {
+            return false;
+        }
+        if (System.currentTimeMillis() > until) {
+            HIDDEN.remove(e.getId());
+            return false;
+        }
+        return true;
+    }
 
     private ModelFx() { }
 
@@ -41,6 +68,14 @@ public final class ModelFx {
      * The caller's matrices must be camera-relative ({@code env.view()}), which is what the pass gives.
      */
     public static void draw(LivingEntity entity, RenderEnv env, Vec3d pos, float yaw, Look look) {
+        draw(entity, env, pos, yaw, 1f, look);
+    }
+
+    /**
+     * Same, with the whole model scaled around its feet. The pose is the creature's own, but a dying body is drawn standing (the fall and the red
+     * hurt flash are switched off for the moment of drawing).
+     */
+    public static void draw(LivingEntity entity, RenderEnv env, Vec3d pos, float yaw, float scale, Look look) {
         MinecraftClient mc = MinecraftClient.getInstance();
         EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
         MatrixStack ms = new MatrixStack();
@@ -49,11 +84,20 @@ public final class ModelFx {
         VertexConsumerProvider.Immediate consumers = mc.getBufferBuilders().getEntityVertexConsumers();
         dispatcher.setRenderShadows(false);
         current = look;
+        drawing = true;
+        int death = entity.deathTime;
+        int hurt = entity.hurtTime;
+        entity.deathTime = 0;
+        entity.hurtTime = 0;
         try {
-            dispatcher.render(entity, pos.x - env.cam().x, pos.y - env.cam().y, pos.z - env.cam().z, yaw, env.tickDelta(), ms, consumers,
-                    LightmapTextureManager.MAX_LIGHT_COORDINATE);
+            ms.translate(pos.x - env.cam().x, pos.y - env.cam().y, pos.z - env.cam().z);
+            ms.scale(scale, scale, scale);
+            dispatcher.render(entity, 0, 0, 0, yaw, env.tickDelta(), ms, consumers, LightmapTextureManager.MAX_LIGHT_COORDINATE);
             consumers.draw();
         } finally {
+            entity.deathTime = death;
+            entity.hurtTime = hurt;
+            drawing = false;
             current = null;
             dispatcher.setRenderShadows(mc.options.getEntityShadows().getValue());
         }
