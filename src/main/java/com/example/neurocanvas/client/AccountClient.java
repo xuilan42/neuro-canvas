@@ -11,7 +11,6 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import net.minecraft.client.MinecraftClient;
 
@@ -135,13 +134,7 @@ public final class AccountClient {
             o.addProperty("token", token);
             o.addProperty("name", name);
             o.addProperty("verified", verified);
-            Files.createDirectories(file.getParent());
-            Files.writeString(file, o.toString(), StandardCharsets.UTF_8);
-            try {
-                Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
-            } catch (UnsupportedOperationException | IOException ignored) {
-                // Not a POSIX file system.
-            }
+            SecretFiles.write(file, o.toString());
         } catch (IOException ignored) {
             // The account stays linked for this session even when it cannot be remembered.
         }

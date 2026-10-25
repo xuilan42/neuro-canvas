@@ -61,6 +61,9 @@ public final class AiClient {
         request.timeout(Duration.ofSeconds(60)).header("Content-Type", "application/json");
         String key = config.effectiveKey();
         if (!key.isEmpty()) {
+            if (AiConfig.sendsKeyInTheClear(url)) {
+                return CompletableFuture.failedFuture(new AiException("The API key is not sent over plain http to a server outside your network: use https"));
+            }
             request.header("Authorization", "Bearer " + key);
         }
         request.POST(HttpRequest.BodyPublishers.ofString(body.toString()));
@@ -119,6 +122,9 @@ public final class AiClient {
         request.timeout(Duration.ofSeconds(60)).header("Content-Type", "multipart/form-data; boundary=" + boundary);
         String key = config.effectiveKey();
         if (!key.isEmpty()) {
+            if (AiConfig.sendsKeyInTheClear(url)) {
+                return CompletableFuture.failedFuture(new AiException("The API key is not sent over plain http to a server outside your network: use https"));
+            }
             request.header("Authorization", "Bearer " + key);
         }
         request.POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()));

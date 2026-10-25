@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Neuro Canvas: now playing
 // @namespace    https://github.com/xuilan42/neuro-canvas
-// @version      1.0
+// @version      1.1
 // @description  Tells the Neuro Canvas mod (on this computer only) what is playing in the browser, so it can show the lyrics in the game.
 // @match        https://open.spotify.com/*
 // @match        https://music.youtube.com/*
@@ -48,7 +48,7 @@
             method: 'POST',
             url: URL,
             data: JSON.stringify(payload),
-            headers: { 'Content-Type': 'text/plain' },
+            headers: { 'Content-Type': 'text/plain', 'X-NC': '1' },
             timeout: 1500
         });
     }

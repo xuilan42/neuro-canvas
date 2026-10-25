@@ -225,6 +225,11 @@ public final class NameTags extends Module {
                 @Override
                 public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
                     buffer.append(data);
+                    if (buffer.length() > 1_000_000) {
+                        buffer.setLength(0);
+                        ws.abort();
+                        return null;
+                    }
                     if (last) {
                         read(buffer.toString());
                         buffer.setLength(0);

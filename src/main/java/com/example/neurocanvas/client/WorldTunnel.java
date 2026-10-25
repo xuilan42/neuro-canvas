@@ -106,7 +106,7 @@ public final class WorldTunnel {
 
     private void connectControl(int attempt) {
         StringBuilder text = new StringBuilder();
-        HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(10))
+        HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(10)).header("Authorization", "Bearer " + token)
                 .buildAsync(URI.create(wsBase + "/v1/tunnel/ctl" + query()), new WebSocket.Listener() {
                     @Override
                     public void onOpen(WebSocket ws) {
@@ -117,6 +117,11 @@ public final class WorldTunnel {
                     @Override
                     public CompletionStage<?> onText(WebSocket ws, CharSequence data, boolean last) {
                         text.append(data);
+                        if (text.length() > 65536) {
+                            text.setLength(0);
+                            ws.abort();
+                            return null;
+                        }
                         if (last) {
                             String msg = text.toString();
                             text.setLength(0);
@@ -192,7 +197,7 @@ public final class WorldTunnel {
             sockets.add(local);
             Socket sock = local;
             OutputStream out = local.getOutputStream();
-            data = HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8))
+            data = HTTP.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(8)).header("Authorization", "Bearer " + token)
                     .buildAsync(URI.create(wsBase + "/v1/tunnel/data" + query() + "&conn=" + id), new WebSocket.Listener() {
                         @Override
                         public void onOpen(WebSocket ws) {

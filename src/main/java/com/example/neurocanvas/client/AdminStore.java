@@ -39,13 +39,7 @@ public final class AdminStore {
             if (k.isEmpty()) {
                 Files.deleteIfExists(file);
             } else {
-                Files.createDirectories(file.getParent());
-                Files.writeString(file, k);
-                try {
-                    Files.setPosixFilePermissions(file, java.nio.file.attribute.PosixFilePermissions.fromString("rw-------"));
-                } catch (UnsupportedOperationException | IOException ignored) {
-                    // Not a POSIX file system.
-                }
+                SecretFiles.write(file, k);
             }
         } catch (IOException ignored) {
             // The key still works until the game is closed.

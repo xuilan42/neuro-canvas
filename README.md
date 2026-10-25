@@ -1,6 +1,6 @@
 # Neuro Canvas
 
-A client-side **Fabric 1.20.1** visual mod: a clean in-game menu with 40+ modules (target ring, hit particles,
+A client-side **Fabric 1.20.1** visual mod: a clean in-game menu with 60+ modules (target ring, hit particles,
 fog, sky, crosshair, HUD panels and more), presets, and an **AI chat** that sets them up for you.
 Everything runs on the client: it works in singleplayer and on servers, and needs no server-side part.
 
@@ -37,17 +37,28 @@ Java 17 or newer is required.
 
 | Category | Modules |
 |---|---|
-| **Visuals** | NameTags, JumpCircles, Particles, Trails, HitParticles, HitBubbles, HandTrails, KillEffects, ScreenPulse, SwingAnimation, ViewModel |
-| **Cosmetics** | Model (your own 3D model), Capes, Wings, Hats, Outfits, Emotes, Graffiti, Market (one-click catalog), Avatar (animated Blockbench avatars), Shimmer (armour and held items shift through rainbow or gradient colours) |
-| **Combat** | ESP, TargetESP, HitColor, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
-| **World** | FreeLook, FreeCam, NoRender, Comfort, CropInfo, Zoom (hold **C**), Fullbright, AspectRatio, CustomFog, VolumetricFog, TimeChanger, WeatherChanger, CustomSky, NorthernLights, ColorGrading, ItemPhysics, BlockOverlay, ToggleSprint, AutoRespawn |
+| **Visuals** | JumpCircles, Particles, Trails, HitParticles, HitBubbles, HitColor, TargetESP, KillEffects, ScreenPulse, SwingAnimation, ViewModel, Shimmer, EnchantGlint, ColorGrading, Fullbright, Zoom (hold **C**), AspectRatio |
+| **Cosmetics** | Model (your own 3D model), Capes, Wings, Hats, Outfits, Emotes, Graffiti, Market (one-click catalog and configs), Avatar (animated Blockbench avatars) |
+| **Combat** | ESP, Arrow, Predictions, CustomHitbox, Teams, FakePlayer |
+| **World** | Ambience, CustomSky, NorthernLights, CustomFog, VolumetricFog, TimeChanger, WeatherChanger, FreeLook, FreeCam, NoRender, Comfort, CropInfo, ItemPhysics, BlockOverlay, WorldLyrics |
 | **HUD** | HUD (watermark and module list), TargetHUD, Crosshair, TotemCounter, DamageFeed, CombatNotifier, AttackIndicator, PerformanceHUD, CombatStats, InfoHUD, EffectsHUD, Cooldowns |
-| **Friends** | Friends, PingWheel, NameTags (everything that talks to other users) |
-| **Misc** | Interface (themes, fonts, effects) |
+| **Friends** | Friends, PingWheel, NameTags, Showcase, WorldBridge (everything that talks to other users) |
+| **Misc** | Interface (themes, fonts, effects), Account, NoLimited, ToggleSprint, AutoRespawn |
 | **NeuroAura** | the AI chat (see below) |
 
 Notes on a few modules:
 
+- **Ambience** paints the whole sky with a shader instead of the game's: ten looks (*Style*): Space, Black hole (light bent around it, a hot accretion disk whose colour follows its temperature), Aurora, Synthwave, Dusk, Meteor shower, Milky Way, Eclipse, Planet (ringed, with a moon) and Nebula. The stars turn with the time of day, shooting stars cross now and then, and the far terrain fades into the sky's horizon colour (*Fog follows the sky*). The sky stays where it is when you turn.
+- **NorthernLights** are ribbons of light painted on the sky itself (not objects in the world), added over the game's sky or Ambience's; *Only at night* by default.
+- **WorldLyrics** shows the words of the song that plays, in the 3D world, word by word, in time with the music. Sources: the music of your **browser** (Spotify, YouTube Music, SoundCloud, Apple Music, Deezer, Tidal, Yandex Music, VK; a small userscript from the module's *Copy browser script* button, for Tampermonkey or Violentmonkey) or of the **system player** (Windows media controls, Spotify and Music on macOS, any MPRIS player through playerctl or busctl on Linux), or your own `.txt` / `.lrc` songs in `neurocanvas/lyrics/`. Lyrics come from LRCLIB (only artist, title and length are sent). Layouts: Float around, Ring, Stage; the text stands fixed in the world or turns to the camera. A music player card with the cover can be moved in the HUD editor. *Music detection info* prints what was found.
+- **EnchantGlint** replaces the purple enchantment shimmer on armour and items: Galaxy, Rainbow, Glitch or a Flow between two colours.
+- **KillEffects** has 25 styles. The ones that change the dead body itself keep its model (the game's own death animation is hidden) and draw it changing: *Ice* freezes it from the feet up and breaks it, *Cubes* wears it away into glowing squares, *Hologram* turns it into a glitching projection, *Implode* spins it down into a point. *Deaths* picks whose deaths count: yours, players, or everyone in range. Kills are detected from the server's death signal and from the moment an entity leaves the world, so servers that remove a player at once are counted too.
+- **TargetESP** has 15 styles, all drawn with glowing soft light: Ring, Ghost, Points, Rhomb, Crystals, Helix, Pulse, Spiral, Halo, Pyramid, Marker, plus **Neon Ring** (a broken ring that sweeps up and down the body with a wake), **Phantom** (the target's own model as a hologram: glowing rim and scan bands), **Orbiting Crystals** (rows of small spinning crystals around the body) and **Lightning** (a closed ring of lightning bolts). Line styles have rounded ends and corners.
+- **NoLimited** (Misc) lifts the limits on how many objects the effect modules make (counts, lines, curtains): the sliders reach ten times as far. It can lower the frame rate.
+- **HUD size:** *HUD scale* in Interface and a *HUD size* in every module that has a HUD element; in the HUD editor the wheel over an element resizes it.
+- **ViewModel** can be edited while the chat is open (*Edit in chat*): drag moves the hand, the wheel brings it closer or sends it away, Shift and the wheel change its size. **SwingAnimation** has easing and two more styles, Slap and Spear.
+- **Market** has a *Configs* tab: publish a preset with *Publish to Market* in the Configs tab and apply other people's with *Get* (your old settings are saved as a preset first). *Share* and *Unshare* of a cosmetic open a list with tick boxes.
+- **Title screen:** themed background (eleven animated styles, *GUI background style* in Interface), a small Neuro Canvas badge under the game's logo, themed language and accessibility buttons; the menu opens with its key from any screen. Tab list, scoreboard, held item name, subtitles and the loading screens take the theme too.
 - **Minecraft hotbar and HUD (part 5):** the hotbar is a plain dark rounded panel (not glass) with a faint cell under every slot, the selected slot is an accent cell that glides to the new slot, the off-hand slot is a matching panel, the experience bar is a thin rounded bar, boss bars are rounded and coloured with thin ticks for the notched styles, and the black behind chat lines and the chat input takes the theme's dark colour (with the opacity you chose). Hearts, armour and hunger are not touched at all, so mods that sit on them (AppleSkin) keep working; items, counts and the attack indicator stay the game's. *GUI hotbar and HUD* in Interface turns it off.
 - **Minecraft loading screen (part 4):** the screen shown while the game starts and while resources reload (after changing a resource pack, F3+T) keeps all of the game's own timing, fading and error handling, but the red is replaced by the theme's dark colour, the Mojang logo by the Neuro Canvas logo with a soft glow, and the white bar by a thin accent progress bar. No text is drawn on it (the fonts may not be loaded yet). Interface has *GUI loading screen* to turn it off. The very first frames of the start can still be vanilla, because the screen can appear before the mod has read its settings.
 - **Minecraft GUI scrollbars, checkboxes, tabs and toasts (part 3):** the scrollbar of lists is a rounded track with an accent handle, checkboxes are rounded boxes with an accent mark, the tabs of the world creation screen are themed (the current one glows), and advancement, recipe and system toasts get a themed panel. All of it is covered by *GUI buttons and fields* in Interface.
@@ -55,10 +66,8 @@ Notes on a few modules:
 - **Minecraft GUI backgrounds (part 1 of the GUI redesign):** inside a world the screen behind an inventory or a menu is blurred and tinted with the theme; on the main menus (options, world and server lists, resource packs) the dirt tile is replaced by a themed gradient with a slow aurora, and the dirt of lists, headers and footers becomes a themed panel. Vanilla text is white, so these backgrounds are always dark, even with a light theme. Interface has *Custom Minecraft GUI* (everything), *GUI backgrounds* and *GUI blur*. Screens that should stay vanilla go into `neurocanvas/gui-exclude.txt` (a class name or its start per line). If our drawing ever throws an error, that part switches itself off until the game restarts and the vanilla look returns.
 - **Effects through glass:** fog, particles and the block overlay are no longer hidden behind glass, ice, panes and water (glass writes the depth buffer, so they were taken for a wall), and glass no longer counts as a wall for ESP and the other visibility checks. The depth of the solid world is copied before the see-through layers and put back for our effects; *Effects through glass* in Interface turns it off. It pauses while a shader pack (Iris) is active.
 - **TargetESP depth:** the new *Depth* setting (default *Around the body*) draws the effect with the depth test, so the part of a ring or of orbiting particles that is behind the target is hidden by its body and by walls, and they really fly around it; *Over everything* is the old look, drawn over the model.
-- **TargetESP** has 11 styles (the *Style* setting): Ring, Ghost (glowing orbs with trails), Points, Rhomb (a spinning diamond), Crystals (orbiting 3D gems), Helix (two glowing strands), Pulse (expanding rings), Spiral, Halo (a ring above the head), Pyramid (a cone above the head) and Marker (rotating corner brackets). Colours, size, speed, count and alpha apply to all of them.
 - **BlockOverlay** has animated styles (*Style*): Waves (sea-like waves running over the faces), Scan (a bright band sweeping up and down), Ripple (rings spreading from the point you look at), Liquid (a fill that rises and falls with a wavy surface), Chase (light dashes running along the edges), Sparkles (sparks rising from the edges) and Checker (a pulsing checkerboard); *Style speed* sets the pace. It can also shimmer: *Color mode* Rainbow or Gradient (between the outline/fill colour and *Gradient color*), with *Color speed* and *Color flow* (how much the colour differs along the outline).
 - **Shimmer** tints armour pieces and held items: *Mode* Rainbow, Gradient (two colours) or Pulse, *Speed*, *Strength*, *Flow between pieces* (the colour runs from the helmet to the boots), *Who* (only you or everyone), and a switch for every armour piece and for held items. It only changes colours you see; other players do not.
-- **NorthernLights** is drawn by its own shader: several wavy curtains of thin vertical rays that brighten at the bottom edge and fade upwards (green to blue-violet by default), with soft ends, slow drifting and a smooth fade in at dusk with *Only at night*. *Ray sharpness*, *Curtain height*, distance, width and the two colours are adjustable.
 - **CustomSky** also shapes the horizon: *Horizon color* and *Horizon gradient* make the sky, the horizon and the fog fade into each other without a seam, and the orange sunrise/sunset fan is hidden unless *Sunset glow* is on.
 - **Particles** have a **Sprite editor** button: paint your own particle on a small canvas (8, 16 or 32 px), name it, save, and it is chosen in *Custom sprite* (files are `neurocanvas/particles/<name>.png`). The particles then use your picture instead of a shape, tinted by the colour settings (paint it white or grey to let the colours show), with *Glow blending* and everything else working as before.
 - **Particles** are ambient particles around you: they appear at random spots inside *Spawn radius*, drift wherever they like (*Speed*, *Wander*, *Gravity*),
@@ -68,7 +77,7 @@ Notes on a few modules:
   all of them in advance, which avoids a short freeze the first time an effect appears, and prints a report; `/shaders recompile` rebuilds them. If one cannot be built, the report shows why.
   Particles then fall back to plain squares instead of disappearing. *Precompile shaders on join* does it automatically.
 - **Shader visuals:** the world visuals are drawn by the mod's own shader: lines (hitboxes, predictions, kill bolts, block outline) are glowing soft-edged beams of constant screen width,
-  boxes have a glowing rim on every face, the target ring, jump ripples and trails are drawn as smooth glowing shapes, hand trails and hit colour use it too. *Shader visuals* and
+  boxes have a glowing rim on every face, the target ring, jump ripples and trails are drawn as smooth glowing shapes, hit colour uses it too. *Shader visuals* and
   *Visual glow* in Interface switch it off or tune the glow; if the shader cannot be built the old basic shapes are used instead.
 - **CropInfo** shows, for the plant you look at (wheat, carrots, potatoes, beetroots, melon and pumpkin stems, nether wart, cocoa, sweet berries, saplings),
   the growth in percent with a bar and about how long is left. The time is an average based on the game's own random-tick chances (set *Random tick speed*
@@ -78,7 +87,7 @@ Notes on a few modules:
 - **FakePlayer** spawns a dummy that exists only on your screen, with health, armour, knockback, a death animation and optional
   instant respawn, for testing combat modules. Commands: `/fake spawn [name]`, `/fake remove`, `/fake heal`.
 - **WeatherChanger** shows clear sky, rain, a thunderstorm or a custom rain/thunder strength on your screen only (the server's weather does not change; snow instead of rain still depends on the biome).
-- **Predictions** have looks to pick (every list ends with *None*, so you can keep only the landing marker or only the path): *Path style* Line, Dashed, Dots, Arrows (moving chevrons), Glow trail, Rainbow or Double, and *Landing style* Cross, Ring, Target, Diamond, Pulse or Pin; *Animation speed* sets the motion; the landing mark lies on the surface it hits (flat on the floor, upright on a wall). **Predictions** (also shows pearls, arrows, tridents and potions already in the air, with the time until they land), **Arrow**, **CustomHitbox** and **ESP** only draw information (**ESP** has three modes: *Box* a 3D box drawn over everything (only the faces and edges that turn towards you, the far ones stay hidden), *2D* a screen rectangle with a health bar, and *Outline* the game's glow outline in your colour; with *Through walls* off they only show what is in your line of sight. every world effect around entities (hit particles, bubbles, kill effects, hit colour, hand trails, predictions, hitboxes) follows one rule: if the camera can see the spot it is drawn over models, behind a wall it is hidden; switch off with *Draw effects over models* in Interface); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
+- **Predictions** have looks to pick (every list ends with *None*, so you can keep only the landing marker or only the path): *Path style* Line, Dashed, Dots, Arrows (moving chevrons), Glow trail, Rainbow or Double, and *Landing style* Cross, Ring, Target, Diamond, Pulse or Pin; *Animation speed* sets the motion; the landing mark lies on the surface it hits (flat on the floor, upright on a wall). **Predictions** (also shows pearls, arrows, tridents and potions already in the air, with the time until they land), **Arrow**, **CustomHitbox** and **ESP** only draw information (**ESP** has three modes: *Box* a 3D box drawn over everything (only the faces and edges that turn towards you, the far ones stay hidden), *2D* a screen rectangle with a health bar, and *Outline* the game's glow outline in your colour; with *Through walls* off they only show what is in your line of sight. every world effect around entities (hit particles, bubbles, kill effects, hit colour, predictions, hitboxes) follows one rule: if the camera can see the spot it is drawn over models, behind a wall it is hidden; switch off with *Draw effects over models* in Interface); **FreeCam** detaches the camera; **ToggleSprint** and **AutoRespawn** automate key presses.
   Some servers do not allow such helpers, so check the rules of the server you play on.
 
 **VolumetricFog** (experimental) draws its own fog with a shader after the world is rendered: it reads the depth buffer and blends a haze that is thicker near the
@@ -138,6 +147,17 @@ off to the side). Outer ring: **Attention (!)**, **Question (?)**, **Go here**, 
   so **NameTags must be on**. Only the spot you ping and your name are sent, never your position. Switches: *Share with other users*, *Show other users' pings*.
 - In **FreeCam** the wheel aims from the free camera, so you can fly up and mark a spot far away from your character.
 - Each user can have 3 pings at a time; they fade after *Lifetime*. The server limits how fast pings can be sent.
+
+## WorldBridge (play your single-player world with friends)
+
+**WorldBridge** (Friends tab) opens the world you are in to the internet, so a friend only types an address like `abcd2345.neuro-connect.x-vare.com` in Multiplayer. It needs the mod account (*Misc > Account*).
+
+- **The game server runs on your computer**, inside your game, as with "Open to LAN". The project's server only relays the bytes between your friend and your computer; nothing is stored there. Your computer connects out to the relay, so no port forwarding is needed.
+- The world is reachable only while you are in it. It closes when you leave the world or quit, and after at most 5 hours. Your internet connection carries the guests' traffic.
+- Settings: *Max players* (up to 20), *Guests may use cheats* (a LAN flag, it applies to everybody including you), *Check Mojang accounts* (off by default: guests are then not verified and can join under any name, so keep it to people you trust; switch it on to require real accounts),
+  *One player per nick* (a second player with the same nick, in any letter case, is refused), *Lock lobby* (only nicks that already joined this time can come back; let your friends in first, then lock),
+  *Guest game mode* (world default, survival, adventure, creative or spectator, set when a guest joins) and *Guests may fight each other (PvP)*.
+- With *Check Mojang accounts* off the mod cannot tell the owner of a nick from someone who types the same nick, so *One player per nick* only holds while the first player is online.
 
 ## Cosmetics: Capes, Wings, Hats, Outfits, Emotes, Graffiti and the Market
 
@@ -217,6 +237,13 @@ With **Auto-apply** off it shows the changes first and waits for **Apply**.
 **Privacy.** Only what you type in the chat, the recent conversation, and a list of module settings with their current
 values are sent (plus a picture or a recording when you attach or record one), and only to the address you configured. No world data, coordinates or account details are sent.
 The key is stored in plain text in `neurocanvas/ai.json` (owner-only permissions on Linux and macOS) and is never part of presets or share codes.
+
+## Security notes
+
+- Keys and tokens (`neurocanvas/ai.json`, `account.json`, `admin.key`) are stored in plain text and are readable by your user only.
+- The AI key is never sent over plain `http://` to a server outside your own network; use `https://` (or a server on this computer or your LAN, such as Ollama).
+- The now-playing listener of **WorldLyrics** binds to `127.0.0.1` only and ignores requests from web pages. If you installed the browser script earlier, copy it again from the module (version 1.1 sends the `X-NC` header).
+- To report a vulnerability see [SECURITY.md](SECURITY.md).
 
 ## Files
 

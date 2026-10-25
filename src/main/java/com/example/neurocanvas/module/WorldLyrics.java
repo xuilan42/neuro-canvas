@@ -268,6 +268,12 @@ public final class WorldLyrics extends Module {
                     }
                     data = Files.readAllBytes(f);
                 } else {
+                    for (java.net.InetAddress a : java.net.InetAddress.getAllByName(java.net.URI.create(t.art()).getHost())) {
+                        if (a.isAnyLocalAddress() || a.isLoopbackAddress() || a.isLinkLocalAddress() || a.isSiteLocalAddress() || a.isMulticastAddress()
+                                || (a.getAddress().length == 16 && (a.getAddress()[0] & 0xFE) == 0xFC)) {
+                            return null;
+                        }
+                    }
                     java.net.http.HttpResponse<java.io.InputStream> r = COVER_HTTP.send(
                             java.net.http.HttpRequest.newBuilder(java.net.URI.create(t.art())).timeout(java.time.Duration.ofSeconds(10)).GET().build(),
                             java.net.http.HttpResponse.BodyHandlers.ofInputStream());

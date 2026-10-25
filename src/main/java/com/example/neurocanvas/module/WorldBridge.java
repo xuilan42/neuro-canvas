@@ -20,7 +20,17 @@ public final class WorldBridge extends Module {
     private final Setting players = add(Setting.number("Max players", 1, 20, 8));
     private final Setting cheats = add(Setting.bool("Guests may use cheats", false));
     private final Setting verify = add(Setting.bool("Check Mojang accounts", false));
+    private final Setting oneNick = add(Setting.bool("One player per nick", true));
+    private final Setting lockLobby = add(Setting.bool("Lock lobby (only nicks that already joined)", false));
+    private final Setting guestMode = add(Setting.choice("Guest game mode", 0, "World default", "Survival", "Adventure", "Creative", "Spectator"));
+    private final Setting pvp = add(Setting.bool("Guests may fight each other (PvP)", true));
     private final Setting copy = add(Setting.button("Copy link"));
+
+    /** The rules the server thread reads; null while no world is open through this module. */
+    private static volatile WorldBridge live;
+    private static boolean hooked;
+    /** Nicks (lower case) that joined during this opening; the lock lets only these back in. */
+    private final java.util.Set<String> known = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     private WorldTunnel tunnel;
     /** True while the check of accounts is switched off by us, so it can be put back. */
@@ -33,6 +43,53 @@ public final class WorldBridge extends Module {
         super("WorldBridge", Category.FRIENDS, "Opens your single-player world to friends through the project's server (address xxxx.neuro-connect.x-vare.com, up to 20 players, 5 hours)", false);
         aiControllable = false;
         risky = true;
+        hook();
+    }
+
+    private static synchronized void hook() {
+        if (hooked) {
+            return;
+        }
+        hooked = true;
+        net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
+            WorldBridge b = live;
+            if (b != null) {
+                b.guestJoined(handler, server);
+            }
+        });
+        net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
+            WorldBridge b = live;
+            return b == null || b.pvp.on() || !(entity instanceof net.minecraft.server.network.ServerPlayerEntity victim)
+                    || !(source.getAttacker() instanceof net.minecraft.server.network.ServerPlayerEntity attacker) || attacker == victim;
+        });
+    }
+
+    /** Applies the rules to a player who just joined; the host is never touched. */
+    private void guestJoined(net.minecraft.server.network.ServerPlayNetworkHandler handler, net.minecraft.server.MinecraftServer server) {
+        net.minecraft.server.network.ServerPlayerEntity player = handler.getPlayer();
+        if (server.isHost(player.getGameProfile())) {
+            return;
+        }
+        String nick = player.getGameProfile().getName().toLowerCase(java.util.Locale.ROOT);
+        if (oneNick.on()) {
+            for (net.minecraft.server.network.ServerPlayerEntity other : server.getPlayerManager().getPlayerList()) {
+                if (other != player && other.getGameProfile().getName().equalsIgnoreCase(player.getGameProfile().getName())) {
+                    handler.disconnect(Text.literal("Somebody is already playing under the nick " + player.getGameProfile().getName()));
+                    return;
+                }
+            }
+        }
+        if (lockLobby.on() && !known.contains(nick)) {
+            handler.disconnect(Text.literal("This world is locked: only players who already joined can come back"));
+            return;
+        }
+        known.add(nick);
+        net.minecraft.world.GameMode[] modes = {null, net.minecraft.world.GameMode.SURVIVAL, net.minecraft.world.GameMode.ADVENTURE,
+                net.minecraft.world.GameMode.CREATIVE, net.minecraft.world.GameMode.SPECTATOR};
+        net.minecraft.world.GameMode mode = modes[Math.min(guestMode.index(), modes.length - 1)];
+        if (mode != null) {
+            player.changeGameMode(mode);
+        }
     }
 
     private static void say(String text) {
@@ -45,6 +102,10 @@ public final class WorldBridge extends Module {
     }
 
     private void stop(String why) {
+        if (live == this) {
+            live = null;
+        }
+        known.clear();
         WorldTunnel t = tunnel;
         tunnel = null;
         starting = false;
@@ -133,6 +194,8 @@ public final class WorldBridge extends Module {
                 }
             }
             lan = server.getServerPort();
+            known.clear();
+            live = this;
             // With the check off anybody can join under any name, with or without a bought game; the game does not ask Mojang who they are.
             if (!verify.on()) {
                 server.setOnlineMode(false);

@@ -98,7 +98,7 @@ public final class NowPlaying {
                 try (Socket c = socket.accept()) {
                     c.setSoTimeout(2000);
                     handle(c);
-                } catch (IOException ignored) {
+                } catch (IOException | RuntimeException ignored) {
                     // A broken request only ends that request.
                 }
             }
@@ -126,12 +126,30 @@ public final class NowPlaying {
         String request = readLine(in);
         int length = 0;
         String host = "";
-        for (String h = readLine(in); !h.isEmpty(); h = readLine(in)) {
+        boolean marked = false;
+        boolean fromPage = false;
+        for (int count = 0; ; ) {
+            String h = readLine(in);
+            if (h.isEmpty()) {
+                break;
+            }
+            if (++count > 64) {
+                throw new IOException("too many headers");
+            }
             String lower = h.toLowerCase();
             if (lower.startsWith("content-length:")) {
-                length = Integer.parseInt(h.substring(15).strip());
+                try {
+                    length = Integer.parseInt(h.substring(15).strip());
+                } catch (NumberFormatException e) {
+                    respond(c, 400, "{}");
+                    return;
+                }
             } else if (lower.startsWith("host:")) {
                 host = h.substring(5).strip();
+            } else if (lower.startsWith("x-nc:")) {
+                marked = true;
+            } else if (lower.startsWith("origin:") || lower.startsWith("sec-fetch-site:") && !lower.substring(15).strip().equals("none")) {
+                fromPage = true;
             }
         }
         // A page on the internet must not be able to reach this through a made-up host name (DNS rebinding).
@@ -141,14 +159,20 @@ public final class NowPlaying {
             respond(c, 403, "{}");
             return;
         }
-        if (method.equals("OPTIONS")) {
-            respond(c, 204, "");
+        // A web page in the browser must not be able to feed this: its requests carry an Origin (or a Sec-Fetch-Site) and cannot add the X-NC header
+        // without a preflight, which is never answered with permission.
+        if (fromPage && !marked || method.equals("OPTIONS")) {
+            respond(c, 403, "{}");
             return;
         }
         if (method.equals("POST") && length > 0 && length <= 16384) {
             byte[] body = in.readNBytes(length);
             try {
                 Track t = parse(new String(body, StandardCharsets.UTF_8));
+                if (t != null && t.art().regionMatches(true, 0, "file:", 0, 5)) {
+                    // The browser has no business pointing at files on this computer.
+                    t = new Track(t.title(), t.artist(), t.album(), "", t.position(), t.duration(), t.playing(), t.source());
+                }
                 if (t != null) {
                     update(t, true);
                 }
@@ -164,8 +188,7 @@ public final class NowPlaying {
     private static void respond(Socket c, int status, String body) throws IOException {
         byte[] data = body.getBytes(StandardCharsets.UTF_8);
         String head = "HTTP/1.1 " + status + (status == 200 ? " OK" : status == 204 ? " No Content" : " Error") + "\r\n"
-                + "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Headers: *\r\nAccess-Control-Allow-Methods: POST, OPTIONS\r\n"
-                + "Access-Control-Allow-Private-Network: true\r\nContent-Type: application/json\r\nContent-Length: " + data.length
+                + "Content-Type: application/json\r\nContent-Length: " + data.length
                 + "\r\nConnection: close\r\n\r\n";
         c.getOutputStream().write(head.getBytes(StandardCharsets.ISO_8859_1));
         c.getOutputStream().write(data);

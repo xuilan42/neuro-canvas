@@ -4,12 +4,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.io.Reader;
-import java.io.Writer;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.attribute.PosixFilePermissions;
 
 /**
  * Connection settings for an OpenAI-compatible chat API. Kept in its own file so the key never ends up
@@ -53,15 +51,7 @@ public final class AiConfig {
     }
 
     public void save() throws IOException {
-        Files.createDirectories(file.getParent());
-        try (Writer writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8)) {
-            GSON.toJson(this, writer);
-        }
-        try {
-            Files.setPosixFilePermissions(file, PosixFilePermissions.fromString("rw-------"));
-        } catch (UnsupportedOperationException | IOException ignored) {
-            // Not a POSIX file system (Windows); nothing to restrict.
-        }
+        com.example.neurocanvas.client.SecretFiles.write(file, GSON.toJson(this));
     }
 
     /** The key from the file, or from the NEUROCANVAS_API_KEY environment variable when the file has none. */
@@ -77,8 +67,37 @@ public final class AiConfig {
     public boolean isLocal() {
         try {
             String host = URI.create(baseUrl.trim()).getHost();
-            return host != null && (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1")
-                    || host.startsWith("192.168.") || host.endsWith(".local"));
+            return isLocalHost(host);
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    static boolean isLocalHost(String host) {
+        if (host == null) {
+            return false;
+        }
+        if (host.equals("localhost") || host.equals("127.0.0.1") || host.equals("::1") || host.equals("[::1]")
+                || host.startsWith("192.168.") || host.startsWith("10.") || host.endsWith(".local")) {
+            return true;
+        }
+        if (host.startsWith("172.")) {
+            String[] parts = host.split("\\.");
+            try {
+                int second = parts.length > 1 ? Integer.parseInt(parts[1]) : -1;
+                return second >= 16 && second <= 31;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+        return false;
+    }
+
+    /** True when sending a key to this address would put it on the internet in the clear (http to a host that is not on this machine or network). */
+    public static boolean sendsKeyInTheClear(String url) {
+        try {
+            URI u = URI.create(url.trim());
+            return "http".equalsIgnoreCase(u.getScheme()) && !isLocalHost(u.getHost());
         } catch (IllegalArgumentException e) {
             return false;
         }
