@@ -9,7 +9,7 @@ public final class AutoRespawn extends Module {
     private int deadTicks;
 
     public AutoRespawn() {
-        super("AutoRespawn", Category.WORLD, "Respawn automatically after dying", false);
+        super("AutoRespawn", Category.MISC, "Respawn automatically after dying", false);
         risky = true;
         aiControllable = false;
     }

@@ -64,7 +64,7 @@ public final class FxParticles {
     }
 
     public void spawn(P p) {
-        if (particles.size() < cap) {
+        if (particles.size() < com.example.neurocanvas.module.NoLimited.cap(cap)) {
             particles.add(p);
         }
     }

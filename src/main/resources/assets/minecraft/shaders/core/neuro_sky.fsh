@@ -294,6 +294,13 @@ void main() {
     float t = NcGameTime;
     int mode = int(Mode + 0.5);
     vec3 col;
+    if (mode == 10) {
+        // Only the northern lights, added over the sky that is already there (the blend of neuro_skyadd.json does the adding).
+        vec3 lights = aurora(d, t) * Brightness;
+        float a = clamp(max(lights.r, max(lights.g, lights.b)), 0.0, 1.0);
+        fragColor = vec4(lights, a);
+        return;
+    }
     if (mode == 1) {
         vec3 C = normalize(HoleDir);
         vec3 T = normalize(cross(C, vec3(0.0, 1.0, 0.0)));

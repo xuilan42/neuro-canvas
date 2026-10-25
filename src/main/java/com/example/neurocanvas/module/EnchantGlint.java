@@ -18,7 +18,7 @@ public final class EnchantGlint extends Module {
     private final Setting strength = add(Setting.number("Strength", 0.2, 3, 1.2));
 
     public EnchantGlint() {
-        super("EnchantGlint", Category.COSMETICS, "Your own shimmer on enchanted armour and items: galaxy, rainbow, glitch or a colour flow", false);
+        super("EnchantGlint", Category.VISUALS, "Your own shimmer on enchanted armour and items: galaxy, rainbow, glitch or a colour flow", false);
     }
 
     /** The shader to use for the game's glint layers, set up for this frame; null leaves the game's own glint. */

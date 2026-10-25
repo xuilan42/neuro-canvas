@@ -111,6 +111,8 @@ public class NeuroCanvasClient implements ClientModInitializer {
         com.example.neurocanvas.gui.GuiSkin.init(dir);
         modules = new ModuleManager(dir.resolve("modules.json"));
         modules.register(new TargetEsp());
+        modules.register(new com.example.neurocanvas.module.NoLimited());
+        modules.register(new com.example.neurocanvas.module.WorldBridge());
         modules.register(new com.example.neurocanvas.module.EnchantGlint());
         modules.register(new com.example.neurocanvas.module.WorldLyrics(dir));
         modules.register(new JumpCircles());

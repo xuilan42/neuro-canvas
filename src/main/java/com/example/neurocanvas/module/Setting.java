@@ -9,7 +9,8 @@ public final class Setting {
     public final String name;
     public final Kind kind;
     public final double min;
-    public final double max;
+    public double max;
+    private final double baseMax;
     public String[] options;
     public double value;
 
@@ -18,6 +19,7 @@ public final class Setting {
         this.kind = kind;
         this.min = min;
         this.max = max;
+        this.baseMax = max;
         this.value = value;
         this.options = options;
     }
@@ -55,6 +57,25 @@ public final class Setting {
 
     public static Setting choice(String name, int def, String... options) {
         return new Setting(name, Kind.CHOICE, 0, options.length - 1, def, options);
+    }
+
+    /** True while NoLimited has lifted the limits; read when settings are loaded and by the code that caps how many objects an effect makes. */
+    public static boolean unlocked;
+
+    /** The settings that say how many things a module makes (counts, lines, curtains): only these have their limit lifted. */
+    private boolean countLike() {
+        return kind == Kind.NUMBER && (name.contains("Count") || name.equals("Max lines") || name.equals("Curtains") || name.contains("per second"));
+    }
+
+    /** Lifts (ten times the normal maximum) or restores the limit of a count-like setting. */
+    public void unlock(boolean on) {
+        if (!countLike()) {
+            return;
+        }
+        max = on ? baseMax * 10 : baseMax;
+        if (value > max) {
+            value = max;
+        }
     }
 
     public void set(double v) {

@@ -83,6 +83,8 @@ public final class ModuleManager {
     }
 
     public void apply(Map<String, Map<String, Double>> config) {
+        Map<String, Double> nl = config.get("NoLimited");
+        Setting.unlocked = nl != null && nl.get(ENABLED_KEY) != null && nl.get(ENABLED_KEY) >= 0.5;
         for (Module m : modules) {
             Map<String, Double> saved = config.get(m.name);
             if (saved == null && m.name.equals("Model")) {
@@ -102,6 +104,7 @@ public final class ModuleManager {
                 m.hold = saved.get("__hold") >= 0.5;
             }
             for (Setting s : m.settings) {
+                s.unlock(Setting.unlocked);
                 Double v = saved.get(s.name);
                 if (v != null) {
                     s.set(v);

@@ -166,7 +166,7 @@ public final class TargetStyles {
             EffectDraw.targetRing(env, s, p, h);
             return;
         }
-        int n = Math.max(2, Math.min(s.count, 12));
+        int n = Math.max(2, Math.min(s.count, com.example.neurocanvas.module.NoLimited.cap(12)));
         for (int i = 0; i < n; i++) {
             for (int k = 0; k < 7; k++) {
                 Vec3d q = orb(s, p, h, i, n, env.t() - k * 0.035);
@@ -184,7 +184,7 @@ public final class TargetStyles {
             EffectDraw.targetRing(env, s, p, h);
             return;
         }
-        int n = Math.max(3, Math.min(s.count * 2, 40));
+        int n = Math.max(3, Math.min(s.count * 2, com.example.neurocanvas.module.NoLimited.cap(40)));
         double t = env.t();
         for (int i = 0; i < n; i++) {
             double a = i * 2.399963 + t * s.speed * 0.9;
@@ -215,7 +215,7 @@ public final class TargetStyles {
     }
 
     private static void crystals(RenderEnv env, EffectSpec s, Vec3d p, float h) {
-        int n = Math.max(2, Math.min(s.count, 10));
+        int n = Math.max(2, Math.min(s.count, com.example.neurocanvas.module.NoLimited.cap(10)));
         double t = env.t();
         Lines lines = Lines.begin(env, 2.5f * s.thickness);
         for (int i = 0; i < n; i++) {
@@ -286,7 +286,7 @@ public final class TargetStyles {
             return;
         }
         double t = env.t();
-        int n = Math.max(8, Math.min(s.count * 3, 60));
+        int n = Math.max(8, Math.min(s.count * 3, com.example.neurocanvas.module.NoLimited.cap(60)));
         for (int k = 0; k < n; k++) {
             double u = k / (double) n;
             double a = u * Math.PI * 4 + t * s.speed * 1.4;

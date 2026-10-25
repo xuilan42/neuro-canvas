@@ -5,7 +5,7 @@ public final class Fullbright extends Module {
     private final Setting brightness = add(Setting.number("Brightness", 1, 20, 15));
 
     public Fullbright() {
-        super("Fullbright", Category.WORLD, "See clearly in the dark", false);
+        super("Fullbright", Category.VISUALS, "See clearly in the dark", false);
         risky = true;
     }
 

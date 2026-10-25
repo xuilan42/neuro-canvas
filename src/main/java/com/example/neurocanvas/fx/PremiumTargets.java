@@ -159,7 +159,7 @@ public final class PremiumTargets {
     private static final float[] ROW_HEIGHT = {0.1f, 0.42f, 0.75f, 1.08f};
 
     private static int perRow(EffectSpec s) {
-        return Math.max(3, Math.min(s.count / 4, 6));
+        return Math.max(3, Math.min(s.count / 4, com.example.neurocanvas.module.NoLimited.cap(6)));
     }
 
     /** The matrix that places and turns crystal i (the result is in WORK). Heights stay fixed; only the angle moves. */
@@ -238,7 +238,7 @@ public final class PremiumTargets {
             return false;
         }
         GlUniform seed = p.getUniform("Seed");
-        int n = Math.max(8, Math.min(s.count, 16));
+        int n = Math.max(8, Math.min(s.count, com.example.neurocanvas.module.NoLimited.cap(16)));
         float k = sizeScale(s);
         double r = (Math.max(t.getWidth(), 0.4f) * 0.5 + 0.55) * k;
         float halfH = Math.max(t.getHeight(), 1.0f) * 0.62f * k;

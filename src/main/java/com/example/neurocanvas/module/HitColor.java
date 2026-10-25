@@ -27,7 +27,7 @@ public final class HitColor extends Module {
     private final List<Flash> flashes = new ArrayList<>();
 
     public HitColor() {
-        super("HitColor", Category.COMBAT, "Coloured glow on the entity you hit", false);
+        super("HitColor", Category.VISUALS, "Coloured glow on the entity you hit", false);
         WorldState.addHitListener(e -> {
             if (enabled) {
                 flashes.add(new Flash(e, System.currentTimeMillis()));

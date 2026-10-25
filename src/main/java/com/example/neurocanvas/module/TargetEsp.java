@@ -13,7 +13,7 @@ public final class TargetEsp extends EffectModule {
     private final Setting ringMotion = add(Setting.choice("Neon ring motion", 1, "At the feet", "Sweeps the body"));
 
     public TargetEsp() {
-        super("TargetESP", Category.COMBAT, "Effect on the entity you hit: ring, ghost orbs, crystals, halo and more", true, 0.97, 0.08, 0.8, 1.0, 12);
+        super("TargetESP", Category.VISUALS, "Effect on the entity you hit: ring, ghost orbs, crystals, halo and more", true, 0.97, 0.08, 0.8, 1.0, 12);
         settings.remove(style);
         settings.remove(depth);
         settings.remove(thickness);

@@ -15,7 +15,7 @@ public final class ColorGrading extends Module {
     private final Setting vignetteColor = add(Setting.color("Vignette color", 0));
 
     public ColorGrading() {
-        super("ColorGrading", Category.WORLD, "Tint, brightness and vignette over the whole screen", false);
+        super("ColorGrading", Category.VISUALS, "Tint, brightness and vignette over the whole screen", false);
         vignetteColor.setArgb(0xFF000000);
     }
 

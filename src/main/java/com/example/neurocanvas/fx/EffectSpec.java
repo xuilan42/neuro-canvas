@@ -22,7 +22,7 @@ public final class EffectSpec {
         size = Math.max(0.1f, Math.min(size, 4f));
         speed = Math.max(0.1f, Math.min(speed, 8f));
         pulse = Math.max(0f, Math.min(pulse, 1f));
-        count = Math.max(1, Math.min(count, 64));
+        count = Math.max(1, Math.min(count, com.example.neurocanvas.module.NoLimited.cap(64)));
         alpha = Math.max(0.05f, Math.min(alpha, 1f));
         thickness = Math.max(0.2f, Math.min(thickness, 5f));
     }

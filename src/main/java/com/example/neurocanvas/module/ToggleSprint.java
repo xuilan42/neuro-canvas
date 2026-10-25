@@ -9,7 +9,7 @@ public final class ToggleSprint extends Module {
     private final Setting inWater = add(Setting.bool("Sprint in water", false));
 
     public ToggleSprint() {
-        super("ToggleSprint", Category.WORLD, "Sprint automatically while moving forward", false);
+        super("ToggleSprint", Category.MISC, "Sprint automatically while moving forward", false);
         risky = true;
         aiControllable = false;
     }

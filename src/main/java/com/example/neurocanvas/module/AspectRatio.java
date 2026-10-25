@@ -8,7 +8,7 @@ public final class AspectRatio extends Module {
     private final Setting custom = add(Setting.number("Custom ratio", 0.5, 3, 1.33));
 
     public AspectRatio() {
-        super("AspectRatio", Category.WORLD, "Change the shape of the game view (4:3 stretches players wider)", false);
+        super("AspectRatio", Category.VISUALS, "Change the shape of the game view (4:3 stretches players wider)", false);
     }
 
     public float ratio() {

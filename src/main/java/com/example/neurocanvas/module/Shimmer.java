@@ -21,7 +21,7 @@ public final class Shimmer extends Module {
     private final Setting held = add(Setting.bool("Held items", true));
 
     public Shimmer() {
-        super("Shimmer", Category.COSMETICS, "Armour and held items that shift through rainbow or gradient colours", false);
+        super("Shimmer", Category.VISUALS, "Armour and held items that shift through rainbow or gradient colours", false);
         color1.setArgb(0xFF3DDC97);
         color2.setArgb(0xFFB06BFF);
     }

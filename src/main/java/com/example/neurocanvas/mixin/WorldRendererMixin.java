@@ -26,6 +26,7 @@ public abstract class WorldRendererMixin {
                                  net.minecraft.client.render.Camera camera, boolean thickFog, Runnable fogCallback, CallbackInfo ci) {
         if (NeuroCanvasClient.modules() != null) {
             NeuroCanvasClient.modules().get(com.example.neurocanvas.module.Ambience.class).drawSky(projectionMatrix, matrices.peek().getPositionMatrix(), camera);
+            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NorthernLights.class).drawSky(projectionMatrix, matrices.peek().getPositionMatrix(), camera, tickDelta);
         }
     }
 }
