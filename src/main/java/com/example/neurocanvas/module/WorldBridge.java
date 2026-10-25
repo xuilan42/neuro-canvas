@@ -12,15 +12,19 @@ import net.minecraft.text.Text;
 /**
  * Plays a single-player world with other people. Switching it on opens the world to the local network, asks the project's server for an address
  * (something like abcd2345.neuro-connect.x-vare.com) and connects the two, so a friend only types that address in Multiplayer. It needs the mod
- * account (Misc > Account), runs for at most five hours, and takes at most the number of players set here (never more than 20). Whoever has the
- * address can try to join, and the game's own login applies, so keep it to people you trust.
+ * account (Misc > Account), runs for at most five hours, and takes at most the number of players set here (never more than 20). By default the
+ * game does not check guests' accounts with Mojang ("Check Mojang accounts" turns the check back on), so anyone with the address can join under any
+ * name: keep it to people you trust.
  */
 public final class WorldBridge extends Module {
     private final Setting players = add(Setting.number("Max players", 1, 20, 8));
     private final Setting cheats = add(Setting.bool("Guests may use cheats", false));
+    private final Setting verify = add(Setting.bool("Check Mojang accounts", false));
     private final Setting copy = add(Setting.button("Copy link"));
 
     private WorldTunnel tunnel;
+    /** True while the check of accounts is switched off by us, so it can be put back. */
+    private boolean unchecked;
     private boolean starting;
     private volatile String problem = "";
     private long warnedAt;
@@ -48,8 +52,20 @@ public final class WorldBridge extends Module {
         if (t != null) {
             t.close();
         }
+        restoreChecks();
         if (why != null) {
             say(why);
+        }
+    }
+
+    /** Puts the game's own check of accounts back (the world is then closed to guests from the internet anyway). */
+    private void restoreChecks() {
+        if (unchecked) {
+            unchecked = false;
+            IntegratedServer server = MinecraftClient.getInstance().getServer();
+            if (server != null) {
+                server.setOnlineMode(true);
+            }
         }
     }
 
@@ -117,6 +133,11 @@ public final class WorldBridge extends Module {
                 }
             }
             lan = server.getServerPort();
+            // With the check off anybody can join under any name, with or without a bought game; the game does not ask Mojang who they are.
+            if (!verify.on()) {
+                server.setOnlineMode(false);
+                unchecked = true;
+            }
             // A world opened to the network takes eight players unless told otherwise.
             ((PlayerManagerAccessor) server.getPlayerManager()).neurocanvas$setMaxPlayers(Math.max(2, max + 1));
         } catch (RuntimeException e) {
@@ -140,7 +161,7 @@ public final class WorldBridge extends Module {
                             .withClickEvent(new ClickEvent(ClickEvent.Action.COPY_TO_CLIPBOARD, info.host())));
                     if (mc.player != null) {
                         mc.player.sendMessage(Text.literal("[WorldBridge] Your world is open. Address (copied, click to copy again): ").append(link)
-                                .append(Text.literal("  Up to " + info.players() + " players, closes in 5 hours.")), false);
+                                .append(Text.literal("  Up to " + info.players() + " players, closes in 5 hours." + (verify.on() ? "" : " Guests are not checked against Mojang."))), false);
                     }
                 });
             } catch (java.io.IOException | RuntimeException e) {
