@@ -124,14 +124,29 @@ public final class WorldLyrics extends Module {
         float age, life;
     }
 
+    /** One word hanging in the air: where it appeared (fixed in the world), when, and how long it stays. */
+    private static final class Word {
+        String text;
+        float width;
+        double x, y, z;
+        double face;
+        float tone;
+        float age, life;
+    }
+
+    private final java.util.List<Word> words = new java.util.ArrayList<>();
+    private int wordsDone;
+
     private static final HudLayout.Element PLAYER = HudLayout.register("musicplayer", "Music player", false, 0.006, 0.6);
 
     private final Setting source = add(Setting.choice("Source", 0, "Browser / player (automatic)", "Songs folder"));
     private final Setting offset = add(Setting.number("Lyrics offset (s)", -5, 5, 0));
     private final Setting showPlayer = add(Setting.bool("Show player", true));
     private final Setting song = add(Setting.choice("Song (songs folder)", 0, "(none)"));
-    private final Setting layout = add(Setting.choice("Layout", 2, "Float around", "Ring", "Stage"));
+    private final Setting layout = add(Setting.choice("Layout", 3, "Float around", "Ring", "Stage", "Scattered words"));
     private final Setting reveal = add(Setting.choice("Reveal", 1, "Whole line", "Word by word"));
+    private final Setting spread = add(Setting.number("Spread (degrees)", 5, 60, 28));
+    private final Setting wordLife = add(Setting.number("Word lifetime (s)", 1, 15, 4));
     private final Setting facing = add(Setting.choice("Facing", 0, "Fixed in the world", "Toward the camera"));
     private final Setting letters = add(Setting.choice("Letters", 1, "Plain", "Wave", "Typewriter", "Rainbow wave"));
     private final Setting gap = add(Setting.number("Seconds per line", 1, 10, 3.5));
@@ -498,6 +513,7 @@ public final class WorldLyrics extends Module {
         wasOn = enabled;
         if (mc.world == null) {
             floaters.clear();
+            words.clear();
         }
     }
 
@@ -542,6 +558,7 @@ public final class WorldLyrics extends Module {
         if (idx != lastIndex) {
             lastIndex = idx;
             sinceCue = 0;
+            wordsDone = 0;
             if (idx >= 0 && layout.index() == 0) {
                 spawnFloater(p, idx);
             }
@@ -553,12 +570,82 @@ public final class WorldLyrics extends Module {
         }
         Vec3d pos = EffectDraw.lerpPos(p, env.tickDelta());
         switch (layout.index()) {
+            case 3 -> drawWords(env, tr, idx, dt);
             case 0 -> drawFloaters(env, tr, dt);
             case 1 -> drawRing(env, tr, pos, idx);
             default -> drawStage(env, tr, pos, idx);
         }
         TEXT.draw();
         com.mojang.blaze3d.systems.RenderSystem.disableDepthTest();
+    }
+
+    /**
+     * Words come one by one, each at the moment it is sung, at a random spot in the air in front of you: inside a cone around where the camera
+     * looks (so never behind you or out of sight), at a random distance. They stay where they appeared, fade in, drift up a little and fade out.
+     */
+    private void drawWords(RenderEnv env, TextRenderer tr, int idx, double dt) {
+        if (idx >= 0) {
+            Cue cue = cues.get(idx);
+            float sec = lineSeconds(idx);
+            while (wordsDone < cue.wordStart.length) {
+                double at = timeOf(idx) + cue.wordFrac[wordsDone] * sec * 0.9;
+                if (elapsed < at) {
+                    break;
+                }
+                // Joining in the middle of a line: only words of the last second still appear.
+                if (elapsed - at < 1.0 && words.size() < 80) {
+                    spawnWord(env, tr, cue, wordsDone);
+                }
+                wordsDone++;
+            }
+        }
+        TextRenderer.TextLayerType layer = walls.on() ? TextRenderer.TextLayerType.SEE_THROUGH : TextRenderer.TextLayerType.NORMAL;
+        int c1 = color1.argb() & 0xFFFFFF;
+        int c2 = color2.argb() & 0xFFFFFF;
+        for (int i = words.size() - 1; i >= 0; i--) {
+            Word w = words.get(i);
+            w.age += (float) dt;
+            if (w.age >= w.life) {
+                words.remove(i);
+                continue;
+            }
+            float t = w.age / w.life;
+            float a = MathHelper.clamp(w.age / 0.25f, 0f, 1f) * MathHelper.clamp((1f - t) / 0.35f, 0f, 1f) * alpha.f();
+            if (a < 0.02f) {
+                continue;
+            }
+            float pop = 0.6f + 0.4f * MathHelper.clamp(w.age / 0.3f, 0f, 1f);
+            WORK.set(env.view()).translate((float) (w.x - env.cam().x), (float) (w.y + w.age * rise.value - env.cam().y), (float) (w.z - env.cam().z));
+            if (facing.index() == 1) {
+                WORK.rotate(env.mc().gameRenderer.getCamera().getRotation());
+            } else {
+                WORK.rotateY((float) w.face);
+            }
+            float sc = size.f() * pop;
+            WORK.scale(-sc, -sc, sc);
+            paint(tr, w.text, -w.width / 2f, 0f, mix(c1, c2, w.tone), a, glowStrength.f(), layer, 8);
+        }
+    }
+
+    private void spawnWord(RenderEnv env, TextRenderer tr, Cue cue, int k) {
+        int start = cue.wordStart[k];
+        int end = start;
+        while (end < cue.text.length() && cue.text.charAt(end) != ' ') {
+            end++;
+        }
+        Word w = new Word();
+        w.text = cue.text.substring(start, end);
+        w.width = tr.getWidth(w.text);
+        double yaw = Math.toRadians(env.camYaw() + (random.nextDouble() * 2 - 1) * spread.value);
+        double pitch = Math.toRadians(env.camPitch() + (random.nextDouble() * 2 - 1) * spread.value * 0.6 - 4);
+        double dist = distance.value * (0.55 + 0.45 * random.nextDouble());
+        w.x = env.cam().x + -Math.sin(yaw) * Math.cos(pitch) * dist;
+        w.y = env.cam().y + -Math.sin(pitch) * dist + height.value * 0.15;
+        w.z = env.cam().z + Math.cos(yaw) * Math.cos(pitch) * dist;
+        w.face = Math.atan2(env.cam().x - w.x, env.cam().z - w.z);
+        w.tone = random.nextFloat();
+        w.life = (float) (wordLife.value * (0.85 + 0.3 * random.nextDouble()));
+        words.add(w);
     }
 
     private void spawnFloater(PlayerEntity p, int index) {
