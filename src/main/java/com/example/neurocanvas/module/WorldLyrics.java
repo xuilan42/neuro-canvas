@@ -569,6 +569,13 @@ public final class WorldLyrics extends Module {
             c.measure(tr);
         }
         Vec3d pos = EffectDraw.lerpPos(p, env.tickDelta());
+        if (layout.index() == 1 || layout.index() == 2) {
+            // The lines stand where you were looking; when you look more than ~55 degrees away they glide round to where you look now.
+            double diff = MathHelper.wrapDegrees(p.getYaw() - anchorYaw);
+            if (Math.abs(diff) > 55) {
+                anchorYaw += (diff - Math.signum(diff) * 55) * (1 - Math.exp(-dt * 3));
+            }
+        }
         switch (layout.index()) {
             case 3 -> drawWords(env, tr, idx, dt);
             case 0 -> drawFloaters(env, tr, dt);
@@ -619,7 +626,7 @@ public final class WorldLyrics extends Module {
             if (facing.index() == 1) {
                 WORK.rotate(env.mc().gameRenderer.getCamera().getRotation());
             } else {
-                WORK.rotateY((float) w.face);
+                WORK.rotateY((float) readable(w.face, w.x - env.cam().x, w.z - env.cam().z));
             }
             float sc = size.f() * pop;
             WORK.scale(-sc, -sc, sc);
@@ -652,14 +659,16 @@ public final class WorldLyrics extends Module {
         Floater f = new Floater();
         f.cue = cues.get(index);
         f.index = index;
-        double a = random.nextDouble() * Math.PI * 2;
-        double r = 1.0 + Math.sqrt(random.nextDouble()) * Math.max(0.3, distance.value - 1.0);
-        f.x = p.getX() + Math.cos(a) * r;
-        f.z = p.getZ() + Math.sin(a) * r;
-        f.y = p.getY() + 0.5 + random.nextDouble() * 2.5 + height.value * 0.3;
+        // In the cone the player is looking into, never behind them.
+        double yaw = Math.toRadians(p.getYaw() + (random.nextDouble() * 2 - 1) * Math.min(spread.value, 40));
+        double pitch = Math.toRadians(p.getPitch() + (random.nextDouble() * 2 - 1) * 14 - 4);
+        double r = 2.5 + random.nextDouble() * Math.max(0.5, distance.value - 2.5);
+        Vec3d eye = p.getEyePos();
+        f.x = eye.x - Math.sin(yaw) * Math.cos(pitch) * r;
+        f.y = eye.y - Math.sin(pitch) * r + height.value * 0.15;
+        f.z = eye.z + Math.cos(yaw) * Math.cos(pitch) * r;
         f.life = (float) (life.value * (0.85 + 0.3 * random.nextDouble()));
-        // Its front looks at where the player is now; it stays that way however the player turns or walks.
-        f.face = Math.atan2(p.getX() - f.x, p.getZ() - f.z);
+        f.face = Math.atan2(eye.x - f.x, eye.z - f.z);
         floaters.add(f);
     }
 
@@ -697,6 +706,18 @@ public final class WorldLyrics extends Module {
             drawLine(env, tr, f.cue, f.x - env.cam().x, f.y + f.age * rise.value - env.cam().y, f.z - env.cam().z, f.face, size.f(), a * alpha.f(),
                     shown, sec, t);
         }
+    }
+
+    /**
+     * A text fixed in the world has a front and a back, and the back reads mirrored. This turns it half a turn when the camera is behind it, so it
+     * reads correctly from wherever you stand while its place stays fixed. (rx, rz) is the text's position relative to the camera.
+     */
+    private static double readable(double yawRad, double rx, double rz) {
+        double toCameraX = -rx;
+        double toCameraZ = -rz;
+        double frontX = Math.sin(yawRad);
+        double frontZ = Math.cos(yawRad);
+        return toCameraX * frontX + toCameraZ * frontZ < 0 ? yawRad + Math.PI : yawRad;
     }
 
     /** A direction on the ground for a yaw in degrees (the game's yaw 0 looks along +Z). */
@@ -769,7 +790,7 @@ public final class WorldLyrics extends Module {
         if (facing.index() == 1) {
             WORK.rotate(env.mc().gameRenderer.getCamera().getRotation());
         } else {
-            WORK.rotateY((float) yawRad);
+            WORK.rotateY((float) readable(yawRad, rx, rz));
         }
         WORK.scale(-scale, -scale, scale);
         TextRenderer.TextLayerType layer = walls.on() ? TextRenderer.TextLayerType.SEE_THROUGH : TextRenderer.TextLayerType.NORMAL;
