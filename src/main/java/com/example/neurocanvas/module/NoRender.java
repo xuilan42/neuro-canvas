@@ -27,6 +27,6 @@ public final class NoRender extends Module {
     public boolean hides(Entity e) {
         return enabled && (items.on() && e instanceof ItemEntity
                 || xp.on() && e instanceof ExperienceOrbEntity
-                || armorStands.on() && e instanceof ArmorStandEntity);
+                || armorStands.on() && !SafeMode.armorStandsBlocked() && e instanceof ArmorStandEntity);
     }
 }

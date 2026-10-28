@@ -56,7 +56,7 @@ public final class Interface extends Module {
     private final Setting guiHud = add(Setting.bool("GUI hotbar and HUD", true));
     private final Setting guiBlur = add(Setting.number("GUI blur", 0, 2, 0.9));
     private final Setting glassThrough = add(Setting.bool("Effects through glass", true));
-    private final Setting safeMode = add(Setting.bool("Safe mode", false));
+    private final Setting safeMode = add(Setting.choice("Safe mode", 0, "Auto (by server)", "Always"));
     private final Setting sounds = add(Setting.bool("Sounds", true));
     private final Setting updates = add(Setting.bool("Check for updates", true));
     private final Setting applyPack = add(Setting.button("Apply theme pack"));
@@ -211,8 +211,8 @@ public final class Interface extends Module {
     public static boolean animations() { return instance.animations.on(); }
     public static boolean shaderEffects() { return instance.effects.on(); }
     /** World visuals (lines, boxes, rings, ribbons) drawn by the mod's own shader instead of the game's basic shapes. */
-    /** When on, the modules marked as risky (an advantage on strict servers) are switched off and cannot be switched on. */
-    public static boolean safeMode() { return instance != null && instance.safeMode.on(); }
+    /** True when Safe mode is set to Always: every module marked risky is switched off and cannot be switched on. In Auto, SafeMode decides by server. */
+    public static boolean safeMode() { return instance != null && instance.safeMode.index() == 1; }
     /** How bright the shader visuals are (1 is the normal look): particles, glow lines, rings, the aurora. */
     public static float brightness() { return instance == null ? 1f : instance.brightness.f(); }
     /** How solid the glass theme is: 0 shows the blurred scene almost untouched, 1 is nearly opaque tinted glass. */

@@ -677,7 +677,7 @@ public final class ClickGui extends Screen {
         Ui.textCentered(ctx, textRenderer, m.name.substring(0, 1).toUpperCase(), bx + 14, by + 10, on ? th.accent() : th.dim());
 
         int right = x + w - 12;
-        boolean blocked = m.risky && Interface.safeMode();
+        boolean blocked = com.example.neurocanvas.module.SafeMode.blocks(m);
         int controlsW = 0;
         if (blocked) {
             controlsW = Ui.width(textRenderer, "safe mode");
@@ -2039,7 +2039,7 @@ public final class ClickGui extends Screen {
     }
 
     private void headClicked(Module m, double mx, int button) {
-        boolean blocked = m.risky && Interface.safeMode();
+        boolean blocked = com.example.neurocanvas.module.SafeMode.blocks(m);
         boolean onSwitch = mx >= toggleX() - 6;
         if (blocked && (onSwitch || button == 1)) {
             Interface.click(0.6f);
