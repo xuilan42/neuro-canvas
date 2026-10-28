@@ -30,6 +30,12 @@ public final class SafeMode {
         return SafeProfiles.profileOf(address);
     }
 
+    /** True for an address of a HolyWorld server (either mode): the one project with an API that the mod talks to. */
+    public static boolean isHolyWorld(String address) {
+        SafeProfiles.Profile p = SafeProfiles.profileOf(address);
+        return p != null && p.name().startsWith("HolyWorld");
+    }
+
     public static boolean forced() {
         return Interface.safeMode();
     }
@@ -43,12 +49,12 @@ public final class SafeMode {
         if (forced() && m.risky) {
             return true;
         }
-        return active != null && active.blocked().contains(m.name);
+        return active != null && active.blocked().contains(m.name) || com.example.neurocanvas.client.HolyApi.hidden(m);
     }
 
     /** NoRender's "Armor stands" option: some projects ban hiding armor stands. */
     public static boolean armorStandsBlocked() {
-        return active != null && active.noArmorStands();
+        return active != null && active.noArmorStands() || com.example.neurocanvas.client.HolyApi.armorStandsHidden();
     }
 
     /** Called every tick: follows the server, switches blocked modules off, puts them back when the rules stop applying. */

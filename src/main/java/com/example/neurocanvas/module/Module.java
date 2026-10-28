@@ -68,6 +68,27 @@ public abstract class Module {
         }
     }
 
+    /** True when a server's API blocks this module: it is not shown in the menu or offered to the AI at all. */
+    public final boolean hiddenByServer() {
+        return com.example.neurocanvas.client.HolyApi.hidden(this);
+    }
+
+    /** True for a setting that is not shown (and not offered to the AI) right now. */
+    public boolean settingHidden(Setting s) {
+        return false;
+    }
+
+    /** The settings that are shown right now. */
+    public final List<Setting> visibleSettings() {
+        List<Setting> out = new ArrayList<>(settings.size());
+        for (Setting s : settings) {
+            if (!settingHidden(s)) {
+                out.add(s);
+            }
+        }
+        return out;
+    }
+
     protected Setting add(Setting s) {
         settings.add(s);
         return s;

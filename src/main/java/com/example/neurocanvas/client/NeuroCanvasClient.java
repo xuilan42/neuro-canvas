@@ -200,6 +200,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
 
         openGui = KeyBindingHelper.registerKeyBinding(
                 new KeyBinding("key.neurocanvas.gui", GLFW.GLFW_KEY_RIGHT_SHIFT, "key.categories.misc"));
+        HolyApi.init();
         net.fabricmc.fabric.api.client.screen.v1.ScreenEvents.AFTER_INIT.register((mc, screen, w, h) -> {
             if (screen instanceof net.minecraft.client.gui.screen.ChatScreen) {
                 modules.get(com.example.neurocanvas.module.ViewModel.class).hookChat(screen);
@@ -235,6 +236,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
                 mc.setScreen(new com.example.neurocanvas.gui.PingWheelScreen(pings, PingWheel.capture(mc), pings.key));
             }
             pingKeyDown = pingDown;
+            HolyApi.tick(mc);
             com.example.neurocanvas.module.SafeMode.tick(mc, modules.all());
             if (mc.player != null) {
                 for (Module m : modules.all()) {

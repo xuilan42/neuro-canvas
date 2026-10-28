@@ -19,6 +19,11 @@ public final class NoRender extends Module {
         super("NoRender", Category.WORLD, "Hide particles, weather, overlays and some entities", false);
     }
 
+    @Override
+    public boolean settingHidden(Setting s) {
+        return s == armorStands && SafeMode.armorStandsBlocked();
+    }
+
     public boolean hidesParticles() { return enabled && particles.on(); }
     public boolean hidesWeather() { return enabled && weather.on(); }
     public boolean hidesFire() { return enabled && fire.on(); }

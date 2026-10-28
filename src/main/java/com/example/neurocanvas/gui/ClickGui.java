@@ -172,7 +172,7 @@ public final class ClickGui extends Screen {
     private List<Module> modulesIn(Category c) {
         List<Module> out = new ArrayList<>();
         for (Module m : NeuroCanvasClient.modules().all()) {
-            if (m.category == c) {
+            if (m.category == c && !m.hiddenByServer()) {
                 out.add(m);
             }
         }
@@ -185,7 +185,7 @@ public final class ClickGui extends Screen {
         }
         List<Module> out = new ArrayList<>();
         for (Module m : NeuroCanvasClient.modules().all()) {
-            if (m.name.toLowerCase().contains(searchBox.text().toLowerCase())) {
+            if (!m.hiddenByServer() && m.name.toLowerCase().contains(searchBox.text().toLowerCase())) {
                 out.add(m);
             }
         }
@@ -282,7 +282,7 @@ public final class ClickGui extends Screen {
         if (!m.alwaysOn) {
             h += 2 * KEY_H;
         }
-        for (Setting s : m.settings) {
+        for (Setting s : m.visibleSettings()) {
             h += rowH(s);
         }
         return h;
@@ -308,7 +308,7 @@ public final class ClickGui extends Screen {
                     out.add(new Item(I_MODE, m, null, ry, KEY_H));
                     ry += KEY_H;
                 }
-                for (Setting s : m.settings) {
+                for (Setting s : m.visibleSettings()) {
                     out.add(new Item(I_ROW, m, s, ry, rowH(s)));
                     ry += rowH(s);
                 }

@@ -34,11 +34,11 @@ public final class PromptBuilder {
                 .append("To revert, set settings back or tell the player to press Undo under your message.\n\n")
                 .append("Modules you may change (\"on\"/\"off\" is the current state):\n");
         for (Module m : modules.all()) {
-            if (!m.aiControllable) {
+            if (!m.aiControllable || m.hiddenByServer()) {
                 continue;
             }
             sb.append("\n").append(m.name).append(m.enabled ? " [on]" : " [off]").append(" - ").append(m.description).append('\n');
-            for (Setting s : m.settings) {
+            for (Setting s : m.visibleSettings()) {
                 sb.append("  ").append(s.name).append(": ");
                 switch (s.kind) {
                     case NUMBER -> sb.append("number ").append(trim(s.min)).append("..").append(trim(s.max)).append(" (now ").append(s.format(s.value)).append(')');
