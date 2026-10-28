@@ -709,15 +709,16 @@ public final class WorldLyrics extends Module {
     }
 
     /**
-     * A text fixed in the world has a front and a back, and the back reads mirrored. This turns it half a turn when the camera is behind it, so it
-     * reads correctly from wherever you stand while its place stays fixed. (rx, rz) is the text's position relative to the camera.
+     * A text fixed in the world has a readable side and a mirrored one. In this drawing the readable side is the one the text's own -Z points to
+     * (seen in the game: facing +Z at the camera gave mirrored letters), so the text is turned half a turn whenever that side is not toward the
+     * camera. It then reads correctly from wherever you stand while its place stays fixed. (rx, rz) is the text's position relative to the camera.
      */
     private static double readable(double yawRad, double rx, double rz) {
         double toCameraX = -rx;
         double toCameraZ = -rz;
         double frontX = Math.sin(yawRad);
         double frontZ = Math.cos(yawRad);
-        return toCameraX * frontX + toCameraZ * frontZ < 0 ? yawRad + Math.PI : yawRad;
+        return toCameraX * frontX + toCameraZ * frontZ > 0 ? yawRad + Math.PI : yawRad;
     }
 
     /** A direction on the ground for a yaw in degrees (the game's yaw 0 looks along +Z). */
@@ -856,9 +857,12 @@ public final class WorldLyrics extends Module {
     }
 
     private void paint(TextRenderer tr, String s, float x, float y, int rgb, float a, float g, TextRenderer.TextLayerType layer, int copies) {
-        if (glow.on()) {
-            int gc = ((int) (MathHelper.clamp(a * 0.2f * g, 0f, 1f) * 255) << 24) | rgb;
-            for (int k = 0; k < copies; k++) {
+        if (glow.on() && a > 0.12f) {
+            // The text shader throws away anything below about 10% opacity, so a glow that fades by its opacity would vanish in one jump. It keeps a
+            // steady opacity and fades by showing fewer of its copies instead.
+            int gc = ((int) (MathHelper.clamp(0.16f + 0.1f * g, 0.14f, 0.5f) * 255) << 24) | rgb;
+            int shown = Math.min(copies, (int) Math.ceil(copies * MathHelper.clamp((a - 0.12f) / 0.6f, 0f, 1f)));
+            for (int k = 0; k < shown; k++) {
                 double ang = k * Math.PI * 2 / copies;
                 float dx = (float) Math.cos(ang) * 1.1f;
                 float dy = (float) Math.sin(ang) * 1.1f;
