@@ -187,6 +187,7 @@ public final class WorldLyrics extends Module {
     public WorldLyrics(Path dir) {
         super("WorldLyrics", Category.WORLD, "Lines of a song in the 3D world around you, in time with the music (songs are in neurocanvas/lyrics)", false);
         this.folder = dir.resolve("lyrics");
+        LyricsClient.localFolder(this.folder);
         this.scriptFile = dir.resolve("neurocanvas-nowplaying.user.js");
         hudSize();
     }
