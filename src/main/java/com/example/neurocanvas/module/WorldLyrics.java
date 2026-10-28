@@ -142,6 +142,7 @@ public final class WorldLyrics extends Module {
     private final Setting source = add(Setting.choice("Source", 0, "Browser / player (automatic)", "Songs folder"));
     private final Setting offset = add(Setting.number("Lyrics offset (s)", -5, 5, 0));
     private final Setting showPlayer = add(Setting.bool("Show player", true));
+    private final Setting musicIcon = add(Setting.bool("Music icon in the player", true));
     private final Setting song = add(Setting.choice("Song (songs folder)", 0, "(none)"));
     private final Setting layout = add(Setting.choice("Layout", 3, "Float around", "Ring", "Stage", "Scattered words"));
     private final Setting reveal = add(Setting.choice("Reveal", 1, "Whole line", "Word by word"));
@@ -879,6 +880,25 @@ public final class WorldLyrics extends Module {
         return (t / 60) + ":" + (t % 60 < 10 ? "0" : "") + (t % 60);
     }
 
+    /** A music note (two joined stems, two round heads) drawn from shapes, so it needs no font glyph or picture. Centred on (cx, cy). */
+    private static void drawNote(DrawContext ctx, int cx, int cy, int color) {
+        Ui.roundRect(ctx, cx - 7, cy + 3, 7, 6, 3, color);
+        Ui.roundRect(ctx, cx + 3, cy + 1, 7, 6, 3, color);
+        ctx.fill(cx - 2, cy - 9, cx, cy + 6, color);
+        ctx.fill(cx + 8, cy - 11, cx + 10, cy + 4, color);
+        ctx.fill(cx - 2, cy - 11, cx + 10, cy - 8, color);
+    }
+
+    /** Three bars that dance while the music plays and stand still when it is paused. */
+    private static void drawEqualizer(DrawContext ctx, int x, int y, boolean playing, int accent) {
+        double t = System.nanoTime() / 1e9;
+        for (int i = 0; i < 3; i++) {
+            double k = playing ? 0.5 + 0.5 * Math.sin(t * (4.2 + i * 1.7) + i * 2.0) : 0.35;
+            int h = 3 + (int) Math.round(8 * k);
+            Ui.roundRect(ctx, x + i * 5, y + 11 - h, 3, h, 1, Ui.alpha(accent & 0xFFFFFF, playing ? 0.95f : 0.45f));
+        }
+    }
+
     @Override
     public void renderHud(DrawContext ctx, MinecraftClient mc) {
         if (!showPlayer.on() || source.index() != 0 || mc.options.hudHidden) {
@@ -905,11 +925,18 @@ public final class WorldLyrics extends Module {
             Ui.texturedRoundUv(ctx, x + 6, y + 6, cover, cover, 7, mc.getTextureManager().getTexture(artId).getGlId(), 0f, 0f, 1f, 1f);
         } else {
             Ui.roundRect(ctx, x + 6, y + 6, cover, cover, 7, Ui.alpha(th.accent() & 0xFFFFFF, 0.3f));
-            Ui.textCentered(ctx, tr, t.title().substring(0, 1).toUpperCase(), x + 6 + cover / 2, y + 6 + cover / 2 - 4, th.text());
+            if (musicIcon.on()) {
+                drawNote(ctx, x + 6 + cover / 2, y + 6 + cover / 2, Ui.alpha(th.text() & 0xFFFFFF, 0.9f));
+            } else {
+                Ui.textCentered(ctx, tr, t.title().substring(0, 1).toUpperCase(), x + 6 + cover / 2, y + 6 + cover / 2 - 4, th.text());
+            }
+        }
+        if (musicIcon.on()) {
+            drawEqualizer(ctx, x + PLAYER.w - 18, y + 8, t.playing(), th.accent());
         }
         int tx = x + cover + 14;
         int tw = PLAYER.w - cover - 24;
-        Ui.text(ctx, tr, tr.trimToWidth(t.title(), tw), tx, y + 8, th.text());
+        Ui.text(ctx, tr, tr.trimToWidth(t.title(), musicIcon.on() ? tw - 16 : tw), tx, y + 8, th.text());
         Ui.text(ctx, tr, tr.trimToWidth(t.artist().isEmpty() ? t.source() : t.artist(), tw), tx, y + 20, th.accent());
         double pos = NowPlaying.position();
         double dur = t.duration();
