@@ -3,14 +3,14 @@ package com.example.neurocanvas.gui;
 import com.example.neurocanvas.ai.AiConfig;
 import com.example.neurocanvas.ai.AiPlan;
 import com.example.neurocanvas.client.NeuroCanvasClient;
-import com.example.neurocanvas.module.NeuroAura;
+import com.example.neurocanvas.module.NeuroConfig;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 
-/** The NeuroAura tab: a chat with the AI, the list of AI effects, and the connection form. */
+/** The NeuroConfig tab: a chat with the AI, the list of AI effects, and the connection form. */
 public final class AiPanel {
     private enum View { CHAT, CONNECTION }
 
@@ -19,7 +19,7 @@ public final class AiPanel {
     private record Row(int x, int y, int w, int h, Runnable left, Runnable right, boolean scrolled) { }
 
     /** A chat bubble after layout: wrapped text, the plan lines to show, and its size and position. */
-    private record Item(NeuroAura.ChatMessage msg, List<String> lines, List<AiPlan.Line> plan, int more, int w, int h,
+    private record Item(NeuroConfig.ChatMessage msg, List<String> lines, List<AiPlan.Line> plan, int more, int w, int h,
                         int y, boolean buttons, boolean statusLine) { }
 
     private static final String[] IDEAS = {
@@ -31,7 +31,7 @@ public final class AiPanel {
         "кибер-стиль: неон, фиолетовый и голубой",
     };
 
-    private final TextBox input = new TextBox("Write to NeuroAura (Enter to send)", 400, false);
+    private final TextBox input = new TextBox("Write to NeuroConfig (Enter to send)", 400, false);
     private final TextBox url = new TextBox("https://api.openai.com/v1", 200, false);
     private final TextBox key = new TextBox("API key", 300, true);
     private final TextBox model = new TextBox("gpt-4o-mini", 100, false);
@@ -48,8 +48,8 @@ public final class AiPanel {
     private int maxScroll;
     private int lastMessageCount;
 
-    private NeuroAura aura() {
-        return NeuroCanvasClient.modules().get(NeuroAura.class);
+    private NeuroConfig neuroConfig() {
+        return NeuroCanvasClient.modules().get(NeuroConfig.class);
     }
 
     public boolean hasFocus() {
@@ -169,15 +169,15 @@ public final class AiPanel {
 
     private void send() {
         String text = input.text().trim();
-        if (!text.isEmpty() && !aura().working()) {
+        if (!text.isEmpty() && !neuroConfig().working()) {
             input.set("");
             stick = true;
-            aura().send(text);
+            neuroConfig().send(text);
         }
     }
 
     private void toggleAutoApply() {
-        AiConfig c = aura().config();
+        AiConfig c = neuroConfig().config();
         c.autoApply = !c.autoApply;
         try {
             c.save();
@@ -187,7 +187,7 @@ public final class AiPanel {
     }
 
     private void openConnection() {
-        AiConfig c = aura().config();
+        AiConfig c = neuroConfig().config();
         url.set(c.baseUrl);
         key.set(c.apiKey);
         model.set(c.model);
@@ -196,7 +196,7 @@ public final class AiPanel {
     }
 
     private void saveConnection() {
-        AiConfig c = aura().config();
+        AiConfig c = neuroConfig().config();
         c.baseUrl = url.text().trim();
         c.apiKey = key.text().trim();
         c.model = model.text().trim();
@@ -270,9 +270,9 @@ public final class AiPanel {
     }
 
     private void renderChat(DrawContext ctx, Theme th, TextRenderer tr, int x, int y, int w, int h, int mx, int my) {
-        NeuroAura a = aura();
+        NeuroConfig a = neuroConfig();
         AiConfig cfg = a.config();
-        header(ctx, th, tr, x, y, w, "NeuroAura");
+        header(ctx, th, tr, x, y, w, "NeuroConfig");
         int bx = x + w - 12;
         bx -= 86;
         button("Connection", bx, y + 8, 86, 20, this::openConnection, false, true);
@@ -354,11 +354,11 @@ public final class AiPanel {
         ctx.disableScissor();
     }
 
-    private List<Item> layout(NeuroAura a, TextRenderer tr, int innerW) {
+    private List<Item> layout(NeuroConfig a, TextRenderer tr, int innerW) {
         List<Item> items = new ArrayList<>();
         int maxBubble = (int) (innerW * 0.84);
         int y = 4;
-        for (NeuroAura.ChatMessage m : a.chat()) {
+        for (NeuroConfig.ChatMessage m : a.chat()) {
             List<String> lines = Ui.wrap(tr, m.text, maxBubble - 16);
             int textW = 0;
             for (String l : lines) {
@@ -378,7 +378,7 @@ public final class AiPanel {
                     }
                 }
             }
-            boolean buttons = m.plan != null && (m.status == NeuroAura.Status.PENDING || a.canUndo(m));
+            boolean buttons = m.plan != null && (m.status == NeuroConfig.Status.PENDING || a.canUndo(m));
             boolean statusLine = m.plan != null && !buttons;
             int w = m.fromUser ? textW + 16 : Math.max(textW, planW) + 16;
             if (buttons) {
@@ -400,8 +400,8 @@ public final class AiPanel {
         return items;
     }
 
-    private void drawItem(DrawContext ctx, Theme th, TextRenderer tr, NeuroAura a, Item it, int x, int innerW, int mx, int my) {
-        NeuroAura.ChatMessage m = it.msg();
+    private void drawItem(DrawContext ctx, Theme th, TextRenderer tr, NeuroConfig a, Item it, int x, int innerW, int mx, int my) {
+        NeuroConfig.ChatMessage m = it.msg();
         int by = viewTop + it.y() - (int) scroll;
         if (by + it.h() < viewTop || by > viewBottom) {
             return;
@@ -434,7 +434,7 @@ public final class AiPanel {
         }
         if (it.buttons()) {
             ty += 8;
-            if (m.status == NeuroAura.Status.PENDING) {
+            if (m.status == NeuroConfig.Status.PENDING) {
                 inlineButton(ctx, th, tr, "Apply", bx + 8, ty, 80, true, () -> a.apply(m), mx, my);
                 inlineButton(ctx, th, tr, "Dismiss", bx + 96, ty, 80, false, () -> a.dismiss(m), mx, my);
             } else {

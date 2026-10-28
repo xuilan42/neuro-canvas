@@ -10,7 +10,7 @@ public final class PromptBuilder {
 
     public static String system(ModuleManager modules) {
         StringBuilder sb = new StringBuilder();
-        sb.append("You are NeuroAura, a brief, friendly assistant inside a Minecraft visual client. You chat with the player and, ")
+        sb.append("You are NeuroConfig, a brief, friendly assistant inside a Minecraft visual client. You chat with the player and, ")
                 .append("when they ask for a look or a change, you configure the client yourself. The player writes in any language; ")
                 .append("answer in the same language. Reply with ONE JSON object and nothing else (no prose, no markdown).\n\n")
                 .append("JSON shape:\n")

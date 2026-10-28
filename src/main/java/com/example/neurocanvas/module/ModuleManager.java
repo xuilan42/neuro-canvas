@@ -90,6 +90,9 @@ public final class ModuleManager {
             if (saved == null && m.name.equals("Model")) {
                 saved = config.get("Cosmetics");
             }
+            if (saved == null && m.name.equals("NeuroConfig")) {
+                saved = config.get("NeuroAura");
+            }
             if (saved == null) {
                 continue;
             }

@@ -35,7 +35,7 @@ import net.minecraft.util.math.Vec3d;
 import com.example.neurocanvas.fx.EffectDraw;
 
 /**
- * Shows a "NeuroAura" plate above other players who also run the mod on the same server. Players are matched
+ * Shows a "NeuroCanvas" plate above other players who also run the mod on the same server. Players are matched
  * through a small registry server (see registry-server/), grouped by server address, so it works on offline-mode
  * servers and one nick on two servers stays two separate entries. Off by default; sends only server address and nick.
  */
@@ -44,7 +44,7 @@ public final class NameTags extends Module {
     private static final HttpClient HTTP = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(8)).build();
 
-    private final Setting label = add(Setting.choice("Text", 0, "NeuroAura", "Neuro", "NC"));
+    private final Setting label = add(Setting.choice("Text", 0, "NeuroCanvas", "Neuro", "NC"));
     private final Setting height = add(Setting.number("Height", 0, 1.5, 0.45));
     private final Setting scale = add(Setting.number("Scale", 0.5, 2, 1));
     private final Setting color = add(Setting.color("Color", 0.42));
@@ -82,7 +82,7 @@ public final class NameTags extends Module {
     private String connectedTo = "";
 
     public NameTags() {
-        super("NameTags", Category.FRIENDS, "Plate above other NeuroAura users on the same server", false);
+        super("NameTags", Category.FRIENDS, "Plate above other Neuro Canvas users on the same server", false);
         aiControllable = false;
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> stop());
         try {

@@ -22,7 +22,7 @@ import net.minecraft.text.Text;
 /**
  * The menu window: a header with the logo, the search and the close button, a vertical list of sections on the left, and on
  * the right the modules of the section as cards. A card shows the module's name, description and switch; a click on it
- * unfolds the settings in place. Friends and Market open as a full page with a back button, and NeuroAura and Configs keep
+ * unfolds the settings in place. Friends and Market open as a full page with a back button, and NeuroConfig and Configs keep
  * their own two-column pages. The layout is computed from the screen size on every frame and click.
  */
 public final class ClickGui extends Screen {
@@ -2116,9 +2116,9 @@ public final class ClickGui extends Screen {
 
     @Override
     public void filesDragged(java.util.List<java.nio.file.Path> paths) {
-        // A picture dropped on the NeuroAura tab is attached to the next message.
+        // A picture dropped on the NeuroConfig tab is attached to the next message.
         if (aiView() && !paths.isEmpty()) {
-            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NeuroAura.class).attach(paths.get(0));
+            NeuroCanvasClient.modules().get(com.example.neurocanvas.module.NeuroConfig.class).attach(paths.get(0));
             return;
         }
         super.filesDragged(paths);

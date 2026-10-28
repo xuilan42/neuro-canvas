@@ -20,7 +20,7 @@ import org.slf4j.LoggerFactory;
  * (changes to the settings of other modules). Changes are applied at once or on confirmation, saved as a preset,
  * and the newest one can always be undone.
  */
-public final class NeuroAura extends Module {
+public final class NeuroConfig extends Module {
     public enum Status { NONE, PENDING, APPLIED, UNDONE, DISMISSED }
 
     /** One line of the chat. AI messages may carry a plan with its own apply/undo state. */
@@ -53,8 +53,8 @@ public final class NeuroAura extends Module {
     private final com.example.neurocanvas.ai.VoiceRecorder recorder = new com.example.neurocanvas.ai.VoiceRecorder();
     private boolean transcribing;
 
-    public NeuroAura(AiConfig config) {
-        super("NeuroAura", Category.AI, "Chat with an AI that answers briefly and configures the client for you", true);
+    public NeuroConfig(AiConfig config) {
+        super("NeuroConfig", Category.AI, "Chat with an AI that answers briefly and configures the client for you", true);
         this.config = config;
         aiControllable = false;
     }
@@ -244,7 +244,7 @@ public final class NeuroAura extends Module {
                             }
                         }
                     } catch (AiException e) {
-                        LOGGER.warn("NeuroAura request failed: {}", e.getMessage());
+                        LOGGER.warn("NeuroConfig request failed: {}", e.getMessage());
                         chat.add(new ChatMessage(false, e.getMessage(), true));
                     }
                 }));

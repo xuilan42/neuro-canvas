@@ -44,7 +44,7 @@ import com.example.neurocanvas.module.JumpCircles;
 import com.example.neurocanvas.module.Module;
 import com.example.neurocanvas.module.ModuleManager;
 import com.example.neurocanvas.module.NameTags;
-import com.example.neurocanvas.module.NeuroAura;
+import com.example.neurocanvas.module.NeuroConfig;
 import com.example.neurocanvas.module.Particles;
 import com.example.neurocanvas.module.PingWheel;
 import com.example.neurocanvas.module.RenderEnv;
@@ -122,7 +122,7 @@ public class NeuroCanvasClient implements ClientModInitializer {
         modules.register(new HitBubbles());
         modules.register(new HitColor());
         modules.register(new Crosshair());
-        modules.register(new NeuroAura(AiConfig.load(dir.resolve("ai.json"))));
+        modules.register(new NeuroConfig(AiConfig.load(dir.resolve("ai.json"))));
         modules.register(new PerformanceHud());
         modules.register(new CombatStats());
         modules.register(new InfoHud());
