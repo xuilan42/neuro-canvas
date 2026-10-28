@@ -44,6 +44,8 @@ public final class NameTags extends Module {
     private static final HttpClient HTTP = HttpClient.newBuilder().version(HttpClient.Version.HTTP_1_1)
             .connectTimeout(Duration.ofSeconds(8)).build();
 
+    private final Setting tabLogo = add(Setting.bool("Logo in the player list", true));
+    private final Setting plateOn = add(Setting.bool("Plate above the head", false));
     private final Setting label = add(Setting.choice("Text", 0, "NeuroCanvas", "Neuro", "NC"));
     private final Setting height = add(Setting.number("Height", 0, 1.5, 0.45));
     private final Setting scale = add(Setting.number("Scale", 0.5, 2, 1));
@@ -361,11 +363,17 @@ public final class NameTags extends Module {
         }
     }
 
+    /** True when this nick belongs to a user of the mod on this server (you included) and the logo in the player list is on. */
+    public boolean showsLogoFor(String nick) {
+        Set<String> names = online;
+        return enabled && tabLogo.on() && !names.isEmpty() && nick != null && names.contains(nick.toLowerCase(Locale.ROOT));
+    }
+
     @Override
     public void renderWorld(RenderEnv env) {
         Set<String> names = online;
         MinecraftClient mc = env.mc();
-        if (names.isEmpty() || mc.world == null) {
+        if (!plateOn.on() || names.isEmpty() || mc.world == null) {
             return;
         }
         for (PlayerEntity p : mc.world.getPlayers()) {

@@ -41,6 +41,7 @@
     "HotbarMixin",
     "HudPanelsMixin",
     "PlayerListHudMixin",
+    "PlayerListNameMixin",
     "SubtitlesHudMixin",
     "InGameHudMixin",
     "InGameOverlayRendererMixin",

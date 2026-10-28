@@ -214,7 +214,7 @@ An example avatar (`Example`) is created the first time.
 
 ## NameTags (plate over other users)
 
-Shows a "NeuroCanvas" plate above other players who run the mod on the same server. The mod keeps one connection to the
+Puts the Neuro Canvas logo in front of the name, in the player list (Tab), of the other players who run the mod on the same server (*Logo in the player list*); the old plate above their heads is still there as *Plate above the head*, off by default. The mod keeps one connection to the
 project's presence server, so joining and leaving show up at once, it works on offline-mode servers, and one nick on two
 servers stays two entries. Off by default. It sends only the server address and your nick, and nicks are not verified.
 `/neurotag status` shows the connection state. If you and a friend join the same server through different addresses (a domain and an IP), or want to meet on different servers, both run `/neurotag room <secret-name>`: everyone with the same room name sees each other's plates, pings and status, whatever server they are on (`/neurotag room off` goes back to matching by address). Treat the room name like a password; pings are marks at coordinates, so they only make sense when you are in the same world. The **NameTag** switch of FakePlayer shows the plate over the dummy, to test its look alone. The server address is set when the mod is built (`registry_url` in `gradle.properties`, a comma separated list: the next address is only used while the first is unreachable);
